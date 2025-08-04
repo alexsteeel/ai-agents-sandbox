@@ -92,10 +92,8 @@ read_domains_from_file() {
             domain=$(echo "$domain" | xargs)
             [[ -n "$domain" ]] && domains+=("$domain")
         done < "$file_path"
-    else
-        echo "WARNING: Domains file $file_path not found"
     fi
-    
+
     echo "${domains[@]}"
 }
 
@@ -112,9 +110,9 @@ DEFAULT_DOMAINS=(
     "www.jetbrains.com"
 )
 
-# Read domains from file if provided, otherwise use default domains
+# Read domains from file if provided and file exists, otherwise use default domains
 DOMAINS=("${DEFAULT_DOMAINS[@]}")
-if [[ -n "$DOMAINS_FILE" ]]; then
+if [[ -n "$DOMAINS_FILE" && -f "$DOMAINS_FILE" ]]; then
     echo "Using domains from $DOMAINS_FILE"
     FILE_DOMAINS=($(read_domains_from_file "$DOMAINS_FILE"))
     if [[ ${#FILE_DOMAINS[@]} -gt 0 ]]; then
@@ -124,6 +122,8 @@ if [[ -n "$DOMAINS_FILE" ]]; then
     else
         echo "No valid domains found in $DOMAINS_FILE, using only default domains"
     fi
+elif [[ -n "$DOMAINS_FILE" ]]; then
+    echo "Domains file $DOMAINS_FILE does not exist, ignoring and using only default domains"
 else
     echo "No domains file specified, using only default domains list"
 fi

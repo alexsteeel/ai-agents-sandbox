@@ -115,7 +115,7 @@ RUN chsh -s /usr/bin/zsh $USERNAME
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
 
-ONBUILD COPY allowed-domains.txt /usr/local/etc/
+#ONBUILD COPY allowed-domains.txt /usr/local/etc/
 ONBUILD RUN chmod +x /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh -d /usr/local/etc/allowed-domains.txt" > /etc/sudoers.d/node-firewall && \
   chmod 0440 /etc/sudoers.d/node-firewall

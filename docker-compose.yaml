@@ -1,0 +1,25 @@
+services:
+  docker-dind-rootless:
+    image: docker:28-dind-rootless
+    container_name: docker-dind-rootless
+    privileged: true
+    restart: unless-stopped
+    ports:
+    - "2376:2376"  # Docker daemon port (TLS)
+    volumes:
+    - docker-certs-ca:/certs/ca
+    - docker-certs-client:/certs/client
+    - docker-data:/home/rootless/.local/share/docker
+    environment:
+    - DOCKER_TLS_CERTDIR=/certs
+    networks:
+    - docker-network
+
+volumes:
+  docker-certs-ca:
+  docker-certs-client:
+  docker-data:
+
+networks:
+  docker-network:
+    driver: bridge
