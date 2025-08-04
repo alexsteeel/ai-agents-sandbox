@@ -1,0 +1,5 @@
+# Allowed domains for firewall configuration
+# One domain per line, empty lines and comments are ignored
+
+# Add your custom domains below
+example.com

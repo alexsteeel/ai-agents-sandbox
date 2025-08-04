@@ -2,6 +2,22 @@
 set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
 IFS=$'\n\t'       # Stricter word splitting
 
+# Parse command line arguments
+DOMAINS_FILE=""
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -d|--domains-file)
+            DOMAINS_FILE="$2"
+            shift 2
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [-d|--domains-file <domains_file_path>]"
+            exit 1
+            ;;
+    esac
+done
+
 # 1. Extract Docker DNS info BEFORE any flushing
 DOCKER_DNS_RULES=$(iptables-save -t nat | grep "127\.0\.0\.11" || true)
 
@@ -63,17 +79,56 @@ while read -r cidr; do
     ipset add allowed-domains "$cidr"
 done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
 
+# Function to read domains from a file
+read_domains_from_file() {
+    local file_path="$1"
+    local domains=()
+    
+    if [[ -f "$file_path" ]]; then
+        while IFS= read -r domain || [[ -n "$domain" ]]; do
+            # Skip empty lines and comments
+            [[ -z "$domain" || "$domain" =~ ^[[:space:]]*# ]] && continue
+            # Trim whitespace
+            domain=$(echo "$domain" | xargs)
+            [[ -n "$domain" ]] && domains+=("$domain")
+        done < "$file_path"
+    else
+        echo "WARNING: Domains file $file_path not found"
+    fi
+    
+    echo "${domains[@]}"
+}
+
 # Resolve and add other allowed domains
-for domain in \
-    "registry.npmjs.org" \
-    "api.anthropic.com" \
-    "sentry.io" \
-    "statsig.anthropic.com" \
-    "statsig.com" \
-    "account.jetbrains.com" \
-    "plugins.jetbrains.com" \
-    "download.jetbrains.com" \
-    "www.jetbrains.com"; do
+DEFAULT_DOMAINS=(
+    "registry.npmjs.org"
+    "api.anthropic.com"
+    "sentry.io"
+    "statsig.anthropic.com"
+    "statsig.com"
+    "account.jetbrains.com"
+    "plugins.jetbrains.com"
+    "download.jetbrains.com"
+    "www.jetbrains.com"
+)
+
+# Read domains from file if provided, otherwise use default domains
+DOMAINS=("${DEFAULT_DOMAINS[@]}")
+if [[ -n "$DOMAINS_FILE" ]]; then
+    echo "Using domains from $DOMAINS_FILE"
+    FILE_DOMAINS=($(read_domains_from_file "$DOMAINS_FILE"))
+    if [[ ${#FILE_DOMAINS[@]} -gt 0 ]]; then
+        echo "Adding ${#FILE_DOMAINS[@]} domains from file to default domains"
+        # Add file domains to default domains
+        DOMAINS+=("${FILE_DOMAINS[@]}")
+    else
+        echo "No valid domains found in $DOMAINS_FILE, using only default domains"
+    fi
+else
+    echo "No domains file specified, using only default domains list"
+fi
+
+for domain in "${DOMAINS[@]}"; do
     echo "Resolving $domain..."
     ips=$(dig +short A "$domain")
     if [ -z "$ips" ]; then
