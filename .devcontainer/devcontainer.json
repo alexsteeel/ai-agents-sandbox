@@ -1,22 +1,25 @@
 {
   "name": "Claude Code Sandbox",
-  "image": "claude-code-sandbox:1.0",
+  "image": "claude-code-sandbox-ul:1.0",
   "runArgs": [
     "--cap-add=NET_ADMIN",
     "--cap-add=NET_RAW",
+    "--cap-add=SYS_ADMIN",
+    "--cap-add=DAC_READ_SEARCH",
+    "--security-opt=apparmor=unconfined",
     "--name=claude-dev-environment",
-    "--network=claude_code_docker-network"
+    "--network=claude-sandbox-network"
   ],
-  "remoteUser": "node",
+  "containerUser": "claude",
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
-    "source=claude-code-config-${devcontainerId},target=/home/node/.claude,type=volume",
-    "source=docker-certs-client,target=/certs/client,type=volume,readonly"
+    "source=claude-code-config-${devcontainerId},target=/home/claude/.claude,type=volume",
+    "type=bind,source=${env:HOME}/.claude-docker-certs,target=/certs/client,readonly"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
-    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
-    "DOCKER_HOST": "tcp://docker-dind-rootless:2376",
+    "CLAUDE_CONFIG_DIR": "/home/claude/.claude",
+    "DOCKER_HOST": "tcp://docker:2376",
     "DOCKER_TLS_VERIFY": "1",
     "DOCKER_CERT_PATH": "/certs/client"
   },

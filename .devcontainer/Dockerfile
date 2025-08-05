@@ -40,7 +40,19 @@ RUN apt-get update && apt-get install -y lsb-release \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
-ARG USERNAME=node
+ARG USERNAME=claude
+ARG USER_UID=1001
+ARG USER_GID=$USER_UID
+ARG WORKSPACE_GID=2000
+ARG PASSWORD=claude
+
+RUN groupadd --gid 1001 claude \
+ && groupadd --gid 2000 dev \
+ && useradd --uid 1001 --gid 2000 -m claude \
+ && echo "claude:claude" | chpasswd \
+ && usermod -aG sudo claude \
+ && echo "claude ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/claude \
+ && chmod 0440 /etc/sudoers.d/claude
 
 # Add node user to docker group
 RUN usermod -aG docker $USERNAME || true
@@ -115,9 +127,7 @@ RUN chsh -s /usr/bin/zsh $USERNAME
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
 
-#ONBUILD COPY allowed-domains.txt /usr/local/etc/
+ONBUILD COPY allowed-domains.txt /usr/local/etc/
 ONBUILD RUN chmod +x /usr/local/bin/init-firewall.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh -d /usr/local/etc/allowed-domains.txt" > /etc/sudoers.d/node-firewall && \
   chmod 0440 /etc/sudoers.d/node-firewall
-
-ONBUILD USER $USERNAME

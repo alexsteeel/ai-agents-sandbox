@@ -1,0 +1,28 @@
+services:
+  docker-dind:
+    image: docker:28-dind
+    container_name: docker
+    privileged: true  # Required for DinD (uses overlay2, iptables, etc)
+    restart: unless-stopped
+    ports:
+    - "2376:2376"  # TLS Docker daemon
+    environment:
+    - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+    - docker-certs-ca:/certs/ca
+    - docker-certs-client:/certs/client
+    - docker-data:/var/lib/docker
+    tmpfs:
+    - /run
+    - /tmp
+    networks:
+    - claude-sandbox-network
+
+volumes:
+  docker-certs-ca:
+  docker-certs-client:
+  docker-data:
+
+networks:
+  claude-sandbox-network:
+    external: true
