@@ -106,7 +106,6 @@ DEFAULT_DOMAINS=(
     "statsig.com"
     "account.jetbrains.com"
     "plugins.jetbrains.com"
-    "download.jetbrains.com"
     "www.jetbrains.com"
 )
 

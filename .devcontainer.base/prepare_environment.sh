@@ -2,10 +2,10 @@
 
 docker compose down
 cp /home/$(basename "$HOME")/.p10k.zsh .
-docker build -f Dockerfile -t claude-code-sandbox:1.0 .
+docker build -t claude-code-sandbox:1.0 -f base.Dockerfile .
 
 docker network create claude-sandbox-network
-#docker compose up -d
+docker compose up -d
 mkdir -p ~/.claude-docker-certs
 docker cp docker:/certs/client/. ~/.claude-docker-certs
 ls ~/.claude-docker-certs
@@ -16,7 +16,6 @@ if [ $# -lt 1 ]; then
 fi
 
 # Create group
-# Config
 GROUP_NAME="dev"
 GROUP_GID="2000"
 

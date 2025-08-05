@@ -1,16 +1,17 @@
 {
   "name": "Claude Code Sandbox",
-  "image": "claude-code-sandbox-ul:1.0",
+  "build": {
+    "dockerfile": "example.Dockerfile",
+    "context": "."
+  },
   "runArgs": [
     "--cap-add=NET_ADMIN",
     "--cap-add=NET_RAW",
-    "--cap-add=SYS_ADMIN",
-    "--cap-add=DAC_READ_SEARCH",
-    "--security-opt=apparmor=unconfined",
-    "--name=claude-dev-environment",
+    "--name=claude-sandbox",
     "--network=claude-sandbox-network"
   ],
   "containerUser": "claude",
+  "updateRemoteUserUID": false,
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-config-${devcontainerId},target=/home/claude/.claude,type=volume",

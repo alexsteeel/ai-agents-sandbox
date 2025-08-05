@@ -2,4 +2,4 @@
 # One domain per line, empty lines and comments are ignored
 
 # Add your custom domains below
-example.com
+gitlab.com
