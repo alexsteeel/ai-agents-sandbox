@@ -5,7 +5,12 @@
       "Bash(git commit:*)",
       "Bash(git config:*)",
       "Bash(git reset:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(chmod:*)",
+      "Bash(ls:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:apidog.com)"
     ],
     "deny": []
   }

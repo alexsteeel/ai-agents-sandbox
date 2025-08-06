@@ -1,13 +1,14 @@
 {
-  "name": "Claude Code Sandbox",
+  "name": "Example Claude Code Sandbox",
+  "initializeCommand": "./.devcontainer/initialize.sh ./.",
   "build": {
-    "dockerfile": "example.Dockerfile",
+    "dockerfile": "Dockerfile",
     "context": "."
   },
   "runArgs": [
     "--cap-add=NET_ADMIN",
     "--cap-add=NET_RAW",
-    "--name=claude-sandbox",
+    "--name=example-claude-sandbox",
     "--network=claude-sandbox-network"
   ],
   "containerUser": "claude",
@@ -15,16 +16,19 @@
   "mounts": [
     "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-config-${devcontainerId},target=/home/claude/.claude,type=volume",
-    "type=bind,source=${env:HOME}/.claude-docker-certs,target=/certs/client,readonly"
+    "type=bind,source=${env:HOME}/.claude,target=/host-claude-config,readonly",
+    "type=bind,source=${env:HOME}/.claude-docker-certs,target=/certs/client,readonly",
+    "type=bind,source=${env:HOME}/.p10k.zsh,target=/etc/zsh/.p10k.zsh,readonly"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/claude/.claude",
+    "CLAUDE_SETTINGS": "${localEnv:CLAUDE_SETTINGS:HYBRID}",
     "DOCKER_HOST": "tcp://docker:2376",
     "DOCKER_TLS_VERIFY": "1",
     "DOCKER_CERT_PATH": "/certs/client"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postCreateCommand": "sudo /usr/local/bin/init-firewall.sh"
+  "postCreateCommand": "/home/claude/scripts/post-create.sh"
 }

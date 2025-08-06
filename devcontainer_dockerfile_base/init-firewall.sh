@@ -2,17 +2,47 @@
 set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
 IFS=$'\n\t'       # Stricter word splitting
 
+# Show help function
+show_help() {
+    cat << EOF
+Usage: $0 [-d|--domains-file <domains_file_path>] [-h|--help]
+
+Initialize firewall with restricted outbound access to allowed domains.
+
+Options:
+    -d, --domains-file FILE    Path to file containing additional allowed domains
+    -h, --help                Show this help message
+
+Description:
+    This script configures iptables to restrict outbound network access to only
+    approved domains and IP ranges. It automatically includes GitHub IP ranges
+    and common development domains.
+
+Examples:
+    $0                                    # Use default domains only
+    $0 -d /etc/allowed-domains.txt       # Include additional domains from file
+EOF
+}
+
 # Parse command line arguments
 DOMAINS_FILE=""
 while [[ $# -gt 0 ]]; do
     case $1 in
         -d|--domains-file)
+            if [[ -z "${2:-}" ]]; then
+                echo "Error: --domains-file requires a file path"
+                exit 1
+            fi
             DOMAINS_FILE="$2"
             shift 2
             ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
         *)
-            echo "Unknown option: $1"
-            echo "Usage: $0 [-d|--domains-file <domains_file_path>]"
+            echo "Error: Unknown option: $1"
+            show_help
             exit 1
             ;;
     esac
@@ -82,7 +112,6 @@ done < <(echo "$gh_ranges" | jq -r '(.web + .api + .git)[]' | aggregate -q)
 # Function to read domains from a file
 read_domains_from_file() {
     local file_path="$1"
-    local domains=()
     
     if [[ -f "$file_path" ]]; then
         while IFS= read -r domain || [[ -n "$domain" ]]; do
@@ -90,11 +119,9 @@ read_domains_from_file() {
             [[ -z "$domain" || "$domain" =~ ^[[:space:]]*# ]] && continue
             # Trim whitespace
             domain=$(echo "$domain" | xargs)
-            [[ -n "$domain" ]] && domains+=("$domain")
+            [[ -n "$domain" ]] && echo "$domain"
         done < "$file_path"
     fi
-
-    echo "${domains[@]}"
 }
 
 # Resolve and add other allowed domains
@@ -113,7 +140,7 @@ DEFAULT_DOMAINS=(
 DOMAINS=("${DEFAULT_DOMAINS[@]}")
 if [[ -n "$DOMAINS_FILE" && -f "$DOMAINS_FILE" ]]; then
     echo "Using domains from $DOMAINS_FILE"
-    FILE_DOMAINS=($(read_domains_from_file "$DOMAINS_FILE"))
+    readarray -t FILE_DOMAINS < <(read_domains_from_file "$DOMAINS_FILE")
     if [[ ${#FILE_DOMAINS[@]} -gt 0 ]]; then
         echo "Adding ${#FILE_DOMAINS[@]} domains from file to default domains"
         # Add file domains to default domains
@@ -127,28 +154,53 @@ else
     echo "No domains file specified, using only default domains list"
 fi
 
+DNS_FAILED_DOMAINS=()
 for domain in "${DOMAINS[@]}"; do
     echo "Resolving $domain..."
-    ips=$(dig +short A "$domain")
+    ips=$(dig +short A "$domain" 2>/dev/null)
     if [ -z "$ips" ]; then
-        echo "ERROR: Failed to resolve $domain"
-        exit 1
+        echo "WARNING: Failed to resolve $domain - DNS lookup returned no results"
+        DNS_FAILED_DOMAINS+=("$domain")
+        continue
     fi
     
+    domain_resolved=false
     while read -r ip; do
+        # Skip CNAME responses and other non-IP results
         if [[ ! "$ip" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
-            echo "ERROR: Invalid IP from DNS for $domain: $ip"
-            exit 1
+            echo "Skipping non-IP result for $domain: $ip"
+            continue
         fi
         echo "Adding $ip for $domain"
         ipset add allowed-domains "$ip"
+        domain_resolved=true
     done < <(echo "$ips")
+    
+    if [ "$domain_resolved" = false ]; then
+        echo "WARNING: No valid IP addresses found for $domain"
+        DNS_FAILED_DOMAINS+=("$domain")
+    fi
 done
 
+# Report DNS resolution failures
+if [ ${#DNS_FAILED_DOMAINS[@]} -gt 0 ]; then
+    echo "WARNING: Failed to resolve the following domains:"
+    for failed_domain in "${DNS_FAILED_DOMAINS[@]}"; do
+        echo "  - $failed_domain"
+    done
+    echo "These domains will not be accessible through the firewall"
+fi
+
 # Get host IP from default route
-HOST_IP=$(ip route | grep default | cut -d" " -f3)
-if [ -z "$HOST_IP" ]; then
+HOST_IP=$(ip route | grep default | awk '{print $3}' | head -n1)
+if [[ -z "$HOST_IP" ]]; then
     echo "ERROR: Failed to detect host IP"
+    exit 1
+fi
+
+# Validate IP format
+if [[ ! "$HOST_IP" =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+    echo "ERROR: Invalid host IP detected: $HOST_IP"
     exit 1
 fi
 
@@ -173,6 +225,8 @@ iptables -A OUTPUT -m set --match-set allowed-domains dst -j ACCEPT
 
 echo "Firewall configuration complete"
 echo "Verifying firewall rules..."
+
+# Test that blocked domains are actually blocked
 if curl --connect-timeout 5 https://example.com >/dev/null 2>&1; then
     echo "ERROR: Firewall verification failed - was able to reach https://example.com"
     exit 1
@@ -180,17 +234,31 @@ else
     echo "Firewall verification passed - unable to reach https://example.com as expected"
 fi
 
-# Verify GitHub API access
+# Verify access to all allowed domains
+VERIFICATION_FAILED=0
+for domain in "${DOMAINS[@]}"; do
+    echo "Verifying access to $domain..."
+    if ! curl --connect-timeout 5 "https://$domain" >/dev/null 2>&1; then
+        echo "WARNING: Unable to reach $domain"
+        VERIFICATION_FAILED=1
+    else
+        echo "Firewall verification passed - able to reach $domain as expected"
+    fi
+done
+
+# Additional specific checks for critical services
+echo "Performing additional critical service checks..."
+
+# Verify GitHub API access specifically
 if ! curl --connect-timeout 5 https://api.github.com/zen >/dev/null 2>&1; then
     echo "ERROR: Firewall verification failed - unable to reach https://api.github.com"
     exit 1
 else
-    echo "Firewall verification passed - able to reach https://api.github.com as expected"
+    echo "Critical service verification passed - GitHub API accessible"
 fi
 
-# Verify JetBrains access
-if ! curl --connect-timeout 5 https://plugins.jetbrains.com >/dev/null 2>&1; then
-    echo "WARNING: Unable to reach JetBrains plugins repository"
+if [[ $VERIFICATION_FAILED -eq 1 ]]; then
+    echo "WARNING: Some domain verifications failed, but continuing with firewall setup"
 else
-    echo "Firewall verification passed - able to reach JetBrains services"
+    echo "All domain verifications passed successfully"
 fi

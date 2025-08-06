@@ -108,16 +108,18 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
 # Copy configuration files
 COPY --chown=$USERNAME:$USERNAME .zshrc /home/$USERNAME/.zshrc
 COPY --chown=$USERNAME:$USERNAME .tmux.conf /home/$USERNAME/.tmux.conf
-COPY --chown=$USERNAME:$USERNAME .p10k.zsh /home/$USERNAME/.p10k.zsh
 
 # Install tmux plugin manager
 RUN git clone https://github.com/tmux-plugins/tpm /home/$USERNAME/.tmux/plugins/tpm
 
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+COPY --chown=$USERNAME:$USERNAME claude-defaults /home/$USERNAME/.claude
 
 # Install tmux plugins
 RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
+
+COPY --chown=$USERNAME:$USERNAME post-create.sh /home/$USERNAME/scripts/
 
 USER root
 
@@ -126,8 +128,5 @@ RUN chsh -s /usr/bin/zsh $USERNAME
 
 # Copy and set up firewall script
 COPY init-firewall.sh /usr/local/bin/
-
+RUN chmod +x /usr/local/bin/init-firewall.sh
 ONBUILD COPY allowed-domains.txt /usr/local/etc/
-ONBUILD RUN chmod +x /usr/local/bin/init-firewall.sh && \
-  echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh -d /usr/local/etc/allowed-domains.txt" > /etc/sudoers.d/node-firewall && \
-  chmod 0440 /etc/sudoers.d/node-firewall
