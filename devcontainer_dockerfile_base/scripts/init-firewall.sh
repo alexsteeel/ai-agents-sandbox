@@ -1,28 +1,4 @@
 #!/bin/bash
-set -euo pipefail  # Exit on error, undefined vars, and pipeline failures
-IFS=$'\n\t'       # Stricter word splitting
-
-# Show help function
-show_help() {
-    cat << EOF
-Usage: $0 [-d|--domains-file <domains_file_path>] [-h|--help]
-
-Initialize firewall with restricted outbound access to allowed domains.
-
-Options:
-    -d, --domains-file FILE    Path to file containing additional allowed domains
-    -h, --help                Show this help message
-
-Description:
-    This script configures iptables to restrict outbound network access to only
-    approved domains and IP ranges. It automatically includes GitHub IP ranges
-    and common development domains.
-
-Examples:
-    $0                                    # Use default domains only
-    $0 -d /etc/allowed-domains.txt       # Include additional domains from file
-EOF
-}
 
 # Parse command line arguments
 DOMAINS_FILE=""
@@ -35,10 +11,6 @@ while [[ $# -gt 0 ]]; do
             fi
             DOMAINS_FILE="$2"
             shift 2
-            ;;
-        -h|--help)
-            show_help
-            exit 0
             ;;
         *)
             echo "Error: Unknown option: $1"

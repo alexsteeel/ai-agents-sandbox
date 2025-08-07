@@ -10,7 +10,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   less \
   git \
   procps \
-  sudo \
   fzf \
   zsh \
   man-db \
@@ -31,7 +30,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   ca-certificates \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Install Docker CLI only
+# Install Docker CLI
 RUN apt-get update && apt-get install -y lsb-release \
   && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
@@ -42,25 +41,19 @@ RUN apt-get update && apt-get install -y lsb-release \
 
 ARG USERNAME=claude
 ARG USER_UID=1001
-ARG USER_GID=$USER_UID
+ARG USER_GID=1001
 ARG WORKSPACE_GID=2000
-ARG PASSWORD=claude
+ARG WORKSPACE_GROUPNAME=dev
 
-RUN groupadd --gid 1001 claude \
- && groupadd --gid 2000 dev \
- && useradd --uid 1001 --gid 2000 -m claude \
- && echo "claude:claude" | chpasswd \
- && usermod -aG sudo claude \
- && echo "claude ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/claude \
- && chmod 0440 /etc/sudoers.d/claude
+RUN groupadd --gid $USER_GID $USERNAME \
+    && groupadd --gid $WORKSPACE_GID $WORKSPACE_GROUPNAME \
+    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
+    && usermod -aG docker,$WORKSPACE_GROUPNAME $USERNAME || true
 
-# Add node user to docker group
-RUN usermod -aG docker $USERNAME || true
 
 # Generate locale
 RUN locale-gen en_US.UTF-8
 
-# Ensure default user has access to /usr/local/share
 RUN mkdir -p /usr/local/share/npm-global && \
   chown -R $USERNAME:$USERNAME /usr/local/share
 
@@ -82,8 +75,20 @@ WORKDIR /workspace
 ARG GIT_DELTA_VERSION=0.18.2
 RUN ARCH=$(dpkg --print-architecture) && \
   wget "https://github.com/dandavison/delta/releases/download/${GIT_DELTA_VERSION}/git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
-  sudo dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
+  dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
+
+USER root
+
+# Set zsh as the default shell
+RUN chsh -s /usr/bin/zsh $USERNAME
+
+# Copy and set up firewall and init script
+COPY scripts/ /usr/local/bin/
+RUN chown root:root /usr/local/bin/init-firewall.sh \
+    && chown root:root /usr/local/bin/root-on-build-init.sh \
+    && chmod 500 /usr/local/bin/init-firewall.sh \
+    && chmod 500 /usr/local/bin/root-on-build-init.sh
 
 # Set up non-root user
 USER $USERNAME
@@ -106,27 +111,19 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
     git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 
 # Copy configuration files
-COPY --chown=$USERNAME:$USERNAME .zshrc /home/$USERNAME/.zshrc
-COPY --chown=$USERNAME:$USERNAME .tmux.conf /home/$USERNAME/.tmux.conf
+COPY --chown=$USERNAME:$USERNAME conf/.zshrc /home/$USERNAME/.zshrc
+COPY --chown=$USERNAME:$USERNAME conf/.tmux.conf /home/$USERNAME/.tmux.conf
 
 # Install tmux plugin manager
 RUN git clone https://github.com/tmux-plugins/tpm /home/$USERNAME/.tmux/plugins/tpm
 
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
-COPY --chown=$USERNAME:$USERNAME claude-defaults /home/$USERNAME/.claude
+COPY --chown=$USERNAME:$USERNAME claude-defaults /home/$USERNAME/claude-defaults
 
 # Install tmux plugins
 RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
 
-COPY --chown=$USERNAME:$USERNAME post-create.sh /home/$USERNAME/scripts/
+COPY --chown=$USERNAME:$USERNAME scripts/non-root-post-create.sh /home/$USERNAME/scripts/
 
-USER root
-
-# Set zsh as the default shell
-RUN chsh -s /usr/bin/zsh $USERNAME
-
-# Copy and set up firewall script
-COPY init-firewall.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/init-firewall.sh
 ONBUILD COPY allowed-domains.txt /usr/local/etc/

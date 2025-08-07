@@ -12,13 +12,13 @@
     "--network=claude-sandbox-network"
   ],
   "containerUser": "claude",
-  "updateRemoteUserUID": false,
+  "updateRemoteUserUID": true,
   "mounts": [
-    "source=claude-code-bashhistory-${devcontainerId},target=/commandhistory,type=volume",
     "source=claude-code-config-${devcontainerId},target=/home/claude/.claude,type=volume",
-    "type=bind,source=${env:HOME}/.claude,target=/host-claude-config,readonly",
+    "source=claude-code-zshhistory,target=/home/claude/.zsh_history,type=volume",
+    "type=bind,source=${env:HOME}/.claude,target=/host/.claude,readonly",
     "type=bind,source=${env:HOME}/.claude-docker-certs,target=/certs/client,readonly",
-    "type=bind,source=${env:HOME}/.p10k.zsh,target=/etc/zsh/.p10k.zsh,readonly"
+    "type=bind,source=${env:HOME}/.p10k.zsh,target=/host/.p10k.zsh,readonly"
   ],
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
@@ -30,5 +30,5 @@
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",
-  "postCreateCommand": "/home/claude/scripts/post-create.sh"
+  "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh"
 }
