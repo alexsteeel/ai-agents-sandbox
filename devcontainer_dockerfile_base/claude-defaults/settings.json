@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(shellcheck:*)",
+      "Bash(shfmt:*)",
+      "Bash(hadolint:*)",
+      "Bash(yamllint:*)",
+      "Bash(find:*)",
+      "Bash(uv:*)",
+      "Bash(uvx:*)",
+      "Write",
+      "Edit"
+    ],
+    "deny": []
+  },
+  "hooks": {
+    "SubagentStop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run .claude/hooks/lint_common.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run .claude/hooks/lint_python.py"
+          }
+        ]
+      }
+    ]
+  }
+}

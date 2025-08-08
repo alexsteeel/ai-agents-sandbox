@@ -6,10 +6,8 @@
     "context": "."
   },
   "runArgs": [
-    "--cap-add=NET_ADMIN",
-    "--cap-add=NET_RAW",
-    "--name=example-claude-sandbox",
-    "--network=claude-sandbox-network"
+    "--name=claude-sandbox-${devcontainerId}",
+    "--network=claude-internal"
   ],
   "containerUser": "claude",
   "updateRemoteUserUID": true,
@@ -26,7 +24,13 @@
     "CLAUDE_SETTINGS": "${localEnv:CLAUDE_SETTINGS:HYBRID}",
     "DOCKER_HOST": "tcp://docker:2376",
     "DOCKER_TLS_VERIFY": "1",
-    "DOCKER_CERT_PATH": "/certs/client"
+    "DOCKER_CERT_PATH": "/certs/client",
+    "HTTP_PROXY": "http://egress-proxy:8888",
+    "HTTPS_PROXY": "http://egress-proxy:8888",
+    "NO_PROXY": "localhost,127.0.0.1,::1,docker-dind,egress-proxy",
+    "http_proxy": "http://egress-proxy:8888",
+    "https_proxy": "http://egress-proxy:8888",
+    "no_proxy": "localhost,127.0.0.1,::1,docker-dind,egress-proxy"
   },
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
   "workspaceFolder": "/workspace",

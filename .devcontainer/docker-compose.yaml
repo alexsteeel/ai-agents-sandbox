@@ -8,6 +8,12 @@ services:
     - "2376:2376"  # TLS Docker daemon
     environment:
     - DOCKER_TLS_CERTDIR=/certs
+    - HTTP_PROXY=http://egress-proxy:8888
+    - HTTPS_PROXY=http://egress-proxy:8888
+    - NO_PROXY=localhost,127.0.0.1,::1,docker,docker-dind,egress-proxy
+    - http_proxy=http://egress-proxy:8888
+    - https_proxy=http://egress-proxy:8888
+    - no_proxy=localhost,127.0.0.1,::1,docker,docker-dind,egress-proxy
     volumes:
     - docker-certs-ca:/certs/ca
     - docker-certs-client:/certs/client
@@ -16,7 +22,19 @@ services:
     - /run
     - /tmp
     networks:
-    - claude-sandbox-network
+    - claude-internal
+
+  egress-proxy:
+    image: vimagick/tinyproxy
+    container_name: egress-proxy
+    restart: unless-stopped
+    volumes:
+    - ./tinyproxy:/etc/tinyproxy:ro
+    - ./tinyproxy-logs:/var/log/tinyproxy
+    command: ["tinyproxy", "-d", "-c", "/etc/tinyproxy/tinyproxy.conf"]
+    networks:
+    - claude-internal
+    - claude-external
 
 volumes:
   docker-certs-ca:
@@ -24,5 +42,10 @@ volumes:
   docker-data:
 
 networks:
-  claude-sandbox-network:
-    external: true
+  claude-internal:
+    name: claude-internal
+    driver: bridge
+    internal: true
+  claude-external:
+    name: claude-external
+    driver: bridge

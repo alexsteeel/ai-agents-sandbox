@@ -15,14 +15,64 @@ fi
 echo "Starting initialization with target directory: $TARGET_DIR"
 
 echo "Setting up Docker environment..."
-docker compose -f ./.devcontainer/docker-compose.yaml down || echo "Warning: docker compose down failed (container may not be running)"
+docker compose -f ./.devcontainer/docker-compose.yaml down || echo "Warning: docker compose down failed (containers may not be running)"
+echo "Starting supporting services (proxy, docker-dind) with Compose-managed networks..."
 
-if ! docker network ls | grep -q claude-sandbox-network; then
-    echo "Creating claude-sandbox-network..."
-    docker network create claude-sandbox-network
-else
-    echo "Network claude-sandbox-network already exists"
-fi
+# Generate Tinyproxy configuration and filter from allowed domains
+generate_tinyproxy_conf() {
+    local conf_dir="./.devcontainer/tinyproxy"
+    local logs_dir="./.devcontainer/tinyproxy-logs"
+    local conf_file="${conf_dir}/tinyproxy.conf"
+    local filter_file="${conf_dir}/filter"
+    local domains_file="./.devcontainer/allowed-domains.txt"
+    local default_domains_file="/usr/local/etc/default-allowed-domains.txt"
+    echo "Generating Tinyproxy config at ${conf_file}..."
+    mkdir -p "${conf_dir}" "${logs_dir}"
+
+    # Base config
+    cat >"${conf_file}" <<'TPCONF'
+Port 8888
+Timeout 600
+MaxClients 100
+StartServers 5
+MinSpareServers 5
+MaxSpareServers 20
+LogLevel Info
+LogFile "/var/log/tinyproxy/tinyproxy.log"
+PidFile "/var/run/tinyproxy/tinyproxy.pid"
+DisableViaHeader Yes
+ConnectPort 443
+ConnectPort 80
+
+# Filtering: default deny, allow only patterns in Filter file
+Filter "/etc/tinyproxy/filter"
+FilterExtended Yes
+FilterURLs On
+FilterDefaultDeny Yes
+TPCONF
+
+    # Build filter allowlist from default + project domains (ignore comments/empty, dedupe)
+    : >"${filter_file}"
+    if [[ -f "${default_domains_file}" || -f "${domains_file}" ]]; then
+        echo "Building filter from default + project allowlists"
+        # shellcheck disable=SC2016
+        mapfile -t domains < <(cat "${default_domains_file}" "${domains_file}" 2>/dev/null \
+            | sed -e 's/#.*$//' -e 's/^\s*//' -e 's/\s*$//' \
+            | awk 'NF' \
+            | sort -u)
+        for domain in "${domains[@]}"; do
+            # Escape dots for regex and allow subdomains
+            escaped=$(printf '%s' "$domain" | sed 's/\./\\\./g')
+            echo "://\(.*\\.\)?${escaped}\(/\|$\)" >>"${filter_file}"
+        done
+    else
+        echo "Warning: No allowlist files found. All outbound traffic will be blocked by default."
+    fi
+
+    echo "Tinyproxy configuration generated."
+}
+
+generate_tinyproxy_conf
 
 echo "Starting Docker containers..."
 docker compose -f ./.devcontainer/docker-compose.yaml  up -d

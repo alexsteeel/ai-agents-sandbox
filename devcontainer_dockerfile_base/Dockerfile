@@ -5,7 +5,7 @@ ENV TZ="$TZ"
 
 ARG CLAUDE_CODE_VERSION=latest
 
-# Install basic development tools and iptables/ipset
+# Install basic development tools and linters
 RUN apt-get update && apt-get install -y --no-install-recommends \
   less \
   git \
@@ -15,9 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   man-db \
   unzip \
   gnupg2 \
-  gh \
-  iptables \
-  ipset \
   iproute2 \
   dnsutils \
   aggregate \
@@ -28,14 +25,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   locales \
   wget \
   ca-certificates \
+  shellcheck \
+  yamllint \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install Docker CLI
+ARG DOCKER_CLI_VERSION="5:28.0.0-1~debian.12~bookworm"
 RUN apt-get update && apt-get install -y lsb-release \
   && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg \
   && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null \
   && apt-get update \
-  && apt-get install -y docker-ce-cli \
+  && apt-get install -y docker-ce-cli=${DOCKER_CLI_VERSION} \
   && apt-get clean \
   && rm -rf /var/lib/apt/lists/*
 
@@ -83,12 +83,31 @@ USER root
 # Set zsh as the default shell
 RUN chsh -s /usr/bin/zsh $USERNAME
 
-# Copy and set up firewall and init script
-COPY scripts/ /usr/local/bin/
-RUN chown root:root /usr/local/bin/init-firewall.sh \
-    && chown root:root /usr/local/bin/root-on-build-init.sh \
-    && chmod 500 /usr/local/bin/init-firewall.sh \
-    && chmod 500 /usr/local/bin/root-on-build-init.sh
+# Install hadolint
+ENV HADOLINT_VERSION=2.12.0
+RUN set -eux; \
+    ARCH=$(dpkg --print-architecture); \
+    if [ "$ARCH" = "amd64" ]; then HAD_ARCH="x86_64"; \
+    elif [ "$ARCH" = "arm64" ]; then HAD_ARCH="arm64"; \
+    else echo "Unsupported arch: $ARCH" && exit 1; fi; \
+    wget -O /usr/local/bin/hadolint \
+      "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-Linux-${HAD_ARCH}"; \
+    chmod +x /usr/local/bin/hadolint
+
+# Install uv (Astral) for running Python hooks and tools
+ENV UV_INSTALL_DIR=/usr/local/bin
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install shfmt
+ENV SHFMT_VERSION=3.7.0
+RUN set -eux; \
+    ARCH=$(dpkg --print-architecture); \
+    if [ "$ARCH" = "amd64" ]; then SHFMT_ARCH="amd64"; \
+    elif [ "$ARCH" = "arm64" ]; then SHFMT_ARCH="arm64"; \
+    else echo "Unsupported arch: $ARCH" && exit 1; fi; \
+    wget -O /usr/local/bin/shfmt \
+      "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_${SHFMT_ARCH}"; \
+    chmod +x /usr/local/bin/shfmt
 
 # Set up non-root user
 USER $USERNAME
@@ -127,3 +146,4 @@ RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
 COPY --chown=$USERNAME:$USERNAME scripts/non-root-post-create.sh /home/$USERNAME/scripts/
 
 ONBUILD COPY allowed-domains.txt /usr/local/etc/
+COPY default-allowed-domains.txt /usr/local/etc/default-allowed-domains.txt
