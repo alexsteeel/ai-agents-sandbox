@@ -21,7 +21,7 @@ claude --dangerously-skip-permissions
 - Create .claudeignore
 - Create separate Claude.md for each directory instead one large Claude.md
 - Use batch approach (one large complex task instead of mini tasks)
-- Use https://github.com/iannuttall/claude-sessions for analyze
+- Use https://github.com/ryoppippi/ccusage for analyze
 - Use planning mode
 - Use think and ultrathink
 - Use xml tags for structure
@@ -38,54 +38,6 @@ git worktree list
 ```
 In this way we have isolated git branch and isolated environment for each team of agents. 
 One team can merge these changes and solve the issues.
-
-## Agents
-
-### Team lead
-
-Planning, architecture, task distribution
-
-- Must use reasoning models like Opus.
-- Must use think and ultrathink modes.
-
-Plugins
-
-- Any knowledge graph, for example https://github.com/shaneholloman/mcp-knowledge-graph
-
-Results
-
-- Update and share knowledge graph.
-- Share planning and architecture documents.
-- Task creation and distribution.
-
-### Python Senior Developer
-
-Development, testing, refactoring, debugging
-Use tasks and architecture documents.
-
-- Can use Opus or Sonnet.
-
-Plugins
-
-- Edit filesystem
-- Bash commands
-- Git
-
-Results
-
-- Code
-- Tests
-- Documentation
-
-### Code reviewer
-
-- Knows about code style, existing packages.
-  Access to linters, like sonar cube
-
-### QA
-
-Checks for code quality, security, performance.
-Reviews developer's tests and add test cases and test coverage.
 
 ## Plugins
 
