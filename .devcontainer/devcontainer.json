@@ -5,7 +5,8 @@
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "containerUser": "claude",
-  "updateRemoteUserUID": true,
+  "updateRemoteUserUID": false,
+  "initializeCommand": ["bash", "-c", "cd \"${localWorkspaceFolder}/.devcontainer\" && ./initialize.sh \"${localWorkspaceFolder}\""],
   "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
   "remoteEnv": {
     "JETBRAINS_REMOTE_RUN": "true"

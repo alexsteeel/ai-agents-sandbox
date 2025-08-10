@@ -1,4 +1,4 @@
-# Isolated AI Development Environments — Foundation + Full Example
+# Isolated AI Development Environments
 
 This repository is a **foundation** (with a **full working example**) for per-task, **agent-centric** development.
 It lets you run several tasks **in parallel**, each in its **own isolated environment**, on a **Host PC** or a **Dev-Container PC**.
@@ -8,7 +8,6 @@ It lets you run several tasks **in parallel**, each in its **own isolated enviro
 * **Per-task isolation.** Each task lives in its own Git **worktree** with its own containers and network.
 * **Agent-centric workflow.** The **user and AI agents** run **together** in the same sandbox (Claude Code, Codex CLI, Gemini CLI, Qwen Coder, …).
 * **Pluggable services.** Start the services you need (DBs, object storage, caches, brokers, vector stores, …).
-* **Portable by design.** Move a worktree between machines and reopen it with the same constraints and proxy rules.
 * **Highly customizable.** Swap agents, services, env vars, and compose files without modifying the base.
 
 ## Security model (simple, strict, practical)
@@ -28,32 +27,6 @@ It lets you run several tasks **in parallel**, each in its **own isolated enviro
 # Architecture — Components & Networks
 
 <img src="docs/architecture.png" alt="Architecture" title="Architecture" height="80%" />
-
-## Directory Structure
-
-```
-.
-├── build.sh                    # Unified build script for all images
-├── common_settings/            # Shared configuration
-│   └── default-whitelist.txt   # Default allowed domains
-├── devcontainer_base/          # Base devcontainer image
-│   ├── Dockerfile              # Multi-stage build with tools
-│   ├── scripts/                # Utility scripts
-│   │   ├── test-network.sh     # Network connectivity tests
-│   │   ├── get-whitelist.sh    # Domain whitelist manager
-│   │   └── ...                 # Other utilities
-│   └── claude-defaults/        # AI agent configurations
-├── tinyproxy_extended/         # Custom Tinyproxy image
-│   ├── Dockerfile              # Tinyproxy with whitelist support
-│   ├── entrypoint.sh           # Dynamic configuration
-│   └── tinyproxy.conf          # Base configuration
-└── .devcontainer/              # Project devcontainer (copy to your project)
-    ├── docker-compose.yaml     # Service orchestration
-    ├── Dockerfile              # Extends base image
-    ├── .env.example            # Environment template
-    ├── whitelist.txt           # Project-specific domains
-    └── initialize.sh           # One-time setup script
-```
 
 ---
 
@@ -131,17 +104,14 @@ flowchart TD
    # Edit .env to configure proxy settings if needed
    ```
 
-4. Initialize and start services:
-   ```bash
-   ./initialize.sh  # One-time setup
-   docker compose up -d  # Start services
-   ```
+4. **IMPORTANT:** Add any project-specific domains to `.devcontainer/whitelist.txt` BEFORE starting the container.
 
 5. Open the project in your IDE:
    - **VS Code:** Automatically detects `.devcontainer/devcontainer.json`
-   - **JetBrains IDEs:** Open project → **Open in Dev Container**
+   - **PyCharm:** Open project → **Open in Dev Container** (automatically initializes and starts services)
+   - **Other JetBrains IDEs:** Similar to PyCharm
 
-6. (Optional) Add project-specific domains to `.devcontainer/whitelist.txt`.
+   Note: PyCharm and VS Code handle initialization automatically when opening in devcontainer mode. No manual `docker compose up` needed.
 
 ## Create a task environment (worktree)
 

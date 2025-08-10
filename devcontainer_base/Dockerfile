@@ -153,4 +153,3 @@ COPY --chown=$USERNAME:$USERNAME --chmod=755 devcontainer_base/scripts/*.sh /hom
 COPY common_settings/default-whitelist.txt /usr/local/etc/default-whitelist.txt
 
 ONBUILD COPY whitelist.txt /usr/local/etc/
-ONBUILD USER claude

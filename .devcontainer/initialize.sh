@@ -4,23 +4,53 @@ IFS=$'\n\t'       # Stricter word splitting
 
 # Initialize development environment script
 # Sets up Docker environment and configures directory permissions
+# 
+# IMPORTANT: Run this BEFORE starting the devcontainer!
+# This script sets up host permissions so the container's claude user can write.
+#
 # Usage: 
 #   ./initialize.sh <target-dir>     # Full initialization
+#
+# Example:
+#   ./initialize.sh /home/user/myproject
+#   ./initialize.sh $(pwd)/..         # For parent directory
+#   ./initialize.sh .                 # For current directory
 
 # Parse arguments
 TARGET_DIR="${1:-}"
 if [[ -z "$TARGET_DIR" ]]; then
     echo "Error: Target directory required for initialization"
+    echo ""
     echo "Usage: $0 <target-dir>"
+    echo ""
+    echo "Examples:"
+    echo "  $0 /home/user/myproject   # Absolute path"
+    echo "  $0 \$(pwd)/..              # Parent directory"  
+    echo "  $0 .                       # Current directory"
+    echo ""
+    echo "This script will:"
+    echo "  1. Set up Docker services (proxy, docker-in-docker)"
+    echo "  2. Create 'dev' group (GID 2000) on host"
+    echo "  3. Add you to the 'dev' group"
+    echo "  4. Set target directory group to 'dev' with write permissions"
+    echo ""
+    echo "The target directory will be mounted as /workspace in the container."
     exit 1
 fi
 
+# Convert to absolute path
+TARGET_DIR=$(realpath "$TARGET_DIR")
+
 echo "Starting initialization with target directory: $TARGET_DIR"
 echo "Setting up Docker environment..."
-docker compose -f ./.devcontainer/docker-compose.yaml down || echo "Warning: docker compose down failed (containers may not be running)"
+
+# Get the directory where this script is located
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+docker compose -f "$SCRIPT_DIR/docker-compose.yaml" down || echo "Warning: docker compose down failed (containers may not be running)"
 
 echo "Starting supporting services (proxy, docker-dind) with Compose-managed networks..."
-docker compose -f ./.devcontainer/docker-compose.yaml up -d
+docker compose -f "$SCRIPT_DIR/docker-compose.yaml" up -d
 
 echo "Setting up Docker certificates..."
 mkdir -p ~/.claude-docker-certs
@@ -66,6 +96,13 @@ if [[ -d "$TARGET_DIR" ]]; then
     echo "Directory: $TARGET_DIR"
     echo "Group: $GROUP_NAME"
     echo "Permissions: Group read/write with setgid"
+    
+    # Verify permissions
+    echo ""
+    echo "Verifying permissions:"
+    ls -ld "$TARGET_DIR" | head -1
+    echo ""
+    echo "✓ The 'claude' user in the container (member of 'dev' group) can now write to this directory."
 else
     echo "Error: Directory '$TARGET_DIR' does not exist."
     echo "Please create the directory first or provide a valid path."
