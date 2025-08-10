@@ -1,38 +1,13 @@
 {
-  "name": "Example Claude Code Sandbox",
-  "initializeCommand": "./.devcontainer/initialize.sh ./.",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": "."
-  },
-  "runArgs": [
-    "--name=claude-sandbox-${devcontainerId}",
-    "--network=claude-internal"
-  ],
+  "name": "Claude Code Sandbox (Compose)",
+  "dockerComposeFile": "docker-compose.yaml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
   "containerUser": "claude",
   "updateRemoteUserUID": true,
-  "mounts": [
-    "source=claude-code-config-${devcontainerId},target=/home/claude/.claude,type=volume",
-    "source=claude-code-zshhistory,target=/home/claude/.zsh_history,type=volume",
-    "type=bind,source=${env:HOME}/.claude,target=/host/.claude,readonly",
-    "type=bind,source=${env:HOME}/.claude-docker-certs,target=/certs/client,readonly",
-    "type=bind,source=${env:HOME}/.p10k.zsh,target=/host/.p10k.zsh,readonly"
-  ],
-  "containerEnv": {
-    "NODE_OPTIONS": "--max-old-space-size=4096",
-    "CLAUDE_CONFIG_DIR": "/home/claude/.claude",
-    "CLAUDE_SETTINGS": "${localEnv:CLAUDE_SETTINGS:HYBRID}",
-    "DOCKER_HOST": "tcp://docker:2376",
-    "DOCKER_TLS_VERIFY": "1",
-    "DOCKER_CERT_PATH": "/certs/client",
-    "HTTP_PROXY": "http://egress-proxy:8888",
-    "HTTPS_PROXY": "http://egress-proxy:8888",
-    "NO_PROXY": "localhost,127.0.0.1,::1,docker-dind,egress-proxy",
-    "http_proxy": "http://egress-proxy:8888",
-    "https_proxy": "http://egress-proxy:8888",
-    "no_proxy": "localhost,127.0.0.1,::1,docker-dind,egress-proxy"
-  },
-  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=delegated",
-  "workspaceFolder": "/workspace",
-  "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh"
+  "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
+  "remoteEnv": {
+    "JETBRAINS_REMOTE_RUN": "true"
+  }
 }

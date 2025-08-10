@@ -10,13 +10,11 @@ codeload.github.com
 pypi.org
 files.pythonhosted.org
 
-# GitLab (project hosting)
-gitlab.com
-
 # Node packages
 registry.npmjs.org
 
 # Anthropic and telemetry required by upstream tooling
+anthropic.com
 api.anthropic.com
 sentry.io
 statsig.anthropic.com
@@ -25,7 +23,13 @@ statsig.com
 # JetBrains (IDE licensing/plugins)
 account.jetbrains.com
 plugins.jetbrains.com
-www.jetbrains.com
+frameworks.jetbrains.com
+download.jetbrains.com
+download-cdn.jetbrains.com
+data.services.jetbrains.com
+resources.jetbrains.com
+sales.jetbrains.com
+jetbrains.com
 
 # Powerlevel10k gitstatusd mirrors and GitHub release assets
 gitee.com

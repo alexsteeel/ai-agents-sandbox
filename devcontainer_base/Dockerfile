@@ -98,6 +98,9 @@ RUN set -eux; \
 ENV UV_INSTALL_DIR=/usr/local/bin
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
+# Install Python linting and formatting tools globally using uv
+RUN uv pip install --system --break-system-packages --no-cache ruff black
+
 # Install shfmt
 ENV SHFMT_VERSION=3.7.0
 RUN set -eux; \
@@ -130,20 +133,24 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
     git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 
 # Copy configuration files
-COPY --chown=$USERNAME:$USERNAME conf/.zshrc /home/$USERNAME/.zshrc
-COPY --chown=$USERNAME:$USERNAME conf/.tmux.conf /home/$USERNAME/.tmux.conf
+COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/.zshrc /home/$USERNAME/.zshrc
+COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/.tmux.conf /home/$USERNAME/.tmux.conf
 
 # Install tmux plugin manager
 RUN git clone https://github.com/tmux-plugins/tpm /home/$USERNAME/.tmux/plugins/tpm
 
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
-COPY --chown=$USERNAME:$USERNAME claude-defaults /home/$USERNAME/claude-defaults
+COPY --chown=$USERNAME:$USERNAME devcontainer_base/claude-defaults /home/$USERNAME/claude-defaults
 
 # Install tmux plugins
 RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
 
-COPY --chown=$USERNAME:$USERNAME scripts/non-root-post-create.sh /home/$USERNAME/scripts/
+# Copy all scripts with proper permissions
+COPY --chown=$USERNAME:$USERNAME --chmod=755 devcontainer_base/scripts/*.sh /home/$USERNAME/scripts/
 
-ONBUILD COPY allowed-domains.txt /usr/local/etc/
-COPY default-allowed-domains.txt /usr/local/etc/default-allowed-domains.txt
+# Copy default whitelist from common_settings
+COPY common_settings/default-whitelist.txt /usr/local/etc/default-whitelist.txt
+
+ONBUILD COPY whitelist.txt /usr/local/etc/
+ONBUILD USER claude

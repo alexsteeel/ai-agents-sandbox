@@ -4,78 +4,23 @@ IFS=$'\n\t'       # Stricter word splitting
 
 # Initialize development environment script
 # Sets up Docker environment and configures directory permissions
+# Usage: 
+#   ./initialize.sh <target-dir>     # Full initialization
 
-# Validate target directory argument
-TARGET_DIR="$1"
+# Parse arguments
+TARGET_DIR="${1:-}"
 if [[ -z "$TARGET_DIR" ]]; then
-    echo "Error: Target directory cannot be empty"
+    echo "Error: Target directory required for initialization"
+    echo "Usage: $0 <target-dir>"
     exit 1
 fi
 
 echo "Starting initialization with target directory: $TARGET_DIR"
-
 echo "Setting up Docker environment..."
 docker compose -f ./.devcontainer/docker-compose.yaml down || echo "Warning: docker compose down failed (containers may not be running)"
+
 echo "Starting supporting services (proxy, docker-dind) with Compose-managed networks..."
-
-# Generate Tinyproxy configuration and filter from allowed domains
-generate_tinyproxy_conf() {
-    local conf_dir="./.devcontainer/tinyproxy"
-    local logs_dir="./.devcontainer/tinyproxy-logs"
-    local conf_file="${conf_dir}/tinyproxy.conf"
-    local filter_file="${conf_dir}/filter"
-    local domains_file="./.devcontainer/allowed-domains.txt"
-    local default_domains_file="/usr/local/etc/default-allowed-domains.txt"
-    echo "Generating Tinyproxy config at ${conf_file}..."
-    mkdir -p "${conf_dir}" "${logs_dir}"
-
-    # Base config
-    cat >"${conf_file}" <<'TPCONF'
-Port 8888
-Timeout 600
-MaxClients 100
-StartServers 5
-MinSpareServers 5
-MaxSpareServers 20
-LogLevel Info
-LogFile "/var/log/tinyproxy/tinyproxy.log"
-PidFile "/var/run/tinyproxy/tinyproxy.pid"
-DisableViaHeader Yes
-ConnectPort 443
-ConnectPort 80
-
-# Filtering: default deny, allow only patterns in Filter file
-Filter "/etc/tinyproxy/filter"
-FilterExtended Yes
-FilterURLs On
-FilterDefaultDeny Yes
-TPCONF
-
-    # Build filter allowlist from default + project domains (ignore comments/empty, dedupe)
-    : >"${filter_file}"
-    if [[ -f "${default_domains_file}" || -f "${domains_file}" ]]; then
-        echo "Building filter from default + project allowlists"
-        # shellcheck disable=SC2016
-        mapfile -t domains < <(cat "${default_domains_file}" "${domains_file}" 2>/dev/null \
-            | sed -e 's/#.*$//' -e 's/^\s*//' -e 's/\s*$//' \
-            | awk 'NF' \
-            | sort -u)
-        for domain in "${domains[@]}"; do
-            # Escape dots for regex and allow subdomains
-            escaped=$(printf '%s' "$domain" | sed 's/\./\\\./g')
-            echo "://\(.*\\.\)?${escaped}\(/\|$\)" >>"${filter_file}"
-        done
-    else
-        echo "Warning: No allowlist files found. All outbound traffic will be blocked by default."
-    fi
-
-    echo "Tinyproxy configuration generated."
-}
-
-generate_tinyproxy_conf
-
-echo "Starting Docker containers..."
-docker compose -f ./.devcontainer/docker-compose.yaml  up -d
+docker compose -f ./.devcontainer/docker-compose.yaml up -d
 
 echo "Setting up Docker certificates..."
 mkdir -p ~/.claude-docker-certs
@@ -127,4 +72,17 @@ else
     exit 1
 fi
 
+echo ""
+echo "================================================================"
 echo "Initialization completed successfully!"
+echo ""
+echo "Proxy Configuration:"
+echo "  - Default whitelist domains are built into the proxy image"
+echo "  - Add project-specific domains to .devcontainer/whitelist.txt"
+echo "  - Restart proxy to apply changes: docker restart tinyproxy"
+echo ""
+echo "Services running:"
+echo "  - tinyproxy: HTTP/HTTPS proxy with whitelist filtering"
+echo "  - docker: Docker-in-Docker for isolated container operations"
+echo "  - devcontainer: Development environment (if started)"
+echo "================================================================"

@@ -1,51 +1,81 @@
 services:
+  # Core services - always running
   docker-dind:
     image: docker:28-dind
     container_name: docker
-    privileged: true  # Required for DinD (uses overlay2, iptables, etc)
+    privileged: true  # Required for DinD
     restart: unless-stopped
     ports:
-    - "2376:2376"  # TLS Docker daemon
-    environment:
-    - DOCKER_TLS_CERTDIR=/certs
-    - HTTP_PROXY=http://egress-proxy:8888
-    - HTTPS_PROXY=http://egress-proxy:8888
-    - NO_PROXY=localhost,127.0.0.1,::1,docker,docker-dind,egress-proxy
-    - http_proxy=http://egress-proxy:8888
-    - https_proxy=http://egress-proxy:8888
-    - no_proxy=localhost,127.0.0.1,::1,docker,docker-dind,egress-proxy
+      - "2376:2376"  # TLS Docker daemon
+    env_file: .env
     volumes:
-    - docker-certs-ca:/certs/ca
-    - docker-certs-client:/certs/client
-    - docker-data:/var/lib/docker
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+      - docker-data:/var/lib/docker
     tmpfs:
-    - /run
-    - /tmp
+      - /run
+      - /tmp
     networks:
-    - claude-internal
+      - claude-internal
 
-  egress-proxy:
-    image: vimagick/tinyproxy
-    container_name: egress-proxy
+  tinyproxy:
+    image: tinyproxy-whitelist:latest
+    container_name: tinyproxy
     restart: unless-stopped
+    ports:
+      - "8888:8888"
+    environment:
+      - UPSTREAM_SOCKS5=${UPSTREAM_SOCKS5:-}
+      - UPSTREAM_HTTP=${UPSTREAM_HTTP:-}
+      - UPSTREAM_PROXY_TYPE=${UPSTREAM_PROXY_TYPE:-}
+      - UPSTREAM_PROXY_HOST=${UPSTREAM_PROXY_HOST:-}
+      - UPSTREAM_PROXY_PORT=${UPSTREAM_PROXY_PORT:-}
     volumes:
-    - ./tinyproxy:/etc/tinyproxy:ro
-    - ./tinyproxy-logs:/var/log/tinyproxy
-    command: ["tinyproxy", "-d", "-c", "/etc/tinyproxy/tinyproxy.conf"]
+      - ./whitelist.txt:/etc/tinyproxy/user-whitelist.txt:ro
+      - proxy-logs:/var/log/tinyproxy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
-    - claude-internal
-    - claude-external
+      - claude-internal
+      - claude-external
+
+  # Development container - for IDE integration
+  # Uncomment or use with docker compose up devcontainer
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: claude-sandbox
+    user: claude
+    env_file: .env
+    volumes:
+      - ..:/workspace:cached
+      - claude-code-config:/home/claude/.claude
+      - claude-code-zshhistory:/home/claude/.zsh_history
+      - ${HOME}/.claude:/host/.claude:ro
+      - ${HOME}/.claude-docker-certs:/certs/client:ro
+      - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
+    working_dir: /workspace
+    command: sleep infinity
+    networks:
+      - claude-internal
+    depends_on:
+      - docker-dind
+      - tinyproxy
 
 volumes:
   docker-certs-ca:
   docker-certs-client:
   docker-data:
+  proxy-logs:
+  claude-code-config:
+  claude-code-zshhistory:
 
 networks:
   claude-internal:
     name: claude-internal
     driver: bridge
-    internal: true
+    internal: true  # Critical: blocks direct internet access
   claude-external:
     name: claude-external
     driver: bridge

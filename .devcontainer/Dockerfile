@@ -1,2 +1,1 @@
-FROM claude-code-sandbox:1.0
-USER claude
+FROM claudecode/devcontainer:latest
