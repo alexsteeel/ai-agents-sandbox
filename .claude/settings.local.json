@@ -13,5 +13,9 @@
       "WebFetch(domain:apidog.com)"
     ],
     "deny": []
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); ccusage_info=$(ccusage statusline); printf \"\\033[96m%s\\033[0m | \\033[93m%s\\033[0m\" \"$model\" \"$ccusage_info\""
   }
 }
