@@ -1,14 +1,18 @@
 {
-  "name": "Claude Code Sandbox (Compose)",
+  "name": "${localWorkspaceFolderBasename} - Claude Code Sandbox",
   "dockerComposeFile": "docker-compose.yaml",
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "containerUser": "claude",
   "updateRemoteUserUID": false,
-  "initializeCommand": ["bash", "-c", "cd \"${localWorkspaceFolder}/.devcontainer\" && ./initialize.sh \"${localWorkspaceFolder}\""],
+  "initializeCommand": ["bash", "-c", "cd \"${localWorkspaceFolder}/.devcontainer\" && INITIALIZE_MODE=vscode ./initialize.sh \"${localWorkspaceFolder}\""],
   "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
   "remoteEnv": {
-    "JETBRAINS_REMOTE_RUN": "true"
+    "JETBRAINS_REMOTE_RUN": "true",
+    "PROJECT_NAME": "${localWorkspaceFolderBasename}",
+    "DOCKER_HOST": "tcp://docker-dind:2376",
+    "DOCKER_TLS_VERIFY": "1",
+    "DOCKER_CERT_PATH": "/certs/client"
   }
 }

@@ -2,12 +2,19 @@ services:
   # Core services - always running
   docker-dind:
     image: docker:28-dind
-    container_name: docker
+    # container_name removed - let Docker Compose generate project-specific names
     privileged: true  # Required for DinD
     restart: unless-stopped
-    ports:
-      - "2376:2376"  # TLS Docker daemon
-    env_file: .env
+    environment:
+      - HTTP_PROXY=${DIND_HTTP_PROXY:-http://tinyproxy-dind:8888}
+      - HTTPS_PROXY=${DIND_HTTPS_PROXY:-http://tinyproxy-dind:8888}
+      - NO_PROXY=${DIND_NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
+      - http_proxy=${DIND_HTTP_PROXY:-http://tinyproxy-dind:8888}
+      - https_proxy=${DIND_HTTPS_PROXY:-http://tinyproxy-dind:8888}
+      - no_proxy=${DIND_NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
+    env_file: 
+      - .env
+      - .env.project
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -17,13 +24,14 @@ services:
       - /tmp
     networks:
       - claude-internal
+    depends_on:
+      - tinyproxy-dind
 
-  tinyproxy:
+  # Proxy for devcontainer - uses upstream proxy if configured
+  tinyproxy-devcontainer:
     image: tinyproxy-whitelist:latest
-    container_name: tinyproxy
+    # container_name removed - let Docker Compose generate project-specific names
     restart: unless-stopped
-    ports:
-      - "8888:8888"
     environment:
       - UPSTREAM_SOCKS5=${UPSTREAM_SOCKS5:-}
       - UPSTREAM_HTTP=${UPSTREAM_HTTP:-}
@@ -32,9 +40,24 @@ services:
       - UPSTREAM_PROXY_PORT=${UPSTREAM_PROXY_PORT:-}
     volumes:
       - ./whitelist.txt:/etc/tinyproxy/user-whitelist.txt:ro
-      - proxy-logs:/var/log/tinyproxy
+      - proxy-devcontainer-logs:/var/log/tinyproxy
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    networks:
+      - claude-internal
+      - claude-external
+
+  # Proxy for dind - no upstream, direct access to container registries only
+  tinyproxy-dind:
+    image: tinyproxy-dind:latest
+    # container_name removed - let Docker Compose generate project-specific names
+    restart: unless-stopped
+    environment:
+      # No upstream proxy for dind - direct access only
+      - UPSTREAM_PROXY_TYPE=none
+    volumes:
+      - ./dind-whitelist.txt:/etc/tinyproxy/user-whitelist.txt:ro
+      - proxy-dind-logs:/var/log/tinyproxy
     networks:
       - claude-internal
       - claude-external
@@ -45,15 +68,24 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: claude-sandbox
+    # container_name removed - let Docker Compose generate project-specific names
     user: claude
-    env_file: .env
+    environment:
+      - HTTP_PROXY=${DEVCONTAINER_HTTP_PROXY:-http://tinyproxy-devcontainer:8888}
+      - HTTPS_PROXY=${DEVCONTAINER_HTTPS_PROXY:-http://tinyproxy-devcontainer:8888}
+      - NO_PROXY=${DEVCONTAINER_NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
+      - http_proxy=${DEVCONTAINER_HTTP_PROXY:-http://tinyproxy-devcontainer:8888}
+      - https_proxy=${DEVCONTAINER_HTTPS_PROXY:-http://tinyproxy-devcontainer:8888}
+      - no_proxy=${DEVCONTAINER_NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
+    env_file: 
+      - .env
+      - .env.project
     volumes:
       - ..:/workspace:cached
       - claude-code-config:/home/claude/.claude
       - claude-code-zshhistory:/home/claude/.zsh_history
       - ${HOME}/.claude:/host/.claude:ro
-      - ${HOME}/.claude-docker-certs:/certs/client:ro
+      - docker-certs-client:/certs/client:ro
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
     working_dir: /workspace
     command: sleep infinity
@@ -61,21 +93,20 @@ services:
       - claude-internal
     depends_on:
       - docker-dind
-      - tinyproxy
+      - tinyproxy-devcontainer
 
 volumes:
   docker-certs-ca:
   docker-certs-client:
   docker-data:
-  proxy-logs:
+  proxy-devcontainer-logs:
+  proxy-dind-logs:
   claude-code-config:
   claude-code-zshhistory:
 
 networks:
   claude-internal:
-    name: claude-internal
     driver: bridge
     internal: true  # Critical: blocks direct internet access
   claude-external:
-    name: claude-external
     driver: bridge

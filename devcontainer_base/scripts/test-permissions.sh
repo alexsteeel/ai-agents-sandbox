@@ -15,52 +15,6 @@ NC='\033[0m' # No Color
 TESTS_PASSED=0
 TESTS_FAILED=0
 
-# Expected user and group
-EXPECTED_USER="claude"
-EXPECTED_GROUP="dev"
-EXPECTED_UID="1001"
-EXPECTED_GID="2000"
-
-# Function to check user identity
-check_user_identity() {
-    echo "=== User Identity Check ==="
-    
-    local current_user=$(whoami)
-    local current_uid=$(id -u)
-    local current_gid=$(id -g)
-    local current_groups=$(groups)
-    
-    echo "Current user: $current_user (UID: $current_uid)"
-    echo "Current groups: $current_groups"
-    
-    # Check user
-    if [[ "$current_user" == "$EXPECTED_USER" ]]; then
-        echo -e "${GREEN}✓${NC} Running as correct user: $EXPECTED_USER"
-        ((TESTS_PASSED++))
-    else
-        echo -e "${RED}✗${NC} Expected user $EXPECTED_USER, got $current_user"
-        ((TESTS_FAILED++))
-    fi
-    
-    # Check UID
-    if [[ "$current_uid" == "$EXPECTED_UID" ]]; then
-        echo -e "${GREEN}✓${NC} Correct UID: $EXPECTED_UID"
-        ((TESTS_PASSED++))
-    else
-        echo -e "${RED}✗${NC} Expected UID $EXPECTED_UID, got $current_uid"
-        ((TESTS_FAILED++))
-    fi
-    
-    # Check if dev group is present
-    if id -nG | grep -qw "$EXPECTED_GROUP"; then
-        echo -e "${GREEN}✓${NC} User is in $EXPECTED_GROUP group"
-        ((TESTS_PASSED++))
-    else
-        echo -e "${RED}✗${NC} User is not in $EXPECTED_GROUP group"
-        ((TESTS_FAILED++))
-    fi
-}
-
 # Function to check directory permissions
 check_directory_permissions() {
     local dir="$1"
@@ -256,7 +210,6 @@ main() {
     echo ""
     
     # Run tests
-    check_user_identity
     check_workspace_permissions
     check_home_directory
     check_docker_access

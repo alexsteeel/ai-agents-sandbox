@@ -29,7 +29,7 @@ if [[ -z "$TARGET_DIR" ]]; then
     echo "  $0 .                       # Current directory"
     echo ""
     echo "This script will:"
-    echo "  1. Set up Docker services (proxy, docker-in-docker)"
+    echo "  1. Set up Docker services (proxy, docker-in-docker) with project-specific namespace"
     echo "  2. Create 'dev' group (GID 2000) on host"
     echo "  3. Add you to the 'dev' group"
     echo "  4. Set target directory group to 'dev' with write permissions"
@@ -41,25 +41,61 @@ fi
 # Convert to absolute path
 TARGET_DIR=$(realpath "$TARGET_DIR")
 
-echo "Starting initialization with target directory: $TARGET_DIR"
+# Generate project-specific name from full path to ensure uniqueness
+# This handles git worktrees and similarly named projects
+# Use MD5 hash of path for uniqueness, combined with readable basename
+BASENAME=$(basename "$TARGET_DIR" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+HASH=$(echo -n "$TARGET_DIR" | md5sum | cut -c1-8)
+PROJECT_NAME="${BASENAME}-${HASH}"
+
+echo "Starting initialization for project: $PROJECT_NAME"
+echo "Target directory: $TARGET_DIR"
 echo "Setting up Docker environment..."
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-docker compose -f "$SCRIPT_DIR/docker-compose.yaml" down || echo "Warning: docker compose down failed (containers may not be running)"
+# Store the project name in .env for Docker Compose to use
+# This ensures VS Code uses the same project name
+if [[ -f "$SCRIPT_DIR/.env" ]]; then
+    # Remove any existing COMPOSE_PROJECT_NAME line
+    grep -v "^COMPOSE_PROJECT_NAME=" "$SCRIPT_DIR/.env" > "$SCRIPT_DIR/.env.tmp" || true
+    mv "$SCRIPT_DIR/.env.tmp" "$SCRIPT_DIR/.env"
+fi
+# Add the project name
+echo "COMPOSE_PROJECT_NAME=$PROJECT_NAME" >> "$SCRIPT_DIR/.env"
+echo "COMPOSE_PROJECT_NAME=$PROJECT_NAME" > "$SCRIPT_DIR/.env.project"
 
-echo "Starting supporting services (proxy, docker-dind) with Compose-managed networks..."
-docker compose -f "$SCRIPT_DIR/docker-compose.yaml" up -d
-
-echo "Setting up Docker certificates..."
-mkdir -p ~/.claude-docker-certs
-if docker ps --format '{{.Names}}' | grep -q '^docker$'; then
-    docker cp docker:/certs/client/. ~/.claude-docker-certs
-    echo "Docker certificates copied successfully"
-    ls -la ~/.claude-docker-certs
+# Check if we're being called from VS Code
+if [[ -n "${VSCODE_REMOTE_CONTAINERS_SESSION:-}" ]] || [[ "${INITIALIZE_MODE:-}" == "vscode" ]]; then
+    echo "Running in VS Code context - skipping service startup (VS Code will handle it)"
 else
-    echo "Warning: Docker container 'docker' not found, skipping certificate setup"
+    # Use project name as Docker Compose project name for isolation
+    echo "Starting supporting services with project namespace: $PROJECT_NAME"
+    cd "$SCRIPT_DIR"
+    COMPOSE_PROJECT_NAME="$PROJECT_NAME" docker compose -f docker-compose.yaml up -d
+fi
+
+echo "Setting up Docker certificates for project $PROJECT_NAME..."
+CERT_DIR="$HOME/.claude-docker-certs-$PROJECT_NAME"
+mkdir -p "$CERT_DIR"
+
+# Container names will be prefixed with project name
+# Docker Compose v2 uses hyphen separator with service name
+DOCKER_CONTAINER="${PROJECT_NAME}-docker-dind-1"
+# Also check with underscore format (older compose versions)
+DOCKER_CONTAINER_ALT="${PROJECT_NAME}_docker-dind_1"
+
+if docker ps --format '{{.Names}}' | grep -q "^${DOCKER_CONTAINER}$"; then
+    docker cp "${DOCKER_CONTAINER}:/certs/client/." "$CERT_DIR"
+    echo "Docker certificates copied successfully to $CERT_DIR"
+    ls -la "$CERT_DIR"
+elif docker ps --format '{{.Names}}' | grep -q "^${DOCKER_CONTAINER_ALT}$"; then
+    docker cp "${DOCKER_CONTAINER_ALT}:/certs/client/." "$CERT_DIR"
+    echo "Docker certificates copied successfully to $CERT_DIR"
+    ls -la "$CERT_DIR"
+else
+    echo "Warning: Docker container '${DOCKER_CONTAINER}' or '${DOCKER_CONTAINER_ALT}' not found, skipping certificate setup"
 fi
 
 echo "Setting up development group..."
@@ -113,13 +149,21 @@ echo ""
 echo "================================================================"
 echo "Initialization completed successfully!"
 echo ""
+echo "Project: $PROJECT_NAME"
+echo "Directory: $TARGET_DIR"
+echo ""
 echo "Proxy Configuration:"
 echo "  - Default whitelist domains are built into the proxy image"
 echo "  - Add project-specific domains to .devcontainer/whitelist.txt"
-echo "  - Restart proxy to apply changes: docker restart tinyproxy"
+echo "  - Restart proxy to apply changes: docker restart ${PROJECT_NAME}-tinyproxy-1"
 echo ""
-echo "Services running:"
-echo "  - tinyproxy: HTTP/HTTPS proxy with whitelist filtering"
-echo "  - docker: Docker-in-Docker for isolated container operations"
-echo "  - devcontainer: Development environment (if started)"
+echo "Services running (project-isolated):"
+echo "  - ${PROJECT_NAME}-tinyproxy-1: HTTP/HTTPS proxy with whitelist filtering"
+echo "  - ${PROJECT_NAME}-docker-dind-1: Docker-in-Docker for isolated container operations"
+echo "  - ${PROJECT_NAME}-devcontainer-1: Development environment (when started)"
+echo ""
+echo "To manage this project's services:"
+echo "  cd .devcontainer && COMPOSE_PROJECT_NAME=$PROJECT_NAME docker compose ps     # List services"
+echo "  cd .devcontainer && COMPOSE_PROJECT_NAME=$PROJECT_NAME docker compose down   # Stop services"
+echo "  cd .devcontainer && COMPOSE_PROJECT_NAME=$PROJECT_NAME docker compose up -d  # Start services"
 echo "================================================================"
