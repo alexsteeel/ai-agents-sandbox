@@ -1,0 +1,24 @@
+# Allowed domains for dind proxy - direct access without upstream
+# These are essential container registry and Docker-related domains only
+# One domain per line
+
+# Docker Hub
+docker.io
+registry-1.docker.io
+index.docker.io
+auth.docker.io
+
+# GitHub Container Registry
+ghcr.io
+pkg-containers.githubusercontent.com
+
+# Google Container Registry
+gcr.io
+storage.googleapis.com
+
+# Quay Registry
+quay.io
+
+# Essential for container image downloads
+registry.npmjs.org
+cdn.jsdelivr.net
