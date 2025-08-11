@@ -45,10 +45,14 @@ ARG USER_GID=1001
 ARG WORKSPACE_GID=2000
 ARG WORKSPACE_GROUPNAME=dev
 
-RUN groupadd --gid $USER_GID $USERNAME \
-    && groupadd --gid $WORKSPACE_GID $WORKSPACE_GROUPNAME \
-    && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME \
-    && usermod -aG docker,$WORKSPACE_GROUPNAME $USERNAME || true
+RUN set -eux; \
+    getent group "$USER_GID" || groupadd --gid "$USER_GID" "$USERNAME"; \
+    getent group "$WORKSPACE_GID" || groupadd --gid "$WORKSPACE_GID" "$WORKSPACE_GROUPNAME"; \
+    id -u "$USERNAME" >/dev/null 2>&1 || useradd --uid "$USER_UID" --gid "$USER_GID" -m "$USERNAME"; \
+    # add to dev regardless
+    usermod -aG "$WORKSPACE_GROUPNAME" "$USERNAME"; \
+    # add to docker only if it exists
+    if getent group docker >/dev/null; then usermod -aG docker "$USERNAME"; fi
 
 
 # Generate locale
