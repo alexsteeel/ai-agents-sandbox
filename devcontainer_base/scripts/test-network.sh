@@ -41,12 +41,23 @@ test_domain_access() {
     # Determine if domain is accessible
     # 000 = connection failed/timeout (usually means blocked)
     # 403 = could be either tinyproxy filter OR server access denied
+    # 404 with "Unable to connect to upstream proxy" = external proxy issue
     # 200-499 (except 403 from filter) = connection allowed
     # 502 = bad gateway (usually proxy error)
     
     # Handle both "000" and "000000" (sometimes curl returns 6 zeros)
     if [[ "$http_code" =~ ^0+$ || "$http_code" == "502" ]]; then
         result="blocked"
+    elif [[ "$http_code" == "404" ]]; then
+        # Check if it's the upstream proxy error
+        if curl --max-time 5 -s "$domain" 2>&1 | grep -q "Unable to connect to upstream proxy"; then
+            echo -e "${RED}✗${NC} External proxy issue detected: Unable to connect to upstream proxy"
+            echo -e "${YELLOW}ℹ${NC} Check UPSTREAM_PROXY_HOST and UPSTREAM_PROXY_PORT settings in .env file"
+            result="proxy_error"
+        else
+            # Regular 404 from server
+            result="whitelisted"
+        fi
     elif [[ "$http_code" == "403" ]]; then
         # Check if it's tinyproxy's filter message
         if curl --max-time 5 -s "$domain" 2>&1 | grep -q "The request you made has been filtered"; then
@@ -61,7 +72,12 @@ test_domain_access() {
     fi
     
     # Check if result matches expectation
-    if [[ "$result" == "$expected" ]]; then
+    if [[ "$result" == "proxy_error" ]]; then
+        # External proxy error is always a failure
+        echo -e "${RED}✗${NC} $domain: External proxy configuration error (HTTP $http_code)"
+        ((TESTS_FAILED++))
+        return 1
+    elif [[ "$result" == "$expected" ]]; then
         echo -e "${GREEN}✓${NC} $domain: $expected (HTTP $http_code)"
         ((TESTS_PASSED++))
         return 0
