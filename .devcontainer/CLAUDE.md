@@ -65,7 +65,7 @@ Orchestrates three services:
    - Proxy: All traffic via tinyproxy
    - Image: claudecode/devcontainer:latest or custom
 
-3. **docker-dind**: Docker daemon
+3. **docker**: Docker daemon
    - Network: claude-internal (internal)
    - Privileged: Required for Docker-in-Docker
    - Certificates: Shared with devcontainer
@@ -87,9 +87,17 @@ auth.myproject.com
 
 # Project dependencies
 cdn.myproject.com
+
+# Docker registries (if building images from within devcontainer)
+docker.io
+registry-1.docker.io
+auth.docker.io
+hub.docker.com
 ```
 
 Add one domain per line. Merged with defaults at runtime.
+
+**Note**: Docker registry domains are needed only if you build Docker images from within the devcontainer. The docker-in-docker service has its own whitelist in `dind-whitelist.txt`.
 
 ### `initialize.sh`
 One-time setup script:
@@ -126,7 +134,7 @@ Internet
     ↕ (proxy only)
 [devcontainer] - claude-internal network (internal: true)
     ↕ (local only)
-[docker-dind] - claude-internal network (internal: true)
+[docker] - claude-internal network (internal: true)
 ```
 
 **Security Enforcement**:

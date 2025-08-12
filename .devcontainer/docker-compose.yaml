@@ -1,6 +1,6 @@
 services:
   # Core services - always running
-  docker-dind:
+  docker:
     image: docker:28-dind
     # container_name removed - let Docker Compose generate project-specific names
     privileged: true  # Required for DinD
@@ -12,7 +12,7 @@ services:
       - http_proxy=${DIND_HTTP_PROXY:-http://tinyproxy-dind:8888}
       - https_proxy=${DIND_HTTPS_PROXY:-http://tinyproxy-dind:8888}
       - no_proxy=${DIND_NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
-    env_file: 
+    env_file:
       - .env
       - .env.project
     volumes:
@@ -81,18 +81,25 @@ services:
       - .env
       - .env.project
     volumes:
-      - ..:/workspace:cached
+      - ..:/workspace
       - claude-code-config:/home/claude/.claude
-      - claude-code-zshhistory:/home/claude/.zsh_history
       - ${HOME}/.claude:/host/.claude:ro
       - docker-certs-client:/certs/client:ro
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
+      # for get common statistics about all projects with tools like ccusage
+      - ${HOME}/.claude/projects/:/home/claude/.claude/projects
+      - zsh-history:/home/claude/.zsh_history_dir
+      # for save codex settings between restarts
+      - codex:/home/claude/.codex
+      - cache:/home/claude/.cache
+    ports:
+      # OpenAI Codex auth
+      - "1455:1455"
     working_dir: /workspace
-    command: sleep infinity
     networks:
       - claude-internal
     depends_on:
-      - docker-dind
+      - docker
       - tinyproxy-devcontainer
 
 volumes:
@@ -102,7 +109,9 @@ volumes:
   proxy-devcontainer-logs:
   proxy-dind-logs:
   claude-code-config:
-  claude-code-zshhistory:
+  zsh-history:
+  codex:
+  cache:
 
 networks:
   claude-internal:

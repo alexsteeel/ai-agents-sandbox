@@ -84,7 +84,7 @@ Internet ←→ [tinyproxy] ←→ [claude-external network]
                                          ↓
                             [claude-internal network (internal: true)]
                                     ↓            ↓
-                            [devcontainer]  [docker-dind]
+                            [devcontainer]  [docker]
 ```
 
 **Key Points:**
@@ -126,7 +126,7 @@ devcontainer (from base image or extended)
 ├── All HTTP(S) via proxy environment variables
 └── Runs devcontainer-init on startup
 
-docker-dind (Docker-in-Docker)
+docker (Docker-in-Docker)
 ├── Network: claude-internal (isolated)
 ├── TLS certificates in ~/.claude-docker-certs
 └── Docker daemon for container operations
@@ -156,16 +156,23 @@ Edit `.devcontainer/whitelist.txt` (one domain per line)
 - Dev tools: gitlab.com, bitbucket.org
 
 **Upstream Proxy Support:**
-The custom tinyproxy image supports automatic upstream HTTP proxy configuration via environment variables:
-- Set `UPSTREAM_PROXY_HOST` and `UPSTREAM_PROXY_PORT` in `.env` file
+The custom tinyproxy image supports automatic upstream proxy configuration:
+- **HTTP Proxy**: Set `UPSTREAM_HTTP=host:port` in `.env` file
+- **SOCKS5 Proxy**: Set `UPSTREAM_SOCKS5=host:port` in `.env` file
+- **Bypass Domains**: Set `NO_UPSTREAM` to specify domains that bypass the upstream proxy
 - The proxy configuration is automatically applied on container startup
-- SOCKS5 upstream proxies are not supported (tinyproxy limitation)
+- Only one upstream proxy type can be active at a time (HTTP or SOCKS5)
 
 **Environment Variables (.env):**
 ```bash
 # Optional: External HTTP proxy
-UPSTREAM_PROXY_HOST=proxy.example.com
-UPSTREAM_PROXY_PORT=3128
+UPSTREAM_HTTP=proxy.example.com:3128
+
+# OR: External SOCKS5 proxy (choose one)
+UPSTREAM_SOCKS5=socks.example.com:1080
+
+# Optional: Domains that bypass upstream proxy (space or comma separated)
+NO_UPSTREAM="github.com gitlab.com,bitbucket.org"
 ```
 
 **Verification commands:**
@@ -230,4 +237,20 @@ Pre-configured agents built into the base image:
 - Verify filter file exists and is correct
 - Ensure proxy environment variables are set
 
+**Claude agents not appearing:**
+- Run setup script: `~/scripts/setup-claude-defaults.sh`
+- Check for log conflicts in `~/.claude/logs/`
+- Verify all 6 agents exist in `/home/claude/claude-defaults/agents/`
+- Logs should be in `~/scripts/logs/` not `~/.claude/logs/`
+
+**Building Docker images from devcontainer:**
+- Add Docker registry domains to `.devcontainer/whitelist.txt`:
+  - docker.io, registry-1.docker.io, auth.docker.io, hub.docker.com
+- Or use the Docker daemon via docker-in-docker service
+- The dind proxy has separate whitelist in `dind-whitelist.txt`
+
 Remember: Security is paramount. When in doubt, choose the more restrictive option.
+
+## Projects Directory Mount
+
+The `.claude/projects` directory is mounted from the host system to enable cross-project statistics and analysis. This allows tools like `ccusage` to aggregate metrics across all projects in a single location.

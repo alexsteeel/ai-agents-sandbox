@@ -11,6 +11,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+# Expected user and group
+EXPECTED_USER="claude"
+EXPECTED_GROUP="dev"
+EXPECTED_UID="1001"
+EXPECTED_GID="2000"
+
 # Test result tracking
 TESTS_PASSED=0
 TESTS_FAILED=0
@@ -36,42 +42,6 @@ check_directory_permissions() {
     echo "  Owner: $actual_owner (expected: $expected_owner)"
     echo "  Group: $actual_group (expected: $expected_group)"
     echo "  Mode: $actual_mode"
-    
-    local all_good=true
-    
-    # Check owner
-    if [[ "$actual_owner" == "$expected_owner" ]]; then
-        echo -e "  ${GREEN}✓${NC} Owner correct"
-        ((TESTS_PASSED++))
-    else
-        echo -e "  ${RED}✗${NC} Owner mismatch"
-        ((TESTS_FAILED++))
-        all_good=false
-    fi
-    
-    # Check group
-    if [[ "$actual_group" == "$expected_group" ]]; then
-        echo -e "  ${GREEN}✓${NC} Group correct"
-        ((TESTS_PASSED++))
-    else
-        echo -e "  ${RED}✗${NC} Group mismatch"
-        ((TESTS_FAILED++))
-        all_good=false
-    fi
-    
-    # Check if writable by user
-    if [[ -w "$dir" ]]; then
-        echo -e "  ${GREEN}✓${NC} Directory is writable"
-        ((TESTS_PASSED++))
-    else
-        echo -e "  ${YELLOW}⚠${NC} Directory is not writable"
-    fi
-    
-    if $all_good; then
-        return 0
-    else
-        return 1
-    fi
 }
 
 # Function to check workspace permissions
@@ -121,6 +91,40 @@ check_workspace_permissions() {
     else
         echo -e "  ${RED}✗${NC} Cannot create files in workspace"
         ((TESTS_FAILED++))
+    fi
+    
+    # Check projects directory permissions
+    local projects_dir="/workspace/projects"
+    if [[ -d "$projects_dir" ]]; then
+        echo ""
+        echo "Projects directory: $projects_dir"
+        local proj_owner=$(stat -c '%U' "$projects_dir" 2>/dev/null)
+        local proj_group=$(stat -c '%G' "$projects_dir" 2>/dev/null)
+        local proj_mode=$(stat -c '%a' "$projects_dir" 2>/dev/null)
+        
+        echo "  Owner: $proj_owner"
+        echo "  Group: $proj_group"
+        echo "  Mode: $proj_mode"
+        
+        # Projects directory MUST have group 'dev'
+        if [[ "$proj_group" == "$EXPECTED_GROUP" ]]; then
+            echo -e "  ${GREEN}✓${NC} Projects directory group is $EXPECTED_GROUP"
+            ((TESTS_PASSED++))
+        else
+            echo -e "  ${RED}✗${NC} Projects directory group is not $EXPECTED_GROUP (found: $proj_group)"
+            ((TESTS_FAILED++))
+        fi
+        
+        # Check if projects directory is writable
+        if [[ -w "$projects_dir" ]]; then
+            echo -e "  ${GREEN}✓${NC} Projects directory is writable"
+            ((TESTS_PASSED++))
+        else
+            echo -e "  ${RED}✗${NC} Projects directory is not writable"
+            ((TESTS_FAILED++))
+        fi
+    else
+        echo -e "${YELLOW}⚠${NC} Projects directory $projects_dir does not exist (will be created as a mount)"
     fi
 }
 

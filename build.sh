@@ -89,9 +89,3 @@ fi
 if [[ "$BUILD_TINYPROXY" == true ]]; then
     echo "✓ Tinyproxy: tinyproxy-whitelist:latest"
 fi
-
-echo ""
-echo "Next steps:"
-echo "1. Copy .devcontainer/ to your project"
-echo "2. Customize .devcontainer/whitelist.txt with project-specific domains"
-echo "3. Run: docker compose -f .devcontainer/docker-compose.yaml up -d"

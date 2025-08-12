@@ -17,6 +17,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   gnupg2 \
   iproute2 \
   dnsutils \
+  iputils-ping \
   aggregate \
   jq \
   vim \
@@ -71,8 +72,8 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 ENV DEVCONTAINER=true
 
 # Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/$USERNAME/.claude && \
-  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.claude
+RUN mkdir -p /workspace /home/$USERNAME/.claude /home/$USERNAME/.codex /home/$USERNAME/.cache && \
+  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.claude /home/$USERNAME/.codex /home/$USERNAME/.cache
 
 WORKDIR /workspace
 
@@ -121,10 +122,13 @@ USER $USERNAME
 
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
-ENV PATH=$PATH:/usr/local/share/npm-global/bin
+ENV PATH=$PATH:/usr/local/share/npm-global/bin:/home/$USERNAME/scripts
 
 # Set the default shell to zsh rather than sh
 ENV SHELL=/bin/zsh
+
+# Set umask to allow group write permissions
+ENV UMASK=0002
 
 # Set the default editor and visual
 ENV EDITOR=vim
@@ -136,16 +140,18 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
     git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions && \
     git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 
-# Copy configuration files
-COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/.zshrc /home/$USERNAME/.zshrc
-COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/.tmux.conf /home/$USERNAME/.tmux.conf
-
 # Install tmux plugin manager
 RUN git clone https://github.com/tmux-plugins/tpm /home/$USERNAME/.tmux/plugins/tpm
 
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
-COPY --chown=$USERNAME:$USERNAME devcontainer_base/claude-defaults /home/$USERNAME/claude-defaults
+
+# Install mcp servers
+# https://github.com/upstash/context7
+RUN claude mcp add context7 -- npx -y @upstash/context7-mcp
+
+# Install Codex CLI
+RUN npm install -g @openai/codex
 
 # Install tmux plugins
 RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
@@ -153,7 +159,24 @@ RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
 # Copy all scripts with proper permissions
 COPY --chown=$USERNAME:$USERNAME --chmod=755 devcontainer_base/scripts/*.sh /home/$USERNAME/scripts/
 
+# Copy claude defaults
+COPY --chown=$USERNAME:$USERNAME devcontainer_base/claude-defaults /home/$USERNAME/claude-defaults
+
+# Copy configuration files
+COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/.zshrc /home/$USERNAME/.zshrc
+COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/.tmux.conf /home/$USERNAME/.tmux.conf
+COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/codex_config.toml /home/$USERNAME/.codex/config.toml
+
+# Create logs directory for scripts to avoid conflicts with .claude directory
+RUN mkdir -p /home/$USERNAME/scripts/logs && \
+    chown -R $USERNAME:$USERNAME /home/$USERNAME/scripts/logs
+
 # Copy default whitelist from common_settings
 COPY common_settings/default-whitelist.txt /usr/local/etc/default-whitelist.txt
 
-ONBUILD COPY whitelist.txt /usr/local/etc/
+# Copy entrypoint script
+COPY --chown=claude:dev ../devcontainer_base/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["sleep", "infinity"]

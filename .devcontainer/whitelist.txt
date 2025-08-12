@@ -7,3 +7,11 @@
 
 # Add your custom domains below
 gitlab.com
+
+# Docker registries (needed for building images from within devcontainer)
+docker.io
+registry-1.docker.io
+index.docker.io
+auth.docker.io
+hub.docker.com
+production.cloudflare.docker.com

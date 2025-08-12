@@ -1,0 +1,1 @@
+For auth use `codex login` for persist localhost login server.

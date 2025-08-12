@@ -20,6 +20,13 @@ sentry.io
 statsig.anthropic.com
 statsig.com
 
+# OpenAI API endpoints for Codex and GPT integration
+api.openai.com
+auth.openai.com
+platform.openai.com
+openai.com
+chatgpt.com
+
 # JetBrains (IDE licensing/plugins)
 account.jetbrains.com
 plugins.jetbrains.com

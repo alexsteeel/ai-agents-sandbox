@@ -31,11 +31,13 @@ Security and setup scripts installed in the image:
   - Sets up Docker certificates for DinD
   - Configures Claude Code settings
   - Initializes development environment
+  - Creates logs in `~/scripts/logs/` to avoid conflicts with `.claude/` directory
 
 - **`setup-claude-defaults.sh`**: Installs Claude Code configurations
   - Copies agent definitions to `.claude/agents/`
   - Sets up linting hooks in `.claude/hooks/`
   - Configures default settings
+  - Handles ownership gracefully, excluding `logs/` and `projects/` directories
 
 - **`setup-p10k.sh`**: Configures Powerlevel10k theme for zsh
   - Interactive theme configuration
@@ -50,6 +52,7 @@ Security and setup scripts installed in the image:
   - Confirms non-root user enforcement
   - Checks file ownership and permissions
   - Validates security constraints
+  - Verifies `/workspace/projects` directory has group `dev` for shared access
 
 - **`test-tools.sh`**: Development tools verification
   - Tests all installed tools and versions
@@ -59,9 +62,11 @@ Security and setup scripts installed in the image:
 ### `/claude-defaults/`
 Default Claude Code configurations:
 
-- **`/agents/`**: Pre-configured AI agent definitions
-  - `python-data-engineer.md`: Data pipeline development
+- **`/agents/`**: Pre-configured AI agent definitions (6 total)
+  - `analytics.md`: Data analytics and visualization
+  - `code-reviewer.md`: Code review and quality assurance
   - `data-engineering-lead.md`: Architecture guidance
+  - `python-data-engineer.md`: Data pipeline development
   - `python-qa-engineer.md`: Testing and QA
   - `senior-devops-engineer.md`: Infrastructure
 
@@ -96,6 +101,13 @@ Built-in allowed domains for proxy filtering:
 - Git and development utilities
 - Linters: shellcheck, hadolint, yamllint, ruff, black
 
+**Directory Structure**:
+- `/home/claude/scripts/`: Utility scripts and tools (added to PATH)
+- `/home/claude/scripts/logs/`: Script execution logs (separate from .claude/)
+- `/home/claude/claude-defaults/`: Source for Claude Code configurations
+- `/home/claude/.claude/`: Runtime Claude Code configuration (populated by setup script)
+- `/home/claude/.claude/projects/`: Mount point for host projects directory (group: dev)
+
 ## Security Constraints
 
 The image enforces:
@@ -104,6 +116,25 @@ The image enforces:
 - **NO SSH**: No remote access services
 - **File permissions**: Strict ownership model
 - **Network isolation ready**: Designed for internal networks
+
+## Container Lifecycle Scripts
+
+### `entrypoint.sh` (Runtime)
+- **When**: Runs every time the container starts
+- **Purpose**: Runtime initialization and fixes
+- **Tasks**:
+  - Fixes `.codex` directory ownership issues
+  - Sets up `.zsh_history` persistence with symlinks
+  - Ensures proper file permissions for runtime
+
+### `non-root-post-create.sh` (Post-Creation)
+- **When**: Runs once after container is first created
+- **Purpose**: One-time setup and validation
+- **Tasks**:
+  - Orchestrates all setup scripts (P10k, Claude defaults)
+  - Runs comprehensive test suites
+  - Creates logs in `~/scripts/logs/`
+  - Provides setup summary
 
 ## Testing
 

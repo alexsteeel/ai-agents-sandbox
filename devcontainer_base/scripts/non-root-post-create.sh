@@ -23,8 +23,8 @@ main() {
     local HOME="/home/${USER}"
     local SCRIPTS_DIR="$(dirname "$0")"
     
-    # Create logs directory
-    local LOG_DIR="${HOME}/.claude/logs"
+    # Create logs directory in scripts folder to avoid conflicts with .claude directory
+    local LOG_DIR="${HOME}/scripts/logs"
     mkdir -p "${LOG_DIR}"
     
     # Start logging while keeping console output

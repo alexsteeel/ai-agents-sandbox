@@ -66,7 +66,7 @@ fi
 echo "COMPOSE_PROJECT_NAME=$PROJECT_NAME" >> "$SCRIPT_DIR/.env"
 echo "COMPOSE_PROJECT_NAME=$PROJECT_NAME" > "$SCRIPT_DIR/.env.project"
 
-# Check if we're being called from VS Code
+# Check if we're being called from IDE
 if [[ -n "${VSCODE_REMOTE_CONTAINERS_SESSION:-}" ]] || [[ "${INITIALIZE_MODE:-}" == "vscode" ]]; then
     echo "Running in VS Code context - skipping service startup (VS Code will handle it)"
 else
@@ -76,15 +76,19 @@ else
     COMPOSE_PROJECT_NAME="$PROJECT_NAME" docker compose -f docker-compose.yaml up -d
 fi
 
+# Use project name as Docker Compose project name for isolation
+echo "Starting supporting services with project namespace: $PROJECT_NAME"
+docker compose -f "$SCRIPT_DIR/docker-compose.yaml" -p "$PROJECT_NAME" up docker tinyproxy-dind -d
+
 echo "Setting up Docker certificates for project $PROJECT_NAME..."
 CERT_DIR="$HOME/.claude-docker-certs-$PROJECT_NAME"
 mkdir -p "$CERT_DIR"
 
 # Container names will be prefixed with project name
 # Docker Compose v2 uses hyphen separator with service name
-DOCKER_CONTAINER="${PROJECT_NAME}-docker-dind-1"
+DOCKER_CONTAINER="${PROJECT_NAME}-docker-1"
 # Also check with underscore format (older compose versions)
-DOCKER_CONTAINER_ALT="${PROJECT_NAME}_docker-dind_1"
+DOCKER_CONTAINER_ALT="${PROJECT_NAME}_docker_1"
 
 if docker ps --format '{{.Names}}' | grep -q "^${DOCKER_CONTAINER}$"; then
     docker cp "${DOCKER_CONTAINER}:/certs/client/." "$CERT_DIR"
@@ -128,6 +132,17 @@ if [[ -d "$TARGET_DIR" ]]; then
     sudo chmod -R g+rwX "$TARGET_DIR"
     sudo find "$TARGET_DIR" -type d -exec chmod g+s {} +
 
+    # Also set up .claude/projects directory for dev group access
+    CLAUDE_PROJECTS_DIR="$HOME/.claude/projects"
+    if [[ ! -d "$CLAUDE_PROJECTS_DIR" ]]; then
+        echo "Creating .claude/projects directory..."
+        mkdir -p "$CLAUDE_PROJECTS_DIR"
+    fi
+
+    echo "Setting group ownership of .claude/projects to '$GROUP_NAME'..."
+    sudo chgrp -R "$GROUP_NAME" "$CLAUDE_PROJECTS_DIR"
+    sudo chmod -R g+rwX "$CLAUDE_PROJECTS_DIR"
+
     echo "Directory permissions configured successfully."
     echo "Directory: $TARGET_DIR"
     echo "Group: $GROUP_NAME"
@@ -159,7 +174,7 @@ echo "  - Restart proxy to apply changes: docker restart ${PROJECT_NAME}-tinypro
 echo ""
 echo "Services running (project-isolated):"
 echo "  - ${PROJECT_NAME}-tinyproxy-1: HTTP/HTTPS proxy with whitelist filtering"
-echo "  - ${PROJECT_NAME}-docker-dind-1: Docker-in-Docker for isolated container operations"
+echo "  - ${PROJECT_NAME}-docker-1: Docker-in-Docker for isolated container operations"
 echo "  - ${PROJECT_NAME}-devcontainer-1: Development environment (when started)"
 echo ""
 echo "To manage this project's services:"

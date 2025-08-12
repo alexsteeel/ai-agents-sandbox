@@ -33,14 +33,17 @@ Dynamic configuration script that:
    - `/custom-whitelist.txt` (project-specific)
 
 2. **Configures upstream proxy** (if environment variables set):
-   - Reads `UPSTREAM_PROXY_HOST` and `UPSTREAM_PROXY_PORT`
-   - Adds `Upstream` directive to configuration
+   - HTTP proxy: Uses `UPSTREAM_HTTP=host:port` format
+   - SOCKS5 proxy: Uses `UPSTREAM_SOCKS5=host:port` format
+   - Bypass domains: Uses `NO_UPSTREAM` for domains that skip upstream
+   - Only one proxy type (HTTP or SOCKS5) can be active
 
 3. **Generates tinyproxy.conf** with:
    - Port 8888 binding
    - Default-deny policy (`FilterDefaultDeny Yes`)
    - Merged filter file
    - Logging configuration
+   - No upstream directives for bypass domains
 
 ### `tinyproxy.conf`
 Template configuration with:
@@ -54,10 +57,23 @@ Template configuration with:
 Configured via `.env` file:
 
 ```bash
-# Optional: External HTTP proxy
-UPSTREAM_PROXY_HOST=proxy.example.com
-UPSTREAM_PROXY_PORT=3128
+# Optional: External HTTP proxy (choose one)
+UPSTREAM_HTTP=proxy.example.com:3128
+
+# OR: External SOCKS5 proxy
+UPSTREAM_SOCKS5=socks.example.com:1080
+
+# Optional: Domains that bypass upstream proxy
+# Can be space or comma separated
+NO_UPSTREAM="github.com gitlab.com,bitbucket.org"
 ```
+
+### NO_UPSTREAM Feature
+When an upstream proxy is configured, you can specify domains that should connect directly through tinyproxy without going through the upstream:
+- Useful for local/internal services
+- Supports multiple domains (space or comma separated)
+- Only applies when `UPSTREAM_HTTP` or `UPSTREAM_SOCKS5` is set
+- Each domain gets a `no upstream "domain"` directive in the config
 
 ## Whitelist Management
 
@@ -126,9 +142,15 @@ curl -I https://google.com  # Should fail (unless whitelisted)
 - Restart tinyproxy: `docker compose restart tinyproxy`
 
 **Upstream proxy not working**:
-- Verify `UPSTREAM_PROXY_HOST` and `UPSTREAM_PROXY_PORT` in `.env`
+- Verify `UPSTREAM_HTTP` or `UPSTREAM_SOCKS5` format in `.env`
 - Check upstream proxy accessibility
-- Note: Only HTTP proxies supported (not SOCKS5)
+- For SOCKS5: Ensure format is `host:port` (e.g., `socks.example.com:1080`)
+- For HTTP: Ensure format is `host:port` (e.g., `proxy.example.com:3128`)
+
+**Bypass domains not working**:
+- Verify `NO_UPSTREAM` is set correctly in `.env`
+- Ensure upstream proxy is configured (bypass only works with upstream)
+- Check logs for "no upstream" directives being added
 
 ## Important Notes
 

@@ -1,17 +1,6 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(shellcheck:*)",
-      "Bash(shfmt:*)",
-      "Bash(hadolint:*)",
-      "Bash(yamllint:*)",
-      "Bash(find:*)",
-      "Bash(uv:*)",
-      "Bash(uvx:*)",
-      "Write",
-      "Edit"
-    ],
-    "deny": []
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "0"
   },
   "hooks": {
     "SubagentStop": [

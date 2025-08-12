@@ -51,13 +51,18 @@ setup_claude_config() {
         return 1
     fi
     
-    # Set proper ownership recursively
+    # Set proper ownership recursively, excluding projects directory and any existing logs
     echo "Setting ownership..."
-    if chown -R "${USER}:${USER}" "${TARGET_DIR}"; then
-        echo -e "${GREEN}✓${NC} Ownership set to ${USER}:${USER}"
+    # Use find to exclude projects directory and logs from ownership changes
+    # This prevents failures when logs already exist with different ownership
+    if find "${TARGET_DIR}" \
+        -path "${TARGET_DIR}/projects" -prune -o \
+        -path "${TARGET_DIR}/logs" -prune -o \
+        -print0 2>/dev/null | xargs -0 chown "${USER}:${USER}" 2>/dev/null; then
+        echo -e "${GREEN}✓${NC} Ownership set to ${USER}:${USER} (excluding projects/ and logs/)"
     else
-        echo -e "${RED}✗${NC} Failed to set ownership"
-        return 1
+        # Don't fail if ownership setting has issues, just warn
+        echo -e "${YELLOW}⚠${NC} Some files could not have ownership changed (this is normal for mounted volumes)"
     fi
     
     # Create logs directory
@@ -89,7 +94,6 @@ verify_claude_structure() {
     
     local optional_dirs=(
         "commands"
-        "templates"
     )
     
     # Check required directories

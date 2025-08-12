@@ -1,5 +1,6 @@
-- non-root-post-create script:
-  - add custom rows to the .zshrc
-- add codex cli, code review agent who can call /review command, create local pull-request and use codex cli to review the code
+- add default config.toml for codex
 - add technical-documentation agent which can write docs in the selected style ()
 - add gitstatusd to the base image
+- fix persistence of zshhistory
+- add golang container based on devcontainer base
+- add dotnet container based on devcontainer base
