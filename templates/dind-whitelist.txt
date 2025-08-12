@@ -1,0 +1,19 @@
+# Docker-in-Docker whitelisted domains
+# These domains are accessible from the Docker daemon for pulling/pushing images
+#
+# The following container registries are already whitelisted by default:
+# - Docker Hub: docker.io, registry-1.docker.io
+# - GitHub: ghcr.io
+# - Google: gcr.io
+# - Microsoft: mcr.microsoft.com
+# - Red Hat: registry.redhat.io
+#
+# Add your private/corporate registries below:
+
+# Example private registries
+# registry.company.com
+# artifactory.company.com
+
+# Example cloud provider registries
+# 123456789.dkr.ecr.us-east-1.amazonaws.com
+# myregistry.azurecr.io

@@ -1,0 +1,51 @@
+# Alternative minimal docker-compose using service-level extends
+# For Docker Compose versions that don't support 'include' directive
+
+services:
+  # Extend devcontainer service from base
+  devcontainer:
+    extends:
+      file: /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+      service: devcontainer
+    # Add any project-specific overrides here
+    # environment:
+    #   - CUSTOM_VAR=value
+    # volumes:
+    #   - ./custom-config:/home/claude/.custom:ro
+
+  # Extend tinyproxy services
+  tinyproxy-devcontainer:
+    extends:
+      file: /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+      service: tinyproxy-devcontainer
+
+  tinyproxy-dind:
+    extends:
+      file: /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+      service: tinyproxy-dind
+
+  # Extend docker service
+  docker:
+    extends:
+      file: /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+      service: docker
+
+# Include the networks and volumes from base
+networks:
+  claude-internal:
+    driver: bridge
+    internal: true
+  claude-external:
+    driver: bridge
+
+volumes:
+  docker-certs-ca:
+  docker-certs-client:
+  docker-data:
+  proxy-devcontainer-logs:
+  proxy-dind-logs:
+  claude-code-config:
+  zsh-history:
+  codex:
+  cache:
+  jb-cache:

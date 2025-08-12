@@ -1,0 +1,192 @@
+#!/bin/bash
+set -euo pipefail
+
+# claude-workspace-init - Initialize a workspace for Claude DevContainer
+# This script handles all the complex setup logic that was previously in .devcontainer/initialize.sh
+
+SCRIPT_NAME="$(basename "$0")"
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+print_status() { echo -e "${GREEN}[$SCRIPT_NAME]${NC} $1"; }
+print_error() { echo -e "${RED}[$SCRIPT_NAME]${NC} $1" >&2; }
+print_warning() { echo -e "${YELLOW}[$SCRIPT_NAME]${NC} $1"; }
+
+# Parse arguments
+TARGET_DIR="${1:-}"
+if [[ -z "$TARGET_DIR" ]]; then
+    print_error "Target directory required"
+    echo "Usage: $SCRIPT_NAME <target-dir>"
+    echo ""
+    echo "Examples:"
+    echo "  $SCRIPT_NAME /home/user/myproject"
+    echo "  $SCRIPT_NAME ."
+    echo "  $SCRIPT_NAME \$(pwd)"
+    exit 1
+fi
+
+# Convert to absolute path
+TARGET_DIR=$(realpath "$TARGET_DIR")
+
+# Generate project-specific name from path
+BASENAME=$(basename "$TARGET_DIR" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+HASH=$(echo -n "$TARGET_DIR" | md5sum | cut -c1-8)
+PROJECT_NAME="${BASENAME}-${HASH}"
+
+print_status "Initializing workspace: $TARGET_DIR"
+print_status "Project identifier: $PROJECT_NAME"
+
+# Create .devcontainer directory if it doesn't exist
+DEVCONTAINER_DIR="$TARGET_DIR/.devcontainer"
+if [[ ! -d "$DEVCONTAINER_DIR" ]]; then
+    print_status "Creating .devcontainer directory..."
+    mkdir -p "$DEVCONTAINER_DIR"
+fi
+
+# Check if templates are installed
+TEMPLATE_DIR="/usr/local/share/claude-devcontainer"
+if [[ ! -d "$TEMPLATE_DIR" ]]; then
+    print_error "Templates not found at $TEMPLATE_DIR"
+    print_error "Please run the system installer first: sudo ./install.sh"
+    exit 1
+fi
+
+# Copy template files if they don't exist
+copy_if_missing() {
+    local src="$1"
+    local dst="$2"
+    local desc="$3"
+    
+    if [[ ! -f "$dst" ]]; then
+        print_status "Creating $desc..."
+        cp "$src" "$dst"
+    else
+        print_warning "$desc already exists, skipping"
+    fi
+}
+
+# Copy essential files
+copy_if_missing "$TEMPLATE_DIR/.env.template" "$DEVCONTAINER_DIR/.env" ".env configuration"
+copy_if_missing "$TEMPLATE_DIR/docker-compose.yaml" "$DEVCONTAINER_DIR/docker-compose.yaml" "docker-compose.yaml"
+copy_if_missing "$TEMPLATE_DIR/whitelist.txt" "$DEVCONTAINER_DIR/whitelist.txt" "whitelist.txt"
+copy_if_missing "$TEMPLATE_DIR/dind-whitelist.txt" "$DEVCONTAINER_DIR/dind-whitelist.txt" "dind-whitelist.txt"
+copy_if_missing "$TEMPLATE_DIR/Dockerfile.template" "$DEVCONTAINER_DIR/Dockerfile" "Dockerfile"
+copy_if_missing "$TEMPLATE_DIR/initialize.sh" "$DEVCONTAINER_DIR/initialize.sh" "initialize.sh"
+
+# Make initialize.sh executable
+chmod +x "$DEVCONTAINER_DIR/initialize.sh"
+
+# Update .env with project-specific values
+if [[ -f "$DEVCONTAINER_DIR/.env" ]]; then
+    print_status "Updating .env with project settings..."
+    
+    # Use temporary file for safe editing
+    TMP_ENV=$(mktemp)
+    cp "$DEVCONTAINER_DIR/.env" "$TMP_ENV"
+    
+    # Update PROJECT_NAME
+    sed -i "s|^PROJECT_NAME=.*|PROJECT_NAME=$PROJECT_NAME|" "$TMP_ENV"
+    
+    # Update PROJECT_DIR
+    sed -i "s|^PROJECT_DIR=.*|PROJECT_DIR=$TARGET_DIR|" "$TMP_ENV"
+    
+    mv "$TMP_ENV" "$DEVCONTAINER_DIR/.env"
+fi
+
+# Create .env.project for Docker Compose
+echo "COMPOSE_PROJECT_NAME=$PROJECT_NAME" > "$DEVCONTAINER_DIR/.env.project"
+
+# Set up dev group for file permissions
+DEV_GID=2000
+if ! getent group $DEV_GID >/dev/null 2>&1; then
+    print_status "Creating dev group (GID $DEV_GID) for file sharing..."
+    if [[ $EUID -eq 0 ]]; then
+        groupadd -g $DEV_GID dev
+    else
+        print_warning "Not running as root, skipping group creation"
+        print_warning "You may need to run: sudo groupadd -g $DEV_GID dev"
+    fi
+fi
+
+# Add current user to dev group
+if getent group $DEV_GID >/dev/null 2>&1; then
+    if [[ $EUID -eq 0 ]]; then
+        usermod -aG dev "$SUDO_USER" 2>/dev/null || true
+    elif command -v sudo >/dev/null 2>&1; then
+        print_status "Adding user to dev group (may require password)..."
+        sudo usermod -aG dev "$USER" 2>/dev/null || true
+    fi
+fi
+
+# Set directory permissions
+print_status "Setting directory permissions..."
+if [[ -w "$TARGET_DIR" ]]; then
+    # Try to change group ownership
+    if chgrp -R $DEV_GID "$TARGET_DIR" 2>/dev/null; then
+        chmod -R g+rw "$TARGET_DIR"
+        find "$TARGET_DIR" -type d -exec chmod g+s {} \; 2>/dev/null || true
+        print_status "Permissions set successfully"
+    else
+        print_warning "Could not set group ownership, you may need to run with sudo"
+    fi
+else
+    print_warning "No write access to $TARGET_DIR, skipping permission changes"
+fi
+
+# Create Claude directories
+CLAUDE_DIR="$HOME/.claude"
+NOTIFICATION_DIR="$CLAUDE_DIR/notifications"
+if [[ ! -d "$CLAUDE_DIR" ]]; then
+    print_status "Creating Claude directory..."
+    mkdir -p "$CLAUDE_DIR"
+    chmod 755 "$CLAUDE_DIR"
+fi
+if [[ ! -d "$NOTIFICATION_DIR" ]]; then
+    print_status "Creating notification directory..."
+    mkdir -p "$NOTIFICATION_DIR"
+    chmod 777 "$NOTIFICATION_DIR"
+fi
+
+# Create VS Code devcontainer.json if it doesn't exist
+if [[ ! -f "$DEVCONTAINER_DIR/devcontainer.json" ]]; then
+    print_status "Creating devcontainer.json for VS Code..."
+    cat > "$DEVCONTAINER_DIR/devcontainer.json" <<EOF
+{
+  "name": "$PROJECT_NAME",
+  "dockerComposeFile": "docker-compose.yaml",
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "claude",
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
+      "extensions": []
+    }
+  }
+}
+EOF
+fi
+
+# Final instructions
+echo ""
+print_status "Workspace initialization complete!"
+echo ""
+echo "Next steps:"
+echo "1. Review and edit: $DEVCONTAINER_DIR/.env"
+echo "2. Add domains to: $DEVCONTAINER_DIR/whitelist.txt"
+echo "3. Add registries to: $DEVCONTAINER_DIR/dind-whitelist.txt"
+echo "4. (Optional) Customize: $DEVCONTAINER_DIR/Dockerfile"
+echo "5. Start environment: claude-devcontainer start $TARGET_DIR"
+echo ""
+echo "For VS Code: Open folder and select 'Reopen in Container'"
+echo "For PyCharm: Configure Docker Compose interpreter"
+echo ""
+
+exit 0

@@ -1,0 +1,22 @@
+# Project-specific whitelisted domains
+# Add one domain per line
+# These domains will be accessible from the devcontainer
+#
+# The following domains are already whitelisted by default:
+# - GitHub: github.com, raw.githubusercontent.com
+# - Package registries: pypi.org, registry.npmjs.org
+# - Documentation: docs.python.org, developer.mozilla.org
+#
+# Add your project-specific domains below:
+
+# Example API endpoints
+# api.myproject.com
+# auth.myproject.com
+
+# Example CDN/Assets
+# cdn.myproject.com
+# assets.myproject.com
+
+# Example third-party services
+# api.stripe.com
+# api.sendgrid.com

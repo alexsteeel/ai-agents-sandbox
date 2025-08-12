@@ -1,0 +1,64 @@
+# Claude DevContainer Custom Dockerfile Template
+# This file extends the base devcontainer image with your customizations
+
+# Use the base image (can be overridden via BASE_IMAGE in .env)
+ARG BASE_IMAGE=claudecode/devcontainer:latest
+FROM ${BASE_IMAGE}
+
+# ============================================================================
+# CORPORATE SSL CERTIFICATES (if needed)
+# ============================================================================
+# Uncomment and modify if you need to add corporate CA certificates
+
+# USER root
+# COPY ssl-certs/corporate-ca.crt /usr/local/share/ca-certificates/
+# RUN update-ca-certificates
+# USER claude
+
+# ============================================================================
+# CUSTOM TOOLS INSTALLATION
+# ============================================================================
+# Add your project-specific tools here
+
+# Example: Install additional Node.js packages globally
+# RUN npm install -g @company/internal-cli
+
+# Example: Install Python packages for the user
+# RUN pip install --user custom-package==1.0.0
+
+# Example: Install system packages (requires switching to root)
+# USER root
+# RUN apt-get update && apt-get install -y \
+#     package1 \
+#     package2 \
+#     && apt-get clean && rm -rf /var/lib/apt/lists/*
+# USER claude
+
+# ============================================================================
+# CUSTOM CONFIGURATION
+# ============================================================================
+# Add any custom configuration files
+
+# Example: Copy custom git configuration
+# COPY --chown=claude:claude .gitconfig /home/claude/.gitconfig
+
+# Example: Copy custom tool configurations
+# COPY --chown=claude:claude configs/tool-config.yaml /home/claude/.config/tool/config.yaml
+
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
+# Set any additional environment variables
+
+# Example: Set API endpoints
+# ENV API_BASE_URL=https://api.company.com
+# ENV TOOL_CONFIG=/home/claude/.config/tool/config.yaml
+
+# ============================================================================
+# FINAL SETUP
+# ============================================================================
+# Ensure we're running as the claude user and in the workspace
+USER claude
+WORKDIR /workspace
+
+# The entrypoint and cmd are inherited from the base image

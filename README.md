@@ -103,45 +103,74 @@ flowchart TD
 
 ## Quick start
 
-1. Build both base images once:
+### One-Time Setup (System-wide Installation)
 
+```bash
+# Install everything (builds images + installs management commands)
+./install.sh
+
+# This installs these commands system-wide:
+# - claude-devcontainer: Main management command
+# - claude-workspace-init: Initialize workspace
+# - claude-notify-watch: Host notification watcher
+# - claude-proxy-manager: Proxy configuration utility
+```
+
+### Using in Your Project
+
+1. Initialize your project with the devcontainer:
    ```bash
-   ./build.sh  # Builds devcontainer and tinyproxy images
+   # From your project directory
+   claude-devcontainer init
+   # Or specify a path:
+   claude-devcontainer init /path/to/project
    ```
 
-2. Copy the `.devcontainer/` directory into your project root.
-
-3. Configure environment:
+2. Configure environment (optional):
    ```bash
    cd .devcontainer
-   cp .env.example .env
-   # Edit .env to configure proxy settings if needed
+   # Edit .env for proxy settings if needed
+   vim .env
+   # Add project-specific domains to whitelist.txt
+   vim whitelist.txt
    ```
 
-4. Add any project-specific domains to `.devcontainer/whitelist.txt` BEFORE starting the container.
+3. Start the environment:
+   ```bash
+   claude-devcontainer start
+   ```
 
-5. Commit the changes locally.
-
-6. Create a task environment (worktree) FIRST:
+4. Create a task environment (worktree) for parallel work:
    ```bash
    # from your main repo
    git worktree add ../task-foo -b feature/task-foo
    cd ../task-foo
+   claude-devcontainer init  # Initialize this worktree too
+   claude-devcontainer start
    ```
 
-7. Open the worktree in your IDE:
-   - **PyCharm:** Open the worktree folder → **Open in Dev Container** (automatically starts services)
-   - **VS Code:** Open the worktree folder → Automatically detects `.devcontainer/devcontainer.json`
-   - **Other JetBrains IDEs:** Similar to PyCharm
+5. Open in your IDE:
+   - **VS Code:** Automatically detects `.devcontainer/devcontainer.json`
+   - **PyCharm:** Open folder → Docker service will be detected
+   - **Claude Code:** Run `claude --dangerously-skip-permissions`
 
-   Note: Each worktree gets its own isolated environment with separate containers.
-8. Run claude with flag --dangerously-skip-permissions using `run-claude.sh`
+### Management Commands
+
+```bash
+# Available commands after installation:
+claude-devcontainer status     # Check container status
+claude-devcontainer logs       # View logs
+claude-devcontainer shell      # Open shell in container
+claude-devcontainer stop       # Stop containers
+claude-devcontainer clean      # Remove containers
+claude-devcontainer validate   # Run security validation
+```
 
 ## Network Configuration
 
 ### Proxy Filtering
 - **Tinyproxy** enforces whitelist-based filtering (default-deny)
-- Default whitelisted domains in `common_settings/default-whitelist.txt`:
+- Default whitelisted domains in `images/common-settings/default-whitelist.txt`:
   - GitHub, GitLab, PyPI, npm registry, JetBrains services
 - Add project-specific domains to `.devcontainer/whitelist.txt`
 
@@ -149,11 +178,13 @@ flowchart TD
 Configure optional upstream proxy in `.devcontainer/.env`:
 
 ```bash
-# SOCKS5 proxy (e.g., SSH tunnel)
-UPSTREAM_SOCKS5=host.docker.internal:8900
+# Simple format - just specify proxy URL
+UPSTREAM_PROXY=socks5://host.docker.internal:8900
+# or
+UPSTREAM_PROXY=http://host.docker.internal:3128
 
-# HTTP proxy
-UPSTREAM_HTTP=host.docker.internal:3128
+# Domains that bypass the upstream proxy
+NO_UPSTREAM=github.com,gitlab.com
 ```
 
 For SSH tunnels:
@@ -171,20 +202,21 @@ docker exec devcontainer /home/claude/scripts/test-network.sh
 The environment includes a host notification system for alerts from Claude Code:
 
 ### Setup
-1. The `initialize.sh` script automatically creates the notification directory
-2. Install inotify-tools:
+1. Notification directory is created automatically during installation
+2. Install inotify-tools for instant notifications:
    ```bash
    sudo apt-get install inotify-tools  # Debian/Ubuntu
    ```
 3. Start the notification watcher on your host:
    ```bash
-   ./host-scripts/notify-watch.sh
+   claude-notify-watch  # Installed system-wide by ./install.sh
    ```
 
 ### How it works
-- Claude Code writes notifications to a mounted volume
+- Claude Code writes notifications to `/home/claude/.claude/notifications` in container
+- This is mounted to `$HOME/.claude/notifications` on host
 - Host watcher monitors the directory and shows desktop alerts
-- Supports different urgency levels (error, complete, clarification)
+- Supports different urgency levels (error, complete, clarification, approval, blocked)
 
 ### Testing
 From within the container:

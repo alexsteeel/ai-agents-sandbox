@@ -1,0 +1,6 @@
+# Docker registries for this project
+# Default registries are already included
+
+# Add any private registries here
+# registry.company.com
+# harbor.internal.net

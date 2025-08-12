@@ -16,7 +16,7 @@ You execute code reviews using the following process:
    - Understand the review scope and requirements
 
 2. **Execute Codex Review**
-   - Run the Codex review script: `/workspace/devcontainer_base/scripts/codex/run-codex.sh`
+   - Run the Codex review script: `/workspace/images/devcontainer_base/scripts/codex/run-codex.sh`
    - Pass appropriate prompts to Codex for thorough analysis
    - Generate review output file
 

@@ -6,8 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository provides a **base devcontainer foundation** for secure, isolated development environments. 
 
-- **devcontainer_base/**: Reusable foundation with all tools, scripts, and security controls baked into the Docker image
+- **images/**: Docker images for the devcontainer foundation and proxy services
+  - **devcontainer-base/**: Reusable foundation with all tools, scripts, and security controls
+  - **tinyproxy-extended/**: Custom tinyproxy with whitelist filtering
+  - **tinyproxy-dind/**: Dedicated proxy for Docker-in-Docker
+  - **common-settings/**: Shared configuration and whitelists
 - **.devcontainer/**: Minimal example showing how users implement the foundation in their projects
+- **docs/**: Documentation and notes
+- **host/**: Host-side scripts and tools
+- **claude/**: Claude-specific configurations (when present)
 
 The foundation enforces strict network isolation with proxy-based egress control for AI-assisted coding.
 
@@ -23,31 +30,46 @@ The foundation enforces strict network isolation with proxy-based egress control
 
 ## Key Commands
 
-### Build Base Image (one-time setup)
+### System-wide Installation (one-time setup)
 ```bash
-# Build the foundation Docker image (includes custom tinyproxy)
-./build.sh
-# Or manually:
-cd devcontainer_base && ./build.sh
+# Install everything: builds images + installs management commands
+./install.sh
+
+# This installs system-wide commands:
+# - claude-devcontainer: Main management command
+# - claude-workspace-init: Initialize workspace
+# - claude-notify-watch: Host notification watcher
+# - claude-proxy-manager: Proxy configuration utility
+```
+
+### Manual Build (if needed)
+```bash
+# Build specific images manually:
+./images/build.sh devcontainer   # Build devcontainer base image
+./images/build.sh tinyproxy      # Build tinyproxy image
+./images/build.sh tinyproxy-dind # Build tinyproxy-dind image
+./images/build.sh all            # Build all images
 ```
 
 ### Using in Your Project
 ```bash
-# Copy minimal .devcontainer to your project
-cp -r .devcontainer /path/to/your-project/
+# Initialize project with devcontainer (after system installation)
+claude-devcontainer init /path/to/your-project
 
-# Copy and customize environment variables
-cd /path/to/your-project/.devcontainer
-cp .env.example .env
+# Or from within project directory:
+cd /path/to/your-project
+claude-devcontainer init
 
-# Initialize environment (first time only)
-./initialize.sh /path/to/your-project
+# Configure environment (optional)
+cd .devcontainer
+vim .env          # Configure proxy settings
+vim whitelist.txt # Add project-specific domains
 
 # Start services
-docker compose up -d
+claude-devcontainer start
 
 # Stop services
-docker compose down
+claude-devcontainer stop
 ```
 
 ### Claude Code
@@ -119,8 +141,8 @@ tinyproxy (custom extended image)
 ├── Dynamic configuration via entrypoint
 ├── Automatic upstream proxy support
 └── Whitelisted domains merged from:
-    ├── Built-in defaults (devcontainer_base/default-whitelist.txt)
-    ├── Common settings (common_settings/default-whitelist.txt)
+    ├── Built-in defaults (images/devcontainer-base/default-whitelist.txt)
+    ├── Common settings (images/common-settings/default-whitelist.txt)
     └── Project-specific (.devcontainer/whitelist.txt)
 
 devcontainer (from base image or extended)
@@ -159,22 +181,20 @@ Edit `.devcontainer/whitelist.txt` (one domain per line)
 
 **Upstream Proxy Support:**
 The custom tinyproxy image supports automatic upstream proxy configuration:
-- **HTTP Proxy**: Set `UPSTREAM_HTTP=host:port` in `.env` file
-- **SOCKS5 Proxy**: Set `UPSTREAM_SOCKS5=host:port` in `.env` file
+- **Simple Format**: Set `UPSTREAM_PROXY=protocol://host:port` in `.env` file
+- **Supported Protocols**: `http://` or `socks5://`
 - **Bypass Domains**: Set `NO_UPSTREAM` to specify domains that bypass the upstream proxy
 - The proxy configuration is automatically applied on container startup
-- Only one upstream proxy type can be active at a time (HTTP or SOCKS5)
 
 **Environment Variables (.env):**
 ```bash
-# Optional: External HTTP proxy
-UPSTREAM_HTTP=proxy.example.com:3128
-
-# OR: External SOCKS5 proxy (choose one)
-UPSTREAM_SOCKS5=socks.example.com:1080
+# Simplified upstream proxy configuration
+UPSTREAM_PROXY=socks5://host.docker.internal:8900
+# or
+UPSTREAM_PROXY=http://proxy.example.com:3128
 
 # Optional: Domains that bypass upstream proxy (space or comma separated)
-NO_UPSTREAM="github.com gitlab.com,bitbucket.org"
+NO_UPSTREAM=github.com,gitlab.com,bitbucket.org
 ```
 
 **Verification commands:**
@@ -265,13 +285,13 @@ The `.claude/projects` directory is mounted from the host system to enable cross
 The devcontainer includes a notification system for alerting the host when Claude needs attention:
 
 ### How it works
-1. **Container hook** (`/home/claude/claude-defaults/hooks/notify.sh`) writes notifications to `/workspace/.notifications/`
-2. **Volume mount** maps `$HOME/.claude-notifications` (host) to `/workspace/.notifications` (container)
-3. **Host watcher** (`host-scripts/notify-watch.sh`) monitors for notifications and displays desktop alerts
+1. **Container hook** (`/home/claude/claude-defaults/hooks/notify.sh`) writes notifications to `/home/claude/.claude/notifications/`
+2. **Volume mount** maps `$HOME/.claude/notifications` (host) to `/home/claude/.claude/notifications` (container)
+3. **Host watcher** (`claude-notify-watch`) monitors for notifications and displays desktop alerts
 
 ### Setup
-1. **First-time setup**: Run `./initialize.sh` to create directories with proper permissions
-2. **Start watcher**: Run `./host-scripts/notify-watch.sh` on host for desktop notifications
+1. **Installation**: Run `./install.sh` to install system-wide commands including notification watcher
+2. **Start watcher**: Run `claude-notify-watch` on host for desktop notifications (installed system-wide)
 3. **Fast mode**: Install `inotify-tools` on host for instant notifications:
    ```bash
    sudo apt-get install inotify-tools  # Debian/Ubuntu
@@ -287,3 +307,4 @@ From within container:
 ```bash
 /home/claude/claude-defaults/hooks/notify.sh "test" "Your message here"
 ```
+- no need in backward compatibility, it is new project

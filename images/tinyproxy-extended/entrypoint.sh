@@ -37,18 +37,24 @@ echo "Filter prepared with $(grep -c '^[^#]' /etc/tinyproxy/filter) patterns"
 mv /etc/tinyproxy/tinyproxy.conf /etc/tinyproxy/tinyproxy.conf.original 2>/dev/null || true
 cp -f /etc/tinyproxy/tinyproxy.conf.default /etc/tinyproxy/tinyproxy.conf
 
-# Configure upstream proxy if environment variables are set
-if [ -n "$UPSTREAM_SOCKS5" ] || [ -n "$UPSTREAM_HTTP" ]; then
-    if [ -n "$UPSTREAM_SOCKS5" ]; then
-        # SOCKS5 proxy format: upstream socks5 host:port
-        echo "Configuring upstream SOCKS5 proxy: $UPSTREAM_SOCKS5"
+# Configure upstream proxy if UPSTREAM_PROXY is set
+# Format: socks5://host:port or http://host:port
+if [ -n "$UPSTREAM_PROXY" ]; then
+    # Parse the proxy URL
+    if echo "$UPSTREAM_PROXY" | grep -q "^socks5://"; then
+        # SOCKS5 proxy
+        PROXY_HOST_PORT=$(echo "$UPSTREAM_PROXY" | sed 's|socks5://||')
+        echo "Configuring upstream SOCKS5 proxy: $PROXY_HOST_PORT"
         echo "" >> /etc/tinyproxy/tinyproxy.conf
         echo "# Upstream SOCKS5 proxy configuration" >> /etc/tinyproxy/tinyproxy.conf
-        echo "upstream socks5 $UPSTREAM_SOCKS5" >> /etc/tinyproxy/tinyproxy.conf
-    elif [ -n "$UPSTREAM_HTTP" ]; then
-        # HTTP proxy format: upstream http host:port
-        echo "Configuring upstream HTTP proxy: $UPSTREAM_HTTP"  
-        echo "upstream http $UPSTREAM_HTTP" >> /etc/tinyproxy/tinyproxy.conf
+        echo "upstream socks5 $PROXY_HOST_PORT" >> /etc/tinyproxy/tinyproxy.conf
+    elif echo "$UPSTREAM_PROXY" | grep -q "^http://"; then
+        # HTTP proxy
+        PROXY_HOST_PORT=$(echo "$UPSTREAM_PROXY" | sed 's|http://||')
+        echo "Configuring upstream HTTP proxy: $PROXY_HOST_PORT"
+        echo "" >> /etc/tinyproxy/tinyproxy.conf
+        echo "# Upstream HTTP proxy configuration" >> /etc/tinyproxy/tinyproxy.conf
+        echo "upstream http $PROXY_HOST_PORT" >> /etc/tinyproxy/tinyproxy.conf
     fi
     
     # Process NO_UPSTREAM domains if provided

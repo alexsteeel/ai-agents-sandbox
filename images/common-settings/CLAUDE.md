@@ -49,7 +49,7 @@ When adding domains that should be available in ALL devcontainer instances:
 
 1. Edit `common_settings/default-whitelist.txt`
 2. Add domain(s) - one per line
-3. Rebuild images: `./build.sh`
+3. Rebuild images: `./images/build.sh`
 4. Document the addition and reason
 
 ### Domain Format

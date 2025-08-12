@@ -158,25 +158,25 @@ RUN npm install -g @openai/codex
 RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
 
 # Copy all scripts with proper permissions (including subdirectories)
-COPY --chown=$USERNAME:$USERNAME --chmod=755 devcontainer_base/scripts/*.sh /home/$USERNAME/scripts/
+COPY --chown=$USERNAME:$USERNAME --chmod=755 images/devcontainer-base/scripts/*.sh /home/$USERNAME/scripts/
 
 # Copy claude defaults
-COPY --chown=$USERNAME:$USERNAME devcontainer_base/claude-defaults /home/$USERNAME/claude-defaults
+COPY --chown=$USERNAME:$USERNAME images/devcontainer-base/claude-defaults /home/$USERNAME/claude-defaults
 
 # Copy configuration files
-COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/.zshrc /home/$USERNAME/.zshrc
-COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/.tmux.conf /home/$USERNAME/.tmux.conf
-COPY --chown=$USERNAME:$USERNAME devcontainer_base/conf/codex_config.toml /home/$USERNAME/.codex/config.toml
+COPY --chown=$USERNAME:$USERNAME images/devcontainer-base/conf/.zshrc /home/$USERNAME/.zshrc
+COPY --chown=$USERNAME:$USERNAME images/devcontainer-base/conf/.tmux.conf /home/$USERNAME/.tmux.conf
+COPY --chown=$USERNAME:$USERNAME images/devcontainer-base/conf/codex_config.toml /home/$USERNAME/.codex/config.toml
 
 # Create logs directory for scripts to avoid conflicts with .claude directory
 RUN mkdir -p /home/$USERNAME/scripts/logs && \
     chown -R $USERNAME:$USERNAME /home/$USERNAME/scripts/logs
 
 # Copy default whitelist from common_settings
-COPY common_settings/default-whitelist.txt /usr/local/etc/default-whitelist.txt
+COPY images/common-settings/default-whitelist.txt /usr/local/etc/default-whitelist.txt
 
 # Copy entrypoint script
-COPY --chown=claude:dev ../devcontainer_base/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chown=claude:dev images/devcontainer-base/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

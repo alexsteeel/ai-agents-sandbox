@@ -1,0 +1,16 @@
+# AI Agents Sandbox - Additional whitelisted domains
+
+# AI Service APIs
+api.anthropic.com
+api.openai.com
+generativelanguage.googleapis.com
+
+# Documentation sites
+docs.anthropic.com
+platform.openai.com
+
+# Package repositories (these are in defaults but listed for clarity)
+pypi.org
+registry.npmjs.org
+github.com
+raw.githubusercontent.com

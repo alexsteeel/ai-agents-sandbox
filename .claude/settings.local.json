@@ -40,7 +40,10 @@
       "Bash(DOCKER_HOST= docker compose up -d --force-recreate devcontainer)",
       "Bash(DOCKER_HOST= docker compose up -d --force-recreate tinyproxy)",
       "Bash(cat:*)",
-      "Bash(DOCKER_HOST= docker compose up -d devcontainer)"
+      "Bash(DOCKER_HOST= docker compose up -d devcontainer)",
+      "Bash(tree:*)",
+      "Bash(./install.sh)",
+      "Bash(./tests/test-installation.sh:*)"
     ],
     "deny": []
   },

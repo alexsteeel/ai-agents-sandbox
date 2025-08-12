@@ -15,7 +15,9 @@ Provides a reusable base image with:
 
 The base image is built using:
 ```bash
-./build.sh  # Builds claudecode/devcontainer:latest
+./images/build.sh devcontainer  # Builds claudecode/devcontainer:latest
+# Or from images directory:
+cd images && ./build.sh devcontainer
 ```
 
 ## Directory Structure

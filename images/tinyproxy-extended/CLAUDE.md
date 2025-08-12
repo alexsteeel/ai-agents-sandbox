@@ -12,10 +12,12 @@ Extends the standard tinyproxy image with:
 
 ## Build Process
 
-Built automatically by `build.sh` script:
+Built automatically by unified build script:
 ```bash
 # From project root
-./build.sh  # Builds claudecode/tinyproxy:latest
+./images/build.sh tinyproxy  # Builds tinyproxy-whitelist:latest
+# Or build all images:
+./images/build.sh all
 ```
 
 ## Components
@@ -57,22 +59,22 @@ Template configuration with:
 Configured via `.env` file:
 
 ```bash
-# Optional: External HTTP proxy (choose one)
-UPSTREAM_HTTP=proxy.example.com:3128
-
-# OR: External SOCKS5 proxy
-UPSTREAM_SOCKS5=socks.example.com:1080
+# Upstream proxy configuration (optional)
+# Format: protocol://host:port
+UPSTREAM_PROXY=socks5://host.docker.internal:8900
+# or
+UPSTREAM_PROXY=http://proxy.example.com:3128
 
 # Optional: Domains that bypass upstream proxy
 # Can be space or comma separated
-NO_UPSTREAM="github.com gitlab.com,bitbucket.org"
+NO_UPSTREAM=github.com,gitlab.com,bitbucket.org
 ```
 
 ### NO_UPSTREAM Feature
 When an upstream proxy is configured, you can specify domains that should connect directly through tinyproxy without going through the upstream:
 - Useful for local/internal services
 - Supports multiple domains (space or comma separated)
-- Only applies when `UPSTREAM_HTTP` or `UPSTREAM_SOCKS5` is set
+- Only applies when `UPSTREAM_PROXY` is set
 - Each domain gets a `no upstream "domain"` directive in the config
 
 ## Whitelist Management
@@ -142,10 +144,11 @@ curl -I https://google.com  # Should fail (unless whitelisted)
 - Restart tinyproxy: `docker compose restart tinyproxy`
 
 **Upstream proxy not working**:
-- Verify `UPSTREAM_HTTP` or `UPSTREAM_SOCKS5` format in `.env`
+- Verify `UPSTREAM_PROXY` format in `.env`
 - Check upstream proxy accessibility
-- For SOCKS5: Ensure format is `host:port` (e.g., `socks.example.com:1080`)
-- For HTTP: Ensure format is `host:port` (e.g., `proxy.example.com:3128`)
+- Format must be `protocol://host:port`
+- Example: `socks5://host.docker.internal:8900`
+- Example: `http://proxy.example.com:3128`
 
 **Bypass domains not working**:
 - Verify `NO_UPSTREAM` is set correctly in `.env`

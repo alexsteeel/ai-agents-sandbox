@@ -14,7 +14,7 @@ A minimal file-based notification system that alerts you when Claude needs your 
 
 1. **Copy this folder to your home directory:**
 ```bash
-cp -r host-scripts ~/claude-notify
+cp -r host ~/claude-notify
 cd ~/claude-notify
 ```
 

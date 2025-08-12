@@ -1,4 +1,4 @@
-services:
+ services:
   # Core services - always running
   docker:
     image: docker:28-dind
@@ -33,11 +33,8 @@ services:
     # container_name removed - let Docker Compose generate project-specific names
     restart: unless-stopped
     environment:
-      - UPSTREAM_SOCKS5=${UPSTREAM_SOCKS5:-}
-      - UPSTREAM_HTTP=${UPSTREAM_HTTP:-}
-      - UPSTREAM_PROXY_TYPE=${UPSTREAM_PROXY_TYPE:-}
-      - UPSTREAM_PROXY_HOST=${UPSTREAM_PROXY_HOST:-}
-      - UPSTREAM_PROXY_PORT=${UPSTREAM_PROXY_PORT:-}
+      - UPSTREAM_PROXY=${UPSTREAM_PROXY:-}
+      - NO_UPSTREAM=${NO_UPSTREAM:-}
     volumes:
       - ./whitelist.txt:/etc/tinyproxy/user-whitelist.txt:ro
       - proxy-devcontainer-logs:/var/log/tinyproxy
@@ -52,9 +49,7 @@ services:
     image: tinyproxy-dind:latest
     # container_name removed - let Docker Compose generate project-specific names
     restart: unless-stopped
-    environment:
-      # No upstream proxy for dind - direct access only
-      - UPSTREAM_PROXY_TYPE=none
+    # No environment variables needed - dind proxy has no upstream
     volumes:
       - ./dind-whitelist.txt:/etc/tinyproxy/user-whitelist.txt:ro
       - proxy-dind-logs:/var/log/tinyproxy
@@ -93,7 +88,7 @@ services:
       - codex:/home/claude/.codex
       - cache:/home/claude/.cache
       # for notifications to host
-      - ${HOME}/.claude-notifications:/workspace/.notifications
+      - ${HOME}/.claude/notifications:/home/claude/.claude/notifications
       - jb-cache:/.jbdevcontainer
     ports:
       # OpenAI Codex auth
