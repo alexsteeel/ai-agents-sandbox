@@ -143,12 +143,13 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
 # Install tmux plugin manager
 RUN git clone https://github.com/tmux-plugins/tpm /home/$USERNAME/.tmux/plugins/tpm
 
-# Install Claude
-RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
-
-# Install mcp servers
+# Install Claude Code and related tools/mcp servers etc
+# https://github.com/anthropics/claude-code
+# https://github.com/ryoppippi/ccusage
 # https://github.com/upstash/context7
-RUN claude mcp add context7 -- npx -y @upstash/context7-mcp
+RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
+    && npm install -g ccusage \
+    && claude mcp add context7 -- npx -y @upstash/context7-mcp
 
 # Install Codex CLI
 RUN npm install -g @openai/codex
@@ -156,7 +157,7 @@ RUN npm install -g @openai/codex
 # Install tmux plugins
 RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
 
-# Copy all scripts with proper permissions
+# Copy all scripts with proper permissions (including subdirectories)
 COPY --chown=$USERNAME:$USERNAME --chmod=755 devcontainer_base/scripts/*.sh /home/$USERNAME/scripts/
 
 # Copy claude defaults

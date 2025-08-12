@@ -92,6 +92,9 @@ services:
       # for save codex settings between restarts
       - codex:/home/claude/.codex
       - cache:/home/claude/.cache
+      # for notifications to host
+      - ${HOME}/.claude-notifications:/workspace/.notifications
+      - jb-cache:/.jbdevcontainer
     ports:
       # OpenAI Codex auth
       - "1455:1455"
@@ -112,6 +115,7 @@ volumes:
   zsh-history:
   codex:
   cache:
+  jb-cache:
 
 networks:
   claude-internal:

@@ -9,6 +9,7 @@ umask 0002
 export ZSH="$HOME/.oh-my-zsh"
 
 ZSH_THEME="powerlevel10k/powerlevel10k"
+POWERLEVEL9K_DISABLE_GITSTATUS=true
 
 plugins=(
   aliases

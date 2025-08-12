@@ -62,17 +62,19 @@ Security and setup scripts installed in the image:
 ### `/claude-defaults/`
 Default Claude Code configurations:
 
-- **`/agents/`**: Pre-configured AI agent definitions (6 total)
-  - `analytics.md`: Data analytics and visualization
-  - `code-reviewer.md`: Code review and quality assurance
-  - `data-engineering-lead.md`: Architecture guidance
-  - `python-data-engineer.md`: Data pipeline development
-  - `python-qa-engineer.md`: Testing and QA
-  - `senior-devops-engineer.md`: Infrastructure
+- **`/agents/`**: Pre-configured AI agent definitions (8 total)
+  - `analytics-engineer.md`: Requirements analysis and data exploration
+  - `code-reviewer.md`: Automated code review with Codex
+  - `qa-engineer.md`: Quality assurance and testing
+  - `software-engineer.md`: Software development and API design
+  - `technical-lead.md`: Technical architecture and team coordination
+  - `technical-writer.md`: Technical documentation
+  - `senior-devops-engineer.md`: Infrastructure and DevOps
 
-- **`/hooks/`**: Linting and validation hooks
+- **`/hooks/`**: Linting, validation, and notification hooks
   - `lint_common.py`: Shell, Docker, YAML linting
   - `lint_python.py`: Python code quality checks
+  - `notify.sh`: Host notification system for alerts
 
 - **`settings.json`**: Default Claude Code settings
 
@@ -107,6 +109,7 @@ Built-in allowed domains for proxy filtering:
 - `/home/claude/claude-defaults/`: Source for Claude Code configurations
 - `/home/claude/.claude/`: Runtime Claude Code configuration (populated by setup script)
 - `/home/claude/.claude/projects/`: Mount point for host projects directory (group: dev)
+- `/workspace/.notifications/`: Mount point for host notification system
 
 ## Security Constraints
 
@@ -161,3 +164,25 @@ WORKDIR /workspace
 ```
 
 Remember: Maintain security constraints when extending.
+
+## Notification System
+
+The base image includes a notification hook for alerting the host:
+
+### Hook Location
+`/home/claude/claude-defaults/hooks/notify.sh`
+
+### Usage
+```bash
+# From within container
+/home/claude/claude-defaults/hooks/notify.sh "type" "message"
+
+# Types: error, clarification, blocked, approval, complete, test
+```
+
+### Integration
+- Writes to `/workspace/.notifications/` (mounted from host)
+- Host watcher script monitors for notifications
+- Supports urgency levels for desktop alerts
+
+See root CLAUDE.md for complete notification system documentation.

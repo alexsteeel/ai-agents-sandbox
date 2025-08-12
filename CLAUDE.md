@@ -101,6 +101,8 @@ Built-in tools and scripts:
 ├── /usr/local/bin/devcontainer-init    # Initialization script
 ├── /usr/local/bin/proxy-manager        # Proxy configuration utility
 ├── /usr/local/share/devcontainer/      # Templates and defaults
+├── /home/claude/claude-defaults/hooks/ # Claude Code hooks
+│   └── notify.sh                       # Notification hook for host alerts
 ├── User: claude (UID 1001) - NON-ROOT ONLY
 ├── NO sudo, NO root access
 ├── Group: dev (GID 2000) for file sharing
@@ -188,9 +190,12 @@ docker exec <container> curl https://evil.com    # Should fail (not in whitelist
 
 ### AI Agents
 Pre-configured agents built into the base image:
-- `python-data-engineer.md`: ETL and data pipeline development
-- `data-engineering-lead.md`: Technical architecture and leadership
-- `python-qa-engineer.md`: Quality assurance and testing
+- `analytics-engineer.md`: Requirements analysis and data exploration
+- `code-reviewer.md`: Automated code review with Codex
+- `qa-engineer.md`: Quality assurance and testing
+- `software-engineer.md`: Software development and API design
+- `technical-lead.md`: Technical architecture and team coordination
+- `technical-writer.md`: Technical documentation
 - `senior-devops-engineer.md`: Infrastructure and DevOps
 
 ## Development Workflow
@@ -254,3 +259,31 @@ Remember: Security is paramount. When in doubt, choose the more restrictive opti
 ## Projects Directory Mount
 
 The `.claude/projects` directory is mounted from the host system to enable cross-project statistics and analysis. This allows tools like `ccusage` to aggregate metrics across all projects in a single location.
+
+## Notification System
+
+The devcontainer includes a notification system for alerting the host when Claude needs attention:
+
+### How it works
+1. **Container hook** (`/home/claude/claude-defaults/hooks/notify.sh`) writes notifications to `/workspace/.notifications/`
+2. **Volume mount** maps `$HOME/.claude-notifications` (host) to `/workspace/.notifications` (container)
+3. **Host watcher** (`host-scripts/notify-watch.sh`) monitors for notifications and displays desktop alerts
+
+### Setup
+1. **First-time setup**: Run `./initialize.sh` to create directories with proper permissions
+2. **Start watcher**: Run `./host-scripts/notify-watch.sh` on host for desktop notifications
+3. **Fast mode**: Install `inotify-tools` on host for instant notifications:
+   ```bash
+   sudo apt-get install inotify-tools  # Debian/Ubuntu
+   ```
+
+### Notification Types
+- **critical** urgency: error, clarification, blocked, approval
+- **normal** urgency: general notifications
+- **low** urgency: task completion
+
+### Testing
+From within container:
+```bash
+/home/claude/claude-defaults/hooks/notify.sh "test" "Your message here"
+```

@@ -57,6 +57,11 @@ main() {
         echo -e "${YELLOW}⚠${NC} setup-claude-defaults.sh not found or not executable"
     fi
     
+    # Configure git safe directory to avoid dubious ownership errors
+    echo ""
+    echo ">>> Configuring git safe directory..."
+    git config --global --add safe.directory /workspace || echo -e "${YELLOW}⚠${NC} Failed to configure git safe directory"
+    
     # Testing phase
     echo ""
     echo "========================================"

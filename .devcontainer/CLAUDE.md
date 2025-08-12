@@ -62,13 +62,19 @@ Orchestrates three services:
 2. **devcontainer**: Development environment
    - Network: claude-internal (internal)
    - User: claude (non-root)
-   - Proxy: All traffic via tinyproxy
+   - Proxy: All traffic via tinyproxy-devcontainer
    - Image: claudecode/devcontainer:latest or custom
+   - Notification support via mounted volume
 
-3. **docker**: Docker daemon
+3. **docker**: Docker daemon (Docker-in-Docker)
    - Network: claude-internal (internal)
    - Privileged: Required for Docker-in-Docker
    - Certificates: Shared with devcontainer
+   - Uses tinyproxy-dind for registry access
+
+4. **tinyproxy-dind**: Dedicated proxy for Docker
+   - Separate whitelist for container registries
+   - No upstream proxy (direct registry access)
 
 ### `devcontainer.json`
 VS Code configuration:
@@ -100,17 +106,20 @@ Add one domain per line. Merged with defaults at runtime.
 **Note**: Docker registry domains are needed only if you build Docker images from within the devcontainer. The docker-in-docker service has its own whitelist in `dind-whitelist.txt`.
 
 ### `initialize.sh`
-One-time setup script:
-1. Validates Docker and Docker Compose
-2. Checks base images exist
-3. Creates required networks
-4. Builds services if needed
-5. Verifies security constraints
+One-time setup script that performs critical host setup:
+
+1. **Creates dev group** (GID 2000) on host for file sharing
+2. **Sets directory permissions** so container's claude user can write
+3. **Starts Docker services** with project-specific namespace
+4. **Copies Docker certificates** from docker-in-docker container
+5. **Creates notification directory** `$HOME/.claude-notifications` with proper permissions
 
 Run once per project:
 ```bash
 ./initialize.sh /absolute/path/to/project
 ```
+
+This script MUST be run before starting the devcontainer to ensure proper permissions.
 
 ### `Dockerfile` (optional)
 Extend base image for project needs:
@@ -270,3 +279,25 @@ docker exec devcontainer curl https://blocked.com      # Denied
 - [ ] Install SSH servers
 
 Remember: Security model depends on proper configuration. When extending, maintain all security constraints.
+
+## Notification System Integration
+
+The devcontainer supports host notifications through a shared volume:
+
+### Setup
+1. **Host directory**: `$HOME/.claude-notifications` created by `initialize.sh`
+2. **Container mount**: Maps to `/workspace/.notifications` 
+3. **Hook location**: `/home/claude/claude-defaults/hooks/notify.sh`
+
+### Host Watcher
+Run on host for desktop notifications:
+```bash
+./host-scripts/notify-watch.sh
+```
+
+### Testing from Container
+```bash
+/home/claude/claude-defaults/hooks/notify.sh "test" "Message here"
+```
+
+See `host-scripts/CLAUDE.md` for detailed host-side setup.

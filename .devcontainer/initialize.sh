@@ -143,8 +143,20 @@ if [[ -d "$TARGET_DIR" ]]; then
     sudo chgrp -R "$GROUP_NAME" "$CLAUDE_PROJECTS_DIR"
     sudo chmod -R g+rwX "$CLAUDE_PROJECTS_DIR"
 
+    # Set up .notifications directory for notification system
+    NOTIFICATIONS_DIR="$HOME/.claude-notifications"
+    if [[ ! -d "$NOTIFICATIONS_DIR" ]]; then
+        echo "Creating .notifications directory for notification system..."
+        mkdir -p "$NOTIFICATIONS_DIR"
+    fi
+
+    echo "Setting group ownership of .notifications to '$GROUP_NAME'..."
+    sudo chgrp -R "$GROUP_NAME" "$NOTIFICATIONS_DIR"
+    sudo chmod -R g+rwX "$NOTIFICATIONS_DIR"
+    sudo chmod g+s "$NOTIFICATIONS_DIR"
+
     echo "Directory permissions configured successfully."
-    echo "Directory: $TARGET_DIR"
+    echo "Directory: $NOTIFICATIONS_DIR"
     echo "Group: $GROUP_NAME"
     echo "Permissions: Group read/write with setgid"
     

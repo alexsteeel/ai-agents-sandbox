@@ -1,6 +1,3 @@
-- add default config.toml for codex
-- add technical-documentation agent which can write docs in the selected style ()
-- add gitstatusd to the base image
 - fix persistence of zshhistory
-- add golang container based on devcontainer base
-- add dotnet container based on devcontainer base
+- add golang, dotnet and python containers based on devcontainer base
+- add timings and statistics for tasks
