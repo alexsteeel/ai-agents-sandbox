@@ -23,6 +23,58 @@ else
 fi
 
 # ============================================================================
+# GIT WORKTREE SUPPORT
+# ============================================================================
+
+# Check if this is a git worktree and update docker-compose.yaml if needed
+if [[ -f "$TARGET_DIR/.git" ]]; then
+    echo "Detected git worktree, checking parent repository..."
+    
+    # Read the gitdir path from .git file
+    GITDIR=$(grep "^gitdir:" "$TARGET_DIR/.git" | cut -d' ' -f2)
+    
+    if [[ -n "$GITDIR" ]]; then
+        # Extract the parent git directory (remove /worktrees/... part)
+        PARENT_GIT_DIR=$(echo "$GITDIR" | sed 's|/worktrees/.*||')
+        
+        echo "Parent git directory: $PARENT_GIT_DIR"
+        
+        # Update docker-compose.yaml to include the parent git directory mount
+        COMPOSE_FILE="$TARGET_DIR/.devcontainer/docker-compose.yaml"
+        if [[ -f "$COMPOSE_FILE" ]]; then
+            echo "Updating docker-compose.yaml with git parent mount..."
+            
+            # Check if yq is available
+            if ! command -v yq &> /dev/null; then
+                echo "Installing yq for YAML manipulation..."
+                wget -qO /tmp/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+                chmod +x /tmp/yq
+                YQ_CMD="/tmp/yq"
+            else
+                YQ_CMD="yq"
+            fi
+            
+            # Check if the mount already exists using yq
+            MOUNT_EXISTS=$($YQ_CMD eval '.services.devcontainer.volumes[] | select(. == "'$PARENT_GIT_DIR':'$PARENT_GIT_DIR'")' "$COMPOSE_FILE" 2>/dev/null || echo "")
+            
+            if [[ -z "$MOUNT_EXISTS" ]]; then
+                # Add the mount to the devcontainer service volumes using yq
+                $YQ_CMD eval -i '.services.devcontainer.volumes += ["'$PARENT_GIT_DIR':'$PARENT_GIT_DIR'"]' "$COMPOSE_FILE"
+                
+                echo "Added git parent directory mount to docker-compose.yaml"
+            else
+                echo "Git parent directory mount already exists in docker-compose.yaml"
+            fi
+            
+            # Clean up temporary yq if we downloaded it
+            [[ -f /tmp/yq ]] && rm /tmp/yq
+        fi
+    fi
+elif [[ -d "$TARGET_DIR/.git" ]]; then
+    echo "Regular git repository detected (not a worktree)"
+fi
+
+# ============================================================================
 # CUSTOM INITIALIZATION (Add your project-specific setup here)
 # ============================================================================
 
