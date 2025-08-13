@@ -13,6 +13,10 @@ cd "$SCRIPT_DIR"
 # Version
 VERSION="1.0.0"
 
+# Common Docker image tag for all images
+IMAGE_TAG="1.0.0"
+export IMAGE_TAG
+
 # Color output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -24,7 +28,8 @@ NC='\033[0m'
 print_header() {
     echo ""
     echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════════${NC}"
-    echo -e "${BOLD}${BLUE}   Claude DevContainer System Installer v${VERSION}${NC}"
+    echo -e "${BOLD}${BLUE}   AI Agents Sandbox Installer v${VERSION}${NC}"
+    echo -e "${BOLD}${BLUE}   Image Tag: ${IMAGE_TAG}${NC}"
     echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════════${NC}"
     echo ""
 }
@@ -154,11 +159,12 @@ verify_installation() {
     local errors=0
     
     # Check Docker images
-    for image in "claudecode/devcontainer:latest" "tinyproxy-whitelist:latest" "tinyproxy-dind:latest"; do
-        if docker image inspect "$image" >/dev/null 2>&1; then
-            print_status "✓ Docker image found: $image"
+    for image_name in "claudecode/devcontainer" "tinyproxy-whitelist" "tinyproxy-dind" "claudecode/devcontainer-dotnet" "claudecode/devcontainer-golang"; do
+        image_full="${image_name}:${IMAGE_TAG}"
+        if docker image inspect "$image_full" >/dev/null 2>&1; then
+            print_status "✓ Docker image found: $image_full"
         else
-            print_error "✗ Docker image missing: $image"
+            print_error "✗ Docker image missing: $image_full"
             ((errors++))
         fi
     done
