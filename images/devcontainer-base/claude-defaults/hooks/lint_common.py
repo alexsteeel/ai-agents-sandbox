@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Tuple
 
 ROOT = Path.cwd()
-LOG_DIR = ROOT / ".claude" / "logs"
+LOG_DIR = ROOT / ".ai_agents_sandbox" / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = LOG_DIR / "linters_common.json"
 

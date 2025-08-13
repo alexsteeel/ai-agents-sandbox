@@ -3,7 +3,7 @@
 # Fast host-side notification watcher using inotify for Claude Code
 # Watches for notification files and displays desktop notifications instantly
 
-WATCH_DIR="$HOME/.claude/notifications"
+WATCH_DIR="$HOME/.ai_agents_sandbox/notifications"
 NOTIFY_FILE="$WATCH_DIR/notify.txt"
 
 # Ensure directory exists

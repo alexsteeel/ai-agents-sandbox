@@ -16,7 +16,7 @@ setup_claude_config() {
     local USER="${1:-claude}"
     local HOME="/home/${USER}"
     local SOURCE_DIR="${HOME}/claude-defaults"
-    local TARGET_DIR="${HOME}/.claude"
+    local TARGET_DIR="${HOME}/.ai_agents_sandbox"
     
     echo "=== Claude Configuration Setup ==="
     echo "User: ${USER}"
@@ -81,7 +81,7 @@ setup_claude_config() {
 verify_claude_structure() {
     local USER="${1:-claude}"
     local HOME="/home/${USER}"
-    local CLAUDE_DIR="${HOME}/.claude"
+    local CLAUDE_DIR="${HOME}/.ai_agents_sandbox"
     
     echo ""
     echo "=== Verifying Claude Structure ==="
@@ -124,7 +124,7 @@ verify_claude_structure() {
 check_claude_agents() {
     local USER="${1:-claude}"
     local HOME="/home/${USER}"
-    local AGENTS_DIR="${HOME}/.claude/agents"
+    local AGENTS_DIR="${HOME}/.ai_agents_sandbox/agents"
     
     echo ""
     echo "=== Claude Agents ==="
@@ -156,7 +156,7 @@ check_claude_agents() {
 check_claude_hooks() {
     local USER="${1:-claude}"
     local HOME="/home/${USER}"
-    local HOOKS_DIR="${HOME}/.claude/hooks"
+    local HOOKS_DIR="${HOME}/.ai_agents_sandbox/hooks"
     
     echo ""
     echo "=== Claude Hooks ==="
@@ -193,7 +193,7 @@ check_claude_hooks() {
 check_claude_settings() {
     local USER="${1:-claude}"
     local HOME="/home/${USER}"
-    local CLAUDE_DIR="${HOME}/.claude"
+    local CLAUDE_DIR="${HOME}/.ai_agents_sandbox"
     
     echo ""
     echo "=== Claude Settings ==="
@@ -218,7 +218,7 @@ check_claude_settings() {
 set_hook_permissions() {
     local USER="${1:-claude}"
     local HOME="/home/${USER}"
-    local HOOKS_DIR="${HOME}/.claude/hooks"
+    local HOOKS_DIR="${HOME}/.ai_agents_sandbox/hooks"
     
     if [[ ! -d "${HOOKS_DIR}" ]]; then
         return 0

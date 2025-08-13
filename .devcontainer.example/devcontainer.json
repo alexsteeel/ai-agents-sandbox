@@ -1,15 +1,27 @@
 {
-  "name": "${localWorkspaceFolderBasename} - Claude Code Sandbox",
+  "name": "My Project DevContainer",
   "dockerComposeFile": "docker-compose.yaml",
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "containerUser": "claude",
   "updateRemoteUserUID": false,
-  // No initialization needed - .devcontainer/ files are in the repo
+  // No initialization needed - copy .devcontainer.example/ to your project
   // IDEs handle container lifecycle automatically
   "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
   "remoteEnv": {
     "PROJECT_NAME": "${localWorkspaceFolderBasename}"
+  },
+  "features": {},
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      },
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance"
+      ]
+    }
   }
 }

@@ -35,10 +35,8 @@ mkdir -p "$SHARE_DIR"
 
 # Install executable scripts to /usr/local/bin
 SCRIPTS=(
-    "claude-devcontainer"
-    "claude-workspace-init"
+    "claude-task-worktree"
     "claude-notify-watch"
-    "claude-project-init"
 )
 
 for script in "${SCRIPTS[@]}"; do
@@ -94,25 +92,27 @@ if [[ -n "${SUDO_USER:-}" ]]; then
 fi
 
 # Create notification directory with proper permissions
-CLAUDE_DIR="/home/${SUDO_USER:-root}/.claude"
-NOTIFICATION_DIR="$CLAUDE_DIR/notifications"
 if [[ -n "${SUDO_USER:-}" ]]; then
-    print_status "Creating Claude directories: $CLAUDE_DIR"
-    mkdir -p "$CLAUDE_DIR"
+    USER_HOME="/home/${SUDO_USER}"
+    CLAUDE_DIR="${USER_HOME}/.ai_agents_sandbox"
+    NOTIFICATION_DIR="$CLAUDE_DIR/notifications"
+    PROJECTS_DIR="$CLAUDE_DIR/projects"
+    
+    print_status "Creating AI Agents Sandbox directories for notifications"
+    
+    # Create directories as root then change ownership
+    # This approach is more reliable than sudo -u
     mkdir -p "$NOTIFICATION_DIR"
-    chown -R "${SUDO_USER}:${SUDO_USER}" "$CLAUDE_DIR"
-    chmod 755 "$CLAUDE_DIR"
-    chmod 755 "$NOTIFICATION_DIR"
-    print_status "✓ Claude directories created"
+    mkdir -p "$PROJECTS_DIR"
+    
+    # Get the user's primary group
+    USER_GROUP=$(id -gn "$SUDO_USER")
+    
+    # Set ownership to the actual user
+    chown -R "${SUDO_USER}:${USER_GROUP}" "$CLAUDE_DIR"
+    
+    print_status "✓ Notification directories created with proper ownership"
 fi
-
-# Create man page (optional, for future)
-# MAN_DIR="/usr/local/share/man/man1"
-# if [[ -f "$SCRIPT_DIR/claude-devcontainer.1" ]]; then
-#     mkdir -p "$MAN_DIR"
-#     install -m 644 "$SCRIPT_DIR/claude-devcontainer.1" "$MAN_DIR/"
-#     mandb -q
-# fi
 
 # Summary
 echo ""

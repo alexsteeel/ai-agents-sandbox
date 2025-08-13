@@ -1,57 +1,82 @@
-# Claude Notifications - Simple Setup
+# Host Scripts
 
-A minimal file-based notification system that alerts you when Claude needs your attention.
+Minimal set of helper scripts for Claude DevContainer environments.
 
-## How it Works
+## Installation
 
-1. Claude writes a notification to a shared file
-2. Host script watches the file and shows desktop notification
-3. That's it!
-
-## Setup
-
-### On Your Host (Ubuntu)
-
-1. **Copy this folder to your home directory:**
 ```bash
-cp -r host ~/claude-notify
-cd ~/claude-notify
+sudo ./install.sh
 ```
 
-2. **Run the watcher:**
+Installs two commands system-wide:
+
+## Available Commands
+
+### `claude-task-worktree`
+Creates a git worktree for a new task.
+
 ```bash
-./notify-watch.sh
+claude-task-worktree "feature 123 implement user auth"
 ```
 
-Or run it in background:
+Automatically:
+1. Creates worktree: `../feature-123-implement-user-auth`
+2. Creates branch: `feature-123-implement-user-auth`
+3. Creates: `tasks/feature-123-implement-user-auth/initial_requirements.md`
+4. Opens PyCharm (if available)
+
+### `claude-notify-watch`
+Optional notification watcher for desktop alerts.
+
 ```bash
-nohup ./notify-watch.sh > /dev/null 2>&1 &
+claude-notify-watch &
 ```
 
-### In Container
+Shows desktop notifications when containers need attention.
 
-Already configured! The volume mount in docker-compose.yaml connects:
-- Container: `/workspace/.notifications`
-- Host: `~/.claude-notifications`
+## How Projects Work
 
-## That's All!
+### Setup Requirements
 
-Claude will notify you when:
-- ❓ Clarification is needed
-- 🚫 Claude is blocked  
-- ✅ Task is completed
-- ❌ Error occurs
+Your project needs a `.devcontainer/` folder with:
+- `docker-compose.yaml` - Includes the base template
+- `override.yaml` - Your customizations (optional)
+- `.env` - Project settings
+- `whitelist.txt` - Allowed domains
+- `dind-whitelist.txt` - Docker registries
+- `Dockerfile` - Custom image (optional)
+- `devcontainer.json` - VS Code configuration
 
-## Test It
+**This repository already has these files ready to use!**
 
-From inside container:
-```bash
-bash ~/.claude/hooks/notify.sh test "Test notification"
-```
+For new projects, copy from `.devcontainer.example/`.
 
-## Stop Notifications
+### For PyCharm:
+1. Open project in PyCharm
+2. Settings → Project → Python Interpreter → Add → Docker Compose
+3. Select service: `devcontainer`
+4. PyCharm handles starting/stopping containers
 
-Just kill the watcher:
-```bash
-pkill -f notify-watch.sh
-```
+### For VS Code:
+1. Open project in VS Code
+2. Click "Reopen in Container" when prompted
+3. VS Code handles everything
+
+### For Claude Code:
+Just run `claude --dangerously-skip-permissions` - no container needed.
+
+## What the Installer Does
+
+The `install.sh` script:
+1. Installs the two helper scripts to `/usr/local/bin`
+2. Creates the `dev` group (GID 2000) for file sharing
+3. Creates `~/.ai_agents_sandbox/notifications` for container alerts
+4. Creates `~/.ai_agents_sandbox/projects` for cross-project statistics
+5. Installs the base Docker Compose template to `/usr/local/share/claude-devcontainer`
+
+## Philosophy
+
+- **Projects own their configuration** - `.devcontainer/` is in the repo
+- **IDEs manage containers** - No manual start/stop needed
+- **Minimal scripts** - Only what adds real value
+- **No unnecessary abstractions** - Use IDE features directly

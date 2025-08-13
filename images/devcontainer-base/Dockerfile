@@ -72,8 +72,8 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 ENV DEVCONTAINER=true
 
 # Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/$USERNAME/.claude /home/$USERNAME/.codex /home/$USERNAME/.cache && \
-  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.claude /home/$USERNAME/.codex /home/$USERNAME/.cache
+RUN mkdir -p /workspace /home/$USERNAME/.ai_agents_sandbox /home/$USERNAME/.codex /home/$USERNAME/.cache && \
+  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.ai_agents_sandbox /home/$USERNAME/.codex /home/$USERNAME/.cache
 
 WORKDIR /workspace
 
@@ -168,7 +168,7 @@ COPY --chown=$USERNAME:$USERNAME images/devcontainer-base/conf/.zshrc /home/$USE
 COPY --chown=$USERNAME:$USERNAME images/devcontainer-base/conf/.tmux.conf /home/$USERNAME/.tmux.conf
 COPY --chown=$USERNAME:$USERNAME images/devcontainer-base/conf/codex_config.toml /home/$USERNAME/.codex/config.toml
 
-# Create logs directory for scripts to avoid conflicts with .claude directory
+# Create logs directory for scripts to avoid conflicts with .ai_agents_sandbox directory
 RUN mkdir -p /home/$USERNAME/scripts/logs && \
     chown -R $USERNAME:$USERNAME /home/$USERNAME/scripts/logs
 

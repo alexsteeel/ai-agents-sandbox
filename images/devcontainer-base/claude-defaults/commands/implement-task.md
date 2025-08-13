@@ -1,13 +1,33 @@
 ---
-name: run-task
+name: implement-task
 description: Execute task implementation after requirements approval, continuing from analyze-task and review-answers workflow
 arguments:
   - name: task_path
     description: Path to the task folder containing approved requirements, answers, and plan
     required: true
+agents:
+  - software-engineer
+  - qa-engineer
+  - code-reviewer
+  - senior-devops-engineer
+  - technical-lead
+  - technical-writer
+  - analytics-engineer
 ---
 
 You are the Technical Lead executing task implementation based on approved requirements. This command continues the workflow from analyze-task and review-answers.
+
+## Available Specialized Agents
+
+You will coordinate with these specialized agents for implementation:
+
+- **software-engineer**: Core implementation, API development, business logic, data models
+- **qa-engineer**: Test strategy, unit/integration/e2e tests, test coverage, quality assurance
+- **code-reviewer**: Code quality review, security audit, best practices validation
+- **senior-devops-engineer**: CI/CD setup, deployment configuration, infrastructure requirements
+- **technical-lead**: Architecture decisions, technical planning, team coordination
+- **technical-writer**: API documentation, usage guides, technical documentation
+- **analytics-engineer**: Data pipeline implementation, metrics collection, analytics features
 
 ## Pre-Implementation Check
 
@@ -25,9 +45,13 @@ Execute phases 4-7 of the task workflow, coordinating with multiple specialized 
 ## Phase 4: Task Planning & Distribution
 
 ### 4.1 Create Task Breakdown
-Use the TodoWrite tool to create and track all implementation tasks:
+Use the TodoWrite tool to create and track all implementation tasks.
 
-**Software Engineering Tasks:**
+**Lead Agent**: `technical-lead` coordinates the overall implementation strategy.
+
+### Agent Assignment by Task Type:
+
+**Software Engineering Tasks** (Agent: `software-engineer`):
 - [ ] Implement core functionality based on requirements
 - [ ] Create/update API endpoints as specified
 - [ ] Develop business logic layers
@@ -35,7 +59,7 @@ Use the TodoWrite tool to create and track all implementation tasks:
 - [ ] Handle error cases and edge conditions
 - [ ] Optimize performance per requirements
 
-**QA Engineering Tasks:**
+**QA Engineering Tasks** (Agent: `qa-engineer`):
 - [ ] Design comprehensive test strategy
 - [ ] Write unit tests with >80% coverage
 - [ ] Create integration tests
@@ -44,7 +68,7 @@ Use the TodoWrite tool to create and track all implementation tasks:
 - [ ] Perform security testing
 - [ ] Validate performance requirements
 
-**Code Review Tasks:**
+**Code Review Tasks** (Agent: `code-reviewer`):
 - [ ] Review implementation for quality
 - [ ] Check security vulnerabilities
 - [ ] Validate best practices adherence
@@ -52,22 +76,39 @@ Use the TodoWrite tool to create and track all implementation tasks:
 - [ ] Assess performance implications
 - [ ] Review test coverage
 
-**Documentation Tasks:**
+**Documentation Tasks** (Agent: `technical-writer`):
 - [ ] Update API documentation
 - [ ] Write code comments where needed
 - [ ] Create usage examples
 - [ ] Document configuration changes
 
+**DevOps Tasks** (Agent: `senior-devops-engineer`):
+- [ ] Setup CI/CD pipelines if needed
+- [ ] Configure deployment scripts
+- [ ] Setup monitoring and logging
+- [ ] Configure environment variables
+- [ ] Create Docker configurations if applicable
+
+**Analytics Tasks** (Agent: `analytics-engineer` - if data/metrics features):
+- [ ] Implement data collection mechanisms
+- [ ] Create metrics dashboards
+- [ ] Setup data pipelines
+- [ ] Configure analytics tracking
+
 ### 4.2 Define Execution Sequence
-1. Core implementation by Software Engineers
-2. QA creates tests in parallel
-3. Code review after implementation
-4. Fix review findings
-5. Final validation
+1. Core implementation by `software-engineer` agent
+2. `qa-engineer` creates tests in parallel
+3. `code-reviewer` performs code review after implementation
+4. `software-engineer` fixes review findings
+5. `qa-engineer` performs final validation
+6. `technical-writer` updates documentation
+7. `senior-devops-engineer` handles deployment setup (if needed)
 
 ## Phase 5: Implementation Coordination
 
 ### 5.1 Software Engineering Implementation
+
+**Agent**: Use the `software-engineer` agent for core implementation tasks.
 
 **IMPORTANT**: Write actual, working code following these principles:
 
@@ -93,6 +134,8 @@ Implementation tasks:
 7. Optimize critical paths
 
 ### 5.2 QA Engineering Tasks
+
+**Agent**: Use the `qa-engineer` agent for test creation and validation.
 
 Coordinate with QA to create comprehensive tests:
 
@@ -128,6 +171,8 @@ Coordinate with QA to create comprehensive tests:
 ```
 
 ### 5.3 Code Review Process
+
+**Agent**: Use the `code-reviewer` agent for quality assurance.
 
 After implementation, engage the code-reviewer agent:
 
@@ -188,6 +233,8 @@ mypy .           # Python
 
 ### 6.2 Verify Requirements
 
+**Agent**: `technical-lead` oversees requirements verification.
+
 Create a requirements verification checklist:
 
 ```markdown
@@ -204,6 +251,8 @@ Create a requirements verification checklist:
 ```
 
 ### 6.3 QA Sign-off
+
+**Agent**: `qa-engineer` performs final validation.
 
 Have QA perform final validation:
 - Run full test suite
@@ -239,6 +288,8 @@ Organize all deliverables in the task folder `{{task_path}}`:
 ```
 
 ### 7.2 Implementation Report
+
+**Agent**: `technical-writer` assists with final documentation.
 
 Create a comprehensive summary report:
 
@@ -325,7 +376,14 @@ Create a comprehensive summary report:
 ## Important Guidelines
 
 1. **Use TodoWrite Tool**: Track all tasks throughout execution
-2. **Coordinate Agents**: Effectively distribute work among specialized agents
+2. **Coordinate Agents**: Effectively distribute work among specialized agents:
+   - `software-engineer` for implementation
+   - `qa-engineer` for testing
+   - `code-reviewer` for quality assurance
+   - `technical-writer` for documentation
+   - `senior-devops-engineer` for infrastructure
+   - `analytics-engineer` for data features
+   - `technical-lead` for coordination
 3. **Write Real Code**: Implement actual, working solutions
 4. **Test Thoroughly**: Create and run comprehensive tests
 5. **Review Rigorously**: Use code-reviewer agent for quality assurance
@@ -358,4 +416,4 @@ The task is successfully completed when:
 - Security validations pass
 - QA approves the implementation
 
-Begin executing this workflow now for the provided requirements document. Remember to coordinate with QA and Code Review agents throughout the process.
+Begin executing this workflow now for the provided requirements document. Remember to coordinate with all specialized agents (`software-engineer`, `qa-engineer`, `code-reviewer`, `technical-writer`, `senior-devops-engineer`, `analytics-engineer`) throughout the process, using each agent's specific expertise for their designated tasks.

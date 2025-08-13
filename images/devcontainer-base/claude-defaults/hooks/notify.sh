@@ -3,7 +3,7 @@
 # Simple notification hook for Claude Code
 # Writes notification to a shared file that host can watch
 
-NOTIFY_DIR="/home/claude/.claude/notifications"
+NOTIFY_DIR="/home/claude/.ai_agents_sandbox/notifications"
 PROJECT_NAME="${PROJECT_NAME:-$(basename $(pwd))}"
 TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
 

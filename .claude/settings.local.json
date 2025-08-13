@@ -23,7 +23,6 @@
       "Bash(./build_image.sh:*)",
       "Bash(curl:*)",
       "WebFetch(domain:3proxy.ru)",
-      "Bash(rm:*)",
       "Bash(./initialize.sh:*)",
       "Bash(grep:*)",
       "Bash(DOCKER_HOST= docker compose -f .devcontainer/docker-compose.yaml build devcontainer)",

@@ -125,6 +125,17 @@ build_images() {
 install_host_scripts() {
     print_section "Installing Host Scripts"
     
+    print_info "The following scripts will be installed to /usr/local/bin:"
+    print_info "  • claude-task-worktree    - Create git worktree for new tasks"
+    print_info "  • claude-notify-watch     - Desktop notification watcher (optional)"
+    echo ""
+    print_info "Additional setup:"
+    print_info "  • Creates 'dev' group (GID 2000) for file sharing"
+    print_info "  • Creates ~/.ai_agents_sandbox/notifications for alerts"
+    print_info "  • Creates ~/.ai_agents_sandbox/projects for statistics"
+    print_info "  • Installs base Docker Compose template"
+    echo ""
+    
     if [[ ! -f "host/install.sh" ]]; then
         print_error "Host install script not found at host/install.sh"
         exit 1
@@ -170,7 +181,7 @@ verify_installation() {
     done
     
     # Check installed scripts
-    for script in claude-devcontainer claude-workspace-init claude-notify-watch; do
+    for script in claude-task-worktree claude-notify-watch; do
         if command -v "$script" >/dev/null 2>&1; then
             print_status "✓ Script installed: $script"
         else
@@ -211,29 +222,29 @@ show_quickstart() {
 
 ${BOLD}Quick Start Guide:${NC}
 
-1. ${BOLD}Initialize a new project:${NC}
-   ${GREEN}claude-devcontainer init /path/to/your/project${NC}
+${BOLD}For new projects:${NC}
+1. Copy the template to your project:
+   ${GREEN}cp -r .devcontainer.example /path/to/project/.devcontainer${NC}
 
-2. ${BOLD}Customize configuration:${NC}
-   - Edit: ${BLUE}/path/to/your/project/.devcontainer/.env${NC}
-   - Add domains to: ${BLUE}/path/to/your/project/.devcontainer/whitelist.txt${NC}
-   - Add registries to: ${BLUE}/path/to/your/project/.devcontainer/dind-whitelist.txt${NC}
+2. Configure (optional):
+   - Edit: ${BLUE}.devcontainer/.env${NC} for PROJECT_NAME and proxy
+   - Add domains to: ${BLUE}.devcontainer/whitelist.txt${NC}
 
-3. ${BOLD}Start the environment:${NC}
-   ${GREEN}claude-devcontainer start /path/to/your/project${NC}
+3. Open in your IDE:
+   ${BOLD}PyCharm:${NC} Settings → Python Interpreter → Docker Compose → devcontainer
+   ${BOLD}VS Code:${NC} Click "Reopen in Container"
 
-4. ${BOLD}Open a development shell:${NC}
-   ${GREEN}claude-devcontainer shell${NC}
+${BOLD}For this repository:${NC}
+   Just open in PyCharm/VS Code - ${GREEN}.devcontainer/${NC} is ready!
 
-5. ${BOLD}(Optional) Enable notifications:${NC}
-   ${GREEN}claude-notify-watch &${NC}
-
-${BOLD}For IDE Integration:${NC}
-- ${BOLD}VS Code:${NC} Open project folder → "Reopen in Container"
-- ${BOLD}PyCharm:${NC} Configure Docker Compose interpreter
+${BOLD}Available commands:${NC}
+   ${GREEN}claude-task-worktree "task description"${NC} - Create task branch
+   ${GREEN}claude-notify-watch &${NC} - Enable desktop notifications
 
 ${BOLD}For more help:${NC}
-   ${GREEN}claude-devcontainer help${NC}
+   - Documentation: ${BLUE}README.md${NC}
+   - PyCharm guide: ${BLUE}docs/PYCHARM.md${NC}
+   - Development: ${BLUE}docs/DEVELOPMENT.md${NC}
 
 ${BOLD}${YELLOW}Important:${NC} Log out and back in for group membership changes to take effect.
 

@@ -249,13 +249,13 @@ check_claude_tools() {
     fi
     
     # Check Claude configuration directory
-    if [[ -d "$HOME/.claude" ]]; then
+    if [[ -d "$HOME/.ai_agents_sandbox" ]]; then
         echo -e "${GREEN}✓${NC} Claude config directory: exists"
         ((TESTS_PASSED++))
         
         # Check for agents directory
-        if [[ -d "$HOME/.claude/agents" ]]; then
-            local agent_count=$(ls -1 "$HOME/.claude/agents"/*.md 2>/dev/null | wc -l)
+        if [[ -d "$HOME/.ai_agents_sandbox/agents" ]]; then
+            local agent_count=$(ls -1 "$HOME/.ai_agents_sandbox/agents"/*.md 2>/dev/null | wc -l)
             echo -e "${GREEN}✓${NC} Claude agents: $agent_count agent(s) found"
             ((TESTS_PASSED++))
         else

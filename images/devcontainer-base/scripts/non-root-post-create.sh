@@ -23,7 +23,7 @@ main() {
     local HOME="/home/${USER}"
     local SCRIPTS_DIR="$(dirname "$0")"
     
-    # Create logs directory in scripts folder to avoid conflicts with .claude directory
+    # Create logs directory in scripts folder to avoid conflicts with .ai_agents_sandbox directory
     local LOG_DIR="${HOME}/scripts/logs"
     mkdir -p "${LOG_DIR}"
     

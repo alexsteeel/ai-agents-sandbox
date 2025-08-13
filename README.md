@@ -152,65 +152,121 @@ flowchart TD
 ### One-Time Setup (System-wide Installation)
 
 ```bash
-# Install everything (builds images + installs management commands)
+# Install everything (builds images + installs helper commands)
 ./install.sh
 
 # This installs these commands system-wide:
-# - claude-devcontainer: Main management command
-# - claude-workspace-init: Initialize workspace
-# - claude-notify-watch: Host notification watcher
-# - claude-proxy-manager: Proxy configuration utility
+# - claude-task-worktree: Create git worktree for new tasks
+# - claude-notify-watch: Host notification watcher (optional)
 ```
 
 ### Using in Your Project
 
-1. Initialize your project with the devcontainer:
+1. **Copy `.devcontainer.example/` to your project:**
    ```bash
-   # From your project directory
-   claude-devcontainer init
-   # Or specify a path:
-   claude-devcontainer init /path/to/project
+   cp -r /path/to/ai_agents_sandbox/.devcontainer.example /path/to/your-project/.devcontainer
    ```
 
-2. Configure environment (optional):
+2. **Configure (optional):**
    ```bash
-   cd .devcontainer
-   # Edit .env for proxy settings if needed
-   vim .env
-   # Add project-specific domains to whitelist.txt
-   vim whitelist.txt
+   cd /path/to/your-project/.devcontainer
+   vim .env  # Set PROJECT_NAME, configure proxy if needed
+   vim whitelist.txt  # Add your project's domains
    ```
 
-3. Start the environment:
+3. **Open in your IDE** (handles everything automatically):
+   
+   **VS Code:**
+   - Open project folder
+   - Click "Reopen in Container" when prompted
+   - VS Code manages the container lifecycle
+   
+   **PyCharm:**
+   - Open project folder in PyCharm
+   - Go to **Settings** → **Project** → **Python Interpreter**
+   - Click the gear icon → **Add**
+   - Select **Docker Compose**
+   - Configuration file: `.devcontainer/docker-compose.yaml`
+   - Service: `devcontainer`
+   - Python interpreter path: `/usr/local/bin/python`
+   - Click **OK** - PyCharm will start the containers automatically
+   - PyCharm manages the entire container lifecycle (start/stop/restart)
+   
+   **Claude Code:**
+   - Just run: `claude --dangerously-skip-permissions`
+   - No container needed
+
+4. **For parallel tasks** (optional):
    ```bash
-   claude-devcontainer start
+   # Automated: creates worktree + task folder + opens PyCharm
+   claude-task-worktree "feature 123 implement user auth"
    ```
 
-4. Create a task environment (worktree) for parallel work:
-   ```bash
-   # from your main repo
-   git worktree add ../task-foo -b feature/task-foo
-   cd ../task-foo
-   claude-devcontainer init  # Initialize this worktree too
-   claude-devcontainer start
-   ```
+### IDE-Specific Workflows
 
-5. Open in your IDE:
-   - **VS Code:** Automatically detects `.devcontainer/devcontainer.json`
-   - **PyCharm:** Open folder → Docker service will be detected
-   - **Claude Code:** Run `claude --dangerously-skip-permissions`
+#### PyCharm Detailed Setup
 
-### Management Commands
+1. **Ensure `.devcontainer/` exists in your project**
+   - Copy from `.devcontainer.example/` as shown above
+
+2. **Configure PyCharm interpreter:**
+   - Open PyCharm → Open your project folder
+   - **File** → **Settings** (or **PyCharm** → **Preferences** on macOS)
+   - Navigate to **Project: [YourProject]** → **Python Interpreter**
+   - Click the gear icon ⚙️ → **Add...**
+   - Select **Docker Compose** from the left panel
+   - Configure:
+     - **Server:** Docker (should be auto-detected)
+     - **Configuration files:** `.devcontainer/docker-compose.yaml`
+     - **Service:** `devcontainer`
+     - **Environment variables:** Leave as is
+     - **Python interpreter path:** `/usr/local/bin/python`
+   - Click **OK** and wait for PyCharm to build/start containers
+
+3. **Using the environment:**
+   - PyCharm automatically starts containers when you open the project
+   - Run/Debug configurations work inside the container
+   - Terminal opens inside the container
+   - File changes sync automatically
+   - Containers stop when you close the project
+
+4. **Tips for PyCharm:**
+   - Enable **Docker** plugin if not already enabled
+   - For better performance, increase Docker memory in Docker Desktop settings
+   - PyCharm's **Services** tool window shows container logs and status
+
+### Available Commands
 
 ```bash
-# Available commands after installation:
-claude-devcontainer status     # Check container status
-claude-devcontainer logs       # View logs
-claude-devcontainer shell      # Open shell in container
-claude-devcontainer stop       # Stop containers
-claude-devcontainer clean      # Remove containers
-claude-devcontainer validate   # Run security validation
+# Task management:
+claude-task-worktree "task description"  # Create task worktree
+
+# Optional notifications:
+claude-notify-watch            # Watch for container notifications
 ```
+
+**Note:** Your IDE (VS Code/PyCharm) handles starting, stopping, and managing containers automatically. No manual Docker commands needed!
+
+## What's in `.devcontainer.example/`
+
+A ready-to-use template for new projects:
+
+- **`docker-compose.yaml`** - Includes the system base template
+- **`override.yaml`** - For your customizations (image versions, etc.)
+- **`.env.example`** - Minimal configuration (PROJECT_NAME, proxy settings)
+- **`whitelist.txt`** - Domains your project can access
+- **`dind-whitelist.txt`** - Docker registry domains
+- **`Dockerfile.example`** - Shows how to extend the base image
+- **`devcontainer.json`** - VS Code configuration
+
+### Minimal Setup
+
+For the absolute minimum, you only need `.devcontainer/docker-compose.yaml`:
+```yaml
+include:
+  - path: /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+```
+That's it! The base template handles everything else.
 
 ## Network Configuration
 
@@ -259,8 +315,8 @@ The environment includes a host notification system for alerts from Claude Code:
    ```
 
 ### How it works
-- Claude Code writes notifications to `/home/claude/.claude/notifications` in container
-- This is mounted to `$HOME/.claude/notifications` on host
+- Claude Code writes notifications to `/home/claude/.ai_agents_sandbox/notifications` in container
+- This is mounted to `$HOME/.ai_agents_sandbox/notifications` on host
 - Host watcher monitors the directory and shows desktop alerts
 - Supports different urgency levels (error, complete, clarification, approval, blocked)
 
@@ -279,4 +335,6 @@ From within the container:
 
 ---
 
-*This repository is the **foundation with a complete working example**. It’s minimal, portable, secure by default, and easy to extend for your agents and services.*
+*This repository provides a **secure foundation** for AI-assisted development. It's minimal, portable, secure by default, and easy to extend.*
+
+**For contributors:** See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for working on this repository.

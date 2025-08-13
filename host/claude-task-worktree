@@ -1,0 +1,156 @@
+#!/bin/bash
+set -euo pipefail
+
+# Create a git worktree for a new task with proper structure
+# Usage: claude-task-worktree "task description"
+# Example: claude-task-worktree "devsecops 2193 add etran stations"
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+print_status() { echo -e "${GREEN}➜${NC} $1"; }
+print_error() { echo -e "${RED}✗${NC} $1" >&2; }
+print_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
+print_info() { echo -e "${BLUE}ℹ${NC} $1"; }
+
+# Check arguments
+if [[ $# -eq 0 ]]; then
+    print_error "Task description required"
+    echo ""
+    echo "Usage: $0 \"task description\""
+    echo ""
+    echo "Examples:"
+    echo "  $0 \"devsecops 2193 add etran stations\""
+    echo "  $0 \"feature 1234 implement user authentication\""
+    echo "  $0 \"bugfix 5678 fix memory leak\""
+    echo ""
+    exit 1
+fi
+
+TASK_DESCRIPTION="$1"
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    print_error "Not in a git repository"
+    exit 1
+fi
+
+# Get the current repository name
+REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
+
+# Convert task description to branch name format
+# "devsecops 2193 add etran stations" -> "devsecops-2193-add-etran-stations"
+BRANCH_NAME=$(echo "$TASK_DESCRIPTION" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g')
+
+# Create worktree directory name (same as branch name)
+WORKTREE_DIR="../${BRANCH_NAME}"
+
+# Check if worktree already exists
+if git worktree list | grep -q "$WORKTREE_DIR"; then
+    print_error "Worktree already exists: $WORKTREE_DIR"
+    print_info "To remove it: git worktree remove $WORKTREE_DIR"
+    exit 1
+fi
+
+# Check if directory already exists
+if [[ -d "$WORKTREE_DIR" ]]; then
+    print_error "Directory already exists: $WORKTREE_DIR"
+    exit 1
+fi
+
+# Create the worktree
+print_status "Creating worktree: $WORKTREE_DIR"
+print_status "Branch name: $BRANCH_NAME"
+echo ""
+
+if git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR"; then
+    print_status "Worktree created successfully"
+else
+    print_error "Failed to create worktree"
+    exit 1
+fi
+
+# Change to the worktree directory
+cd "$WORKTREE_DIR"
+print_status "Changed to worktree directory: $(pwd)"
+
+# Create task folder structure
+TASK_DIR="tasks/${BRANCH_NAME}"
+print_status "Creating task folder: $TASK_DIR"
+mkdir -p "$TASK_DIR"
+
+# Create initial requirements file
+REQUIREMENTS_FILE="$TASK_DIR/initial_requirements.md"
+print_status "Creating initial requirements file: $REQUIREMENTS_FILE"
+
+cat > "$REQUIREMENTS_FILE" << EOF
+# Task: $TASK_DESCRIPTION
+
+## Task ID: $BRANCH_NAME
+
+## Created: $(date +"%Y-%m-%d %H:%M:%S")
+
+## Initial Requirements
+
+[Describe the task requirements here]
+
+## Acceptance Criteria
+
+- [ ] Criteria 1
+- [ ] Criteria 2
+- [ ] Criteria 3
+
+## Technical Approach
+
+[Describe the technical approach]
+
+## Notes
+
+[Additional notes]
+EOF
+
+print_status "Initial requirements file created"
+
+# Initialize devcontainer if it exists
+if [[ -d ".devcontainer" ]] && [[ -f ".devcontainer/initialize.sh" ]]; then
+    print_status "Initializing devcontainer for the worktree..."
+    (cd .devcontainer && ./initialize.sh "$(pwd)")
+fi
+
+# Open PyCharm if available
+if command -v pycharm >/dev/null 2>&1; then
+    print_status "Opening PyCharm..."
+    pycharm . &
+    print_status "PyCharm opened in background"
+elif command -v pycharm.sh >/dev/null 2>&1; then
+    print_status "Opening PyCharm..."
+    pycharm.sh . &
+    print_status "PyCharm opened in background"
+else
+    print_warning "PyCharm not found in PATH"
+    print_info "You can open the project manually from: $(pwd)"
+fi
+
+# Summary
+echo ""
+echo "================================================================"
+echo -e "${BOLD}${GREEN}Task worktree created successfully!${NC}"
+echo ""
+echo -e "${BOLD}Worktree:${NC} $WORKTREE_DIR"
+echo -e "${BOLD}Branch:${NC} $BRANCH_NAME"
+echo -e "${BOLD}Task folder:${NC} $TASK_DIR"
+echo -e "${BOLD}Requirements:${NC} $REQUIREMENTS_FILE"
+echo ""
+echo "Next steps:"
+echo "1. Edit the initial requirements in: $REQUIREMENTS_FILE"
+echo "2. Start the devcontainer if needed"
+echo "3. Begin development"
+echo ""
+echo "To remove this worktree later:"
+echo "  git worktree remove $WORKTREE_DIR"
+echo "================================================================"

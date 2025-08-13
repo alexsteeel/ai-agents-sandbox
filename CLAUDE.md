@@ -36,10 +36,8 @@ The foundation enforces strict network isolation with proxy-based egress control
 ./install.sh
 
 # This installs system-wide commands:
-# - claude-devcontainer: Main management command
-# - claude-workspace-init: Initialize workspace
-# - claude-notify-watch: Host notification watcher
-# - claude-proxy-manager: Proxy configuration utility
+# - claude-task-worktree: Create git worktree for new tasks
+# - claude-notify-watch: Host notification watcher (optional)
 ```
 
 ### Manual Build (if needed)
@@ -52,24 +50,38 @@ The foundation enforces strict network isolation with proxy-based egress control
 ```
 
 ### Using in Your Project
+
+#### 1. Ensure `.devcontainer/` exists
+- This repo already has it
+- For new projects, copy from `.devcontainer.example/`
+
+#### 2. Configure (optional)
 ```bash
-# Initialize project with devcontainer (after system installation)
-claude-devcontainer init /path/to/your-project
-
-# Or from within project directory:
-cd /path/to/your-project
-claude-devcontainer init
-
-# Configure environment (optional)
 cd .devcontainer
-vim .env          # Configure proxy settings
+vim .env          # Set PROJECT_NAME, proxy settings
 vim whitelist.txt # Add project-specific domains
+```
 
-# Start services
-claude-devcontainer start
+#### 3. Open in IDE
 
-# Stop services
-claude-devcontainer stop
+**PyCharm:**
+1. Open project folder in PyCharm
+2. **File** → **Settings** → **Project** → **Python Interpreter**
+3. Click gear ⚙️ → **Add** → **Docker Compose**
+4. Configuration:
+   - Configuration files: `.devcontainer/docker-compose.yaml`
+   - Service: `devcontainer`
+   - Python interpreter path: `/usr/local/bin/python`
+5. Click **OK** - PyCharm starts containers automatically
+
+**VS Code:**
+1. Open project folder
+2. Click "Reopen in Container" when prompted
+3. VS Code handles everything
+
+**Claude Code:**
+```bash
+claude --dangerously-skip-permissions
 ```
 
 ### Claude Code
@@ -77,7 +89,11 @@ claude-devcontainer stop
 # Start Claude Code with local permissions
 claude --dangerously-skip-permissions
 
-# Create isolated git worktree for new tasks
+# Create isolated git worktree for new tasks (automated)
+claude-task-worktree "feature 123 implement user auth"
+# This creates worktree, task folder, and opens PyCharm
+
+# Or manually:
 git worktree add -b task-name ../project-name-task-name
 git worktree list
 ```
@@ -92,8 +108,8 @@ The environment includes automated linting hooks that run on task completion:
 - **Python code**: `uvx ruff check .`, `uvx black --check .`
 
 Linting results are logged to:
-- `.claude/logs/linters_common.json`
-- `.claude/logs/linters_python.json`
+- `.ai_agents_sandbox/logs/linters_common.json`
+- `.ai_agents_sandbox/logs/linters_python.json`
 
 ## Architecture
 
@@ -164,10 +180,17 @@ docker (Docker-in-Docker)
 - Container remains on internal network
 - Security model preserved
 
-**VS Code:** Automatically detects .devcontainer/devcontainer.json
+**VS Code:** 
+- Automatically detects `.devcontainer/devcontainer.json`
+- Handles container lifecycle automatically
+- No manual configuration needed
 
-**PyCharm:** Use docker-compose service approach
+**PyCharm:** 
+- Uses Docker Compose service configuration
 - Python interpreter: `/usr/local/bin/python`
+- Service name: `devcontainer`
+- Manages container lifecycle automatically
+- Supports debugging, terminal, and file sync
 
 ### Proxy Configuration
 
@@ -220,12 +243,13 @@ Pre-configured agents built into the base image:
 
 ## Development Workflow
 
-1. **Build base image**: Run `./build.sh` from project root (builds both base image and custom tinyproxy)
-2. **Copy .devcontainer**: Copy minimal template to your project
-3. **Customize**: Edit `.devcontainer/whitelist.txt` and `.env` as needed
-4. **Start services**: Run `docker compose up` from project directory
-5. **IDE connection**: VS Code/PyCharm automatically connects via Docker
-6. **Verify security**: Ensure containers cannot bypass proxy
+1. **System setup** (once): `sudo ./install.sh`
+2. **Open project in IDE**:
+   - **PyCharm**: Add Docker Compose interpreter
+   - **VS Code**: Reopen in Container
+3. **Create tasks** (optional): `claude-task-worktree "task description"`
+4. **IDE manages containers**: No manual start/stop needed
+5. **Security is automatic**: Internal network + proxy filtering
 
 ## Important Security Notes
 
@@ -264,9 +288,9 @@ Pre-configured agents built into the base image:
 
 **Claude agents not appearing:**
 - Run setup script: `~/scripts/setup-claude-defaults.sh`
-- Check for log conflicts in `~/.claude/logs/`
+- Check for log conflicts in `~/.ai_agents_sandbox/logs/`
 - Verify all 6 agents exist in `/home/claude/claude-defaults/agents/`
-- Logs should be in `~/scripts/logs/` not `~/.claude/logs/`
+- Logs should be in `~/scripts/logs/` not `~/.ai_agents_sandbox/logs/`
 
 **Building Docker images from devcontainer:**
 - Add Docker registry domains to `.devcontainer/whitelist.txt`:
@@ -278,15 +302,15 @@ Remember: Security is paramount. When in doubt, choose the more restrictive opti
 
 ## Projects Directory Mount
 
-The `.claude/projects` directory is mounted from the host system to enable cross-project statistics and analysis. This allows tools like `ccusage` to aggregate metrics across all projects in a single location.
+The `.ai_agents_sandbox/projects` directory is mounted from the host system to enable cross-project statistics and analysis. This allows tools like `ccusage` to aggregate metrics across all projects in a single location.
 
 ## Notification System
 
 The devcontainer includes a notification system for alerting the host when Claude needs attention:
 
 ### How it works
-1. **Container hook** (`/home/claude/claude-defaults/hooks/notify.sh`) writes notifications to `/home/claude/.claude/notifications/`
-2. **Volume mount** maps `$HOME/.claude/notifications` (host) to `/home/claude/.claude/notifications` (container)
+1. **Container hook** (`/home/claude/claude-defaults/hooks/notify.sh`) writes notifications to `/home/claude/.ai_agents_sandbox/notifications/`
+2. **Volume mount** maps `$HOME/.ai_agents_sandbox/notifications` (host) to `/home/claude/.ai_agents_sandbox/notifications` (container)
 3. **Host watcher** (`claude-notify-watch`) monitors for notifications and displays desktop alerts
 
 ### Setup

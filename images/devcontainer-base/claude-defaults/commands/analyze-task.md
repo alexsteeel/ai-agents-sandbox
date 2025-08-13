@@ -57,10 +57,45 @@ First, read the task file located at: `{{task_path}}`
 #### C. Ask ONLY Critical Clarifying Questions
 Focus on gaps that would block implementation or cause failures:
 - **Specific Data Sources**: "Which exact tables/APIs contain the customer data?"
+  Options:
+  1. Single database table (specify name)
+  2. Multiple joined tables (list all)
+  3. External API endpoint (provide URL/docs)
+  4. File-based source (CSV/JSON/XML)
+  5. Mixed sources (describe combination)
+  Answer: ""
 - **Business Rules**: "How should the system handle duplicate transactions?"
+  Options:
+  1. Reject all duplicates with error
+  2. Update existing record with new data
+  3. Create new version/history entry
+  4. Merge/aggregate values
+  5. Custom logic (please specify)
+  Answer: ""
 - **Failure Scenarios**: "What happens when the external service is unavailable?"
+  Options:
+  1. Retry with exponential backoff
+  2. Use cached/stale data
+  3. Fail fast with error message
+  4. Queue for later processing
+  5. Fallback to alternative service
+  Answer: ""
 - **Data Transformations**: "What's the exact mapping between source and target schemas?"
+  Options:
+  1. Direct 1:1 field mapping
+  2. Complex transformations needed (provide rules)
+  3. Aggregations required (sum/avg/count)
+  4. Data type conversions only
+  5. Custom mapping logic (please describe)
+  Answer: ""
 - **Acceptance Criteria**: "What specific metrics define success?"
+  Options:
+  1. Processing time < X seconds
+  2. Error rate < X%
+  3. Data accuracy > X%
+  4. Specific business KPIs (list them)
+  5. Combination of metrics (please specify)
+  Answer: ""
 
 ### 3. Analyze and Document Requirements
 
@@ -200,8 +235,28 @@ After creating all documents, provide a clear summary including:
 
 **Use concise follow-ups like:**
 - "Based on your answer about [topic], I need to clarify: [specific question]"
+  Options:
+  1. Proceed with assumption (state it)
+  2. Need more details (specify what)
+  3. Change approach (describe alternative)
+  4. Accept limitation (document impact)
+  Answer: ""
 - "This reveals a potential issue with [aspect]. How should we handle [scenario]?"
+  Options:
+  1. Add validation/checks
+  2. Implement fallback mechanism
+  3. Document as known limitation
+  4. Redesign to avoid issue
+  5. Escalate for decision
+  Answer: ""
 - "Updated the requirements. Still unclear: [remaining questions]"
+  Options:
+  1. Make reasonable assumption
+  2. Request stakeholder meeting
+  3. Create proof of concept first
+  4. Document as risk
+  5. Defer to implementation phase
+  Answer: ""
 
 ## Important Notes
 

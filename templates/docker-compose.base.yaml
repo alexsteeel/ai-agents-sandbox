@@ -89,19 +89,19 @@ services:
       # JetBrains remote development
       JETBRAINS_REMOTE_RUN: "true"
       # Claude Code configuration
-      CLAUDE_CONFIG_DIR: /home/claude/.claude
+      CLAUDE_CONFIG_DIR: /home/claude/.ai_agents_sandbox
       NODE_OPTIONS: --max-old-space-size=4096
     volumes:
       # Core volumes
       - ${PROJECT_DIR:-..}:/workspace
-      - claude-code-config:/home/claude/.claude
+      - claude-code-config:/home/claude/.ai_agents_sandbox
       - docker-certs-client:/certs/client:ro
       
       # User configuration volumes
-      - ${HOME}/.claude:/host/.claude:ro
+      - ${HOME}/.ai_agents_sandbox:/host/.ai_agents_sandbox:ro
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
-      - ${HOME}/.claude/projects/:/home/claude/.claude/projects
-      - ${HOME}/.claude/notifications:/home/claude/.claude/notifications
+      - ${HOME}/.ai_agents_sandbox/projects/:/home/claude/.ai_agents_sandbox/projects
+      - ${HOME}/.ai_agents_sandbox/notifications:/home/claude/.ai_agents_sandbox/notifications
       
       # Persistent state volumes
       - zsh-history:/home/claude/.zsh_history_dir
