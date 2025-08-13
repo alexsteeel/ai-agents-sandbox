@@ -1,16 +1,22 @@
 ---
 name: run-task
-description: Execute task implementation from requirements document using phases 4-7 with code-reviewer and QA agents
+description: Execute task implementation after requirements approval, continuing from analyze-task and review-answers workflow
 arguments:
-  - name: requirements_path
-    description: Path to the requirements document (e.g., tasks/task_name_requirements.md)
+  - name: task_path
+    description: Path to the task folder containing approved requirements, answers, and plan
     required: true
 ---
 
-You are the Technical Lead executing a task implementation based on the provided requirements document. You will coordinate with specialized agents including Software Engineers, QA Engineers, and Code Reviewers to deliver a complete solution.
+You are the Technical Lead executing task implementation based on approved requirements. This command continues the workflow from analyze-task and review-answers.
 
-## Requirements Document
-Read the requirements from: `{{requirements_path}}`
+## Pre-Implementation Check
+
+Before starting, verify in the task folder `{{task_path}}`:
+1. ✅ `requirements.md` exists and is complete
+2. ✅ `answers.md` has all critical questions answered
+3. ✅ `plan.md` contains approved implementation plan
+
+**If any document is missing or incomplete, STOP and inform the user to run analyze-task or review-answers first.**
 
 ## Your Mission
 
@@ -210,23 +216,26 @@ Have QA perform final validation:
 
 ### 7.1 Final Deliverables
 
-Organize all deliverables in the task folder:
+Organize all deliverables in the task folder `{{task_path}}`:
 
 ```
-tasks/<task_name>/
+{{task_path}}/
+├── requirements.md    # From analyze-task (existing)
+├── answers.md        # From review-answers (existing)
+├── plan.md          # From analyze-task (existing)
 ├── code/
-│   ├── src/           # Source code
-│   ├── tests/         # Test files
-│   └── README.md      # Setup instructions
+│   ├── src/         # Source code
+│   ├── tests/       # Test files
+│   └── README.md    # Setup instructions
 ├── docs/
-│   ├── api.md         # API documentation
-│   ├── architecture.md # Architecture docs
-│   └── usage.md       # Usage examples
+│   ├── api.md       # API documentation
+│   └── usage.md     # Usage examples
 ├── reviews/
 │   └── code_review.md # Review findings
-└── validation/
-    ├── test_results.md # Test execution results
-    └── coverage.html   # Coverage report
+├── validation/
+│   ├── test_results.md # Test execution results
+│   └── coverage.html   # Coverage report
+└── report.md        # Final implementation report
 ```
 
 ### 7.2 Implementation Report

@@ -72,6 +72,52 @@ flowchart TD
 
 ---
 
+# Task Execution Workflow
+
+The environment includes a structured workflow for taking tasks from requirements to implementation:
+
+```mermaid
+graph TD
+    A[Initial Task/Requirements] -->|1. analyze-task| B[Requirements Analysis]
+    B --> D[Ask Questions]
+    D --> E[User Provides Answers]
+    E -->|2. review-answers| F[Review & Update Artifacts]
+    F --> G{{All Clear?}}
+    G -->|No - More Questions| D
+    G -->|Yes| H[Request Approval]
+    H --> I{{User Approves?}}
+    I -->|No - Changes Needed| F
+    I -->|Yes| J[3. run-task]
+    J --> K[Implementation]
+    K --> L[Testing & QA]
+    L --> M[Code Review]
+    M --> N[Final Validation]
+    N --> O[Delivery]
+```
+
+### Workflow Commands:
+1. **`analyze-task`**: Initial requirements analysis
+   - Reads task description
+   - Identifies potential issues and risks
+   - Creates `requirements.md`, `answers.md`, `plan.md`
+   - Asks critical clarifying questions
+
+2. **`review-answers`**: Iterative clarification
+   - Reviews user-provided answers
+   - Updates task artifacts based on new information
+   - Identifies remaining unclear points
+   - Repeats until all requirements are clear
+
+3. **`run-task`**: Implementation phase
+   - Executes approved plan
+   - Coordinates with specialized agents (Software, QA, DevOps)
+   - Runs testing and validation
+   - Delivers final implementation
+
+All task artifacts are stored in `tasks/<task_name>/` folders for organization and tracking.
+
+---
+
 # Parallel Tasks — Multi-Environment Workflow
 
 ```mermaid
