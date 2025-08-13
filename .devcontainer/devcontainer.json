@@ -9,10 +9,6 @@
   "initializeCommand": ["bash", "-c", "cd \"${localWorkspaceFolder}/.devcontainer\" && INITIALIZE_MODE=vscode ./initialize.sh \"${localWorkspaceFolder}\""],
   "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
   "remoteEnv": {
-    "JETBRAINS_REMOTE_RUN": "true",
-    "PROJECT_NAME": "${localWorkspaceFolderBasename}",
-    "DOCKER_HOST": "tcp://docker:2376",
-    "DOCKER_TLS_VERIFY": "1",
-    "DOCKER_CERT_PATH": "/certs/client"
+    "PROJECT_NAME": "${localWorkspaceFolderBasename}"
   }
 }

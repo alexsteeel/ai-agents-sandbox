@@ -1,0 +1,18 @@
+# Local project-specific overrides for the ai_agents_sandbox project
+# This file overrides specific settings from the system-installed base
+
+services:
+  # Override image tags to use version 1.0.0
+  tinyproxy-devcontainer:
+    image: tinyproxy-whitelist:1.0.0
+  
+  tinyproxy-dind:
+    image: tinyproxy-dind:1.0.0
+  
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: claudecode/devcontainer:1.0.0
+    image: ai-agents-sandbox-devcontainer:1.0.0

@@ -1,0 +1,20 @@
+# Local project-specific overrides for the third-party base configuration
+# This file overrides specific settings from the system-installed base
+
+services:
+  # Override devcontainer settings if needed
+  # devcontainer:
+  #   environment:
+  #     - CUSTOM_VAR=value
+  #   volumes:
+  #     - ./custom-config:/home/claude/.custom:ro
+
+  # Override proxy settings if needed
+  # tinyproxy-devcontainer:
+  #   environment:
+  #     - UPSTREAM_PROXY=socks5://custom-proxy:1080
+
+# Add project-specific volumes if needed
+
+# volumes:
+#   custom-data:

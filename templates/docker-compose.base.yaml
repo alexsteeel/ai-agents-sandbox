@@ -82,6 +82,15 @@ services:
       # Project-specific environment
       PROJECT_NAME: ${PROJECT_NAME:-project}
       WORKSPACE: ${WORKSPACE:-/workspace}
+      # Docker-in-Docker client configuration
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+      # JetBrains remote development
+      JETBRAINS_REMOTE_RUN: "true"
+      # Claude Code configuration
+      CLAUDE_CONFIG_DIR: /home/claude/.claude
+      NODE_OPTIONS: --max-old-space-size=4096
     volumes:
       # Core volumes
       - ${PROJECT_DIR:-..}:/workspace

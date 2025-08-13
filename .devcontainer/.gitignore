@@ -1,7 +1,0 @@
-# Environment files with local configuration
-.env
-.env.project
-
-# Docker volumes and temp files
-*.log
-.docker-sync/

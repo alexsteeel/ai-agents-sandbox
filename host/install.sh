@@ -38,6 +38,7 @@ SCRIPTS=(
     "claude-devcontainer"
     "claude-workspace-init"
     "claude-notify-watch"
+    "claude-project-init"
 )
 
 for script in "${SCRIPTS[@]}"; do
@@ -69,10 +70,6 @@ if [[ -d "$TEMPLATE_DIR" ]]; then
     
     # Set proper permissions
     chmod 644 "$SHARE_DIR"/*.yaml 2>/dev/null || true
-    chmod 644 "$SHARE_DIR"/*.txt 2>/dev/null || true
-    chmod 644 "$SHARE_DIR"/.env.template 2>/dev/null || true
-    chmod 644 "$SHARE_DIR"/Dockerfile.template 2>/dev/null || true
-    chmod 755 "$SHARE_DIR"/initialize.sh 2>/dev/null || true
     
     print_status "✓ Templates installed"
 else

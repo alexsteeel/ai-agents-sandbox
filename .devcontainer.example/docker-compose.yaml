@@ -1,13 +1,4 @@
-# Minimal docker-compose that includes the base configuration
-# All complexity is handled in the base template
-
 include:
-- path: /usr/local/share/claude-devcontainer/docker-compose.base.yaml
-
-# You can override specific settings here if needed
-# services:
-#   devcontainer:
-#     environment:
-#       - CUSTOM_VAR=value
-#     volumes:
-#       - ./custom-config:/home/claude/.custom:ro
+  - path:
+      - /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+      - override.yaml

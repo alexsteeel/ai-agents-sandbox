@@ -1,3 +1,4 @@
 - fix persistence of zshhistory
 - add golang, dotnet and python containers based on devcontainer base
 - add timings and statistics for tasks
+- add host script for create git worktree in current directory, go in this worktree, create task folder and open pycharm
