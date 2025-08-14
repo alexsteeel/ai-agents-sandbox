@@ -6,8 +6,7 @@
   "shutdownAction": "stopCompose",
   "containerUser": "claude",
   "updateRemoteUserUID": false,
-  // No initialization needed - .devcontainer/ files are in the repo
-  // IDEs handle container lifecycle automatically
+  "initializeCommand": "bash -c 'if [[ -f ./init-project.sh ]]; then ./init-project.sh; elif command -v ai-sbx-init-project >/dev/null 2>&1; then ai-sbx-init-project \"${localWorkspaceFolder}\"; fi'",
   "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
   "remoteEnv": {
     "PROJECT_NAME": "${localWorkspaceFolderBasename}"

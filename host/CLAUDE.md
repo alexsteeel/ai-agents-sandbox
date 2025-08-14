@@ -73,7 +73,7 @@ The system supports different urgency levels:
 1. **Initialize permissions** (one-time):
    ```bash
    cd .devcontainer
-   ./initialize.sh /path/to/project
+   ./init-project.sh /path/to/project
    ```
    This creates `$HOME/.claude-notifications` with proper permissions.
 

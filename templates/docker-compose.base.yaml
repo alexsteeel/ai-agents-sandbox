@@ -1,14 +1,12 @@
-version: '3.8'
-
-# Shared proxy configuration
-x-proxy-env: &proxy-env
+# Devcontainer proxy configuration - ONLY uses tinyproxy-devcontainer
+x-devcontainer-proxy-env: &devcontainer-proxy-env
   HTTP_PROXY: ${PROXY_URL:-http://tinyproxy-devcontainer:8888}
   HTTPS_PROXY: ${PROXY_URL:-http://tinyproxy-devcontainer:8888}
-  NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
+  NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,docker}
   # Lowercase versions for compatibility
   http_proxy: ${PROXY_URL:-http://tinyproxy-devcontainer:8888}
   https_proxy: ${PROXY_URL:-http://tinyproxy-devcontainer:8888}
-  no_proxy: ${NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
+  no_proxy: ${NO_PROXY:-localhost,127.0.0.1,::1,docker}
 
 services:
   # Docker-in-Docker service
@@ -17,13 +15,13 @@ services:
     privileged: true  # Required for DinD
     restart: unless-stopped
     environment:
-      # DinD uses its own proxy for registry access
-      HTTP_PROXY: ${DIND_PROXY_URL:-http://tinyproxy-dind:8888}
-      HTTPS_PROXY: ${DIND_PROXY_URL:-http://tinyproxy-dind:8888}
-      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
-      http_proxy: ${DIND_PROXY_URL:-http://tinyproxy-dind:8888}
-      https_proxy: ${DIND_PROXY_URL:-http://tinyproxy-dind:8888}
-      no_proxy: ${NO_PROXY:-localhost,127.0.0.1,::1,docker,tinyproxy-devcontainer,tinyproxy-dind}
+      # DinD ONLY uses tinyproxy-dind for registry access - NEVER tinyproxy-devcontainer
+      HTTP_PROXY: http://tinyproxy-dind:8888
+      HTTPS_PROXY: http://tinyproxy-dind:8888
+      NO_PROXY: localhost,127.0.0.1,::1
+      http_proxy: http://tinyproxy-dind:8888
+      https_proxy: http://tinyproxy-dind:8888
+      no_proxy: localhost,127.0.0.1,::1
     volumes:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
@@ -34,11 +32,11 @@ services:
     networks:
       - claude-internal
     depends_on:
-      - tinyproxy-dind
+      - tinyproxy-dind  # ONLY depends on its own proxy
 
   # Main proxy for devcontainer - supports upstream proxy
   tinyproxy-devcontainer:
-    image: tinyproxy-whitelist:latest
+    image: ai-sandbox/tinyproxy-whitelist:latest
     restart: unless-stopped
     environment:
       # Simplified upstream proxy configuration
@@ -48,14 +46,14 @@ services:
       - ${WHITELIST_FILE:-./whitelist.txt}:/etc/tinyproxy/user-whitelist.txt:ro
       - proxy-devcontainer-logs:/var/log/tinyproxy
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - "host.gateway:host-gateway"  # Maps to Docker host for upstream proxy
     networks:
       - claude-internal
       - claude-external
 
   # Dedicated proxy for Docker-in-Docker - no upstream, direct registry access
   tinyproxy-dind:
-    image: tinyproxy-dind:latest
+    image: ai-sandbox/tinyproxy-dind:latest
     restart: unless-stopped
     environment:
       # No upstream proxy for dind - direct registry access only
@@ -69,20 +67,14 @@ services:
 
   # Development container
   devcontainer:
-    build:
-      context: ${BUILD_CONTEXT:-.}
-      dockerfile: ${DOCKERFILE:-Dockerfile}
-      args:
-        # Allow passing build args for custom images
-        BASE_IMAGE: ${BASE_IMAGE:-claudecode/devcontainer:latest}
-    image: ${PROJECT_NAME:-project}-devcontainer:latest
     user: claude
     environment:
-      <<: *proxy-env
+      <<: *devcontainer-proxy-env
       # Project-specific environment
       PROJECT_NAME: ${PROJECT_NAME:-project}
       WORKSPACE: ${WORKSPACE:-/workspace}
       # Docker-in-Docker client configuration
+      # Docker connection is internal network only - no proxy needed
       DOCKER_HOST: tcp://docker:2376
       DOCKER_TLS_VERIFY: "1"
       DOCKER_CERT_PATH: /certs/client
@@ -104,7 +96,6 @@ services:
       - ${HOME}/.ai_agents_sandbox/notifications:/home/claude/.ai_agents_sandbox/notifications
       
       # Persistent state volumes
-      - zsh-history:/home/claude/.zsh_history_dir
       - codex:/home/claude/.codex
       - cache:/home/claude/.cache
       
@@ -117,8 +108,8 @@ services:
     networks:
       - claude-internal
     depends_on:
-      - docker
-      - tinyproxy-devcontainer
+      - docker  # For Docker CLI access
+      - tinyproxy-devcontainer  # ONLY its own proxy, NOT tinyproxy-dind
     # Allow custom command override
     command: ${DEVCONTAINER_COMMAND:-sleep infinity}
 
@@ -135,8 +126,6 @@ volumes:
     name: ${PROJECT_NAME:-project}-proxy-dind-logs
   claude-code-config:
     name: ${PROJECT_NAME:-project}-claude-code-config
-  zsh-history:
-    name: ${PROJECT_NAME:-project}-zsh-history
   codex:
     name: ${PROJECT_NAME:-project}-codex
   cache:

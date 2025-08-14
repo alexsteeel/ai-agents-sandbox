@@ -119,7 +119,7 @@ print_status "Initial requirements file created"
 # Initialize devcontainer if it exists
 if [[ -d ".devcontainer" ]] && [[ -f ".devcontainer/initialize.sh" ]]; then
     print_status "Initializing devcontainer for the worktree..."
-    (cd .devcontainer && ./initialize.sh "$(pwd)")
+    (cd .devcontainer && ./init-project.sh "$(pwd)")
 fi
 
 # Open PyCharm if available

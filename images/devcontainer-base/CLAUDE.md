@@ -129,7 +129,6 @@ The image enforces:
 - **Purpose**: Runtime initialization and fixes
 - **Tasks**:
   - Fixes `.codex` directory ownership issues
-  - Sets up `.zsh_history` persistence with symlinks
   - Ensures proper file permissions for runtime
 
 ### `non-root-post-create.sh` (Post-Creation)

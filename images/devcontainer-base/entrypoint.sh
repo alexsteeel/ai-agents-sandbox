@@ -25,22 +25,5 @@ else
     chmod 755 /home/claude/.codex
 fi
 
-# Setup .zsh_history persistence
-if [ ! -f /home/claude/.zsh_history_dir/.zsh_history ]; then
-    # Create the history file if it doesn't exist
-    touch /home/claude/.zsh_history_dir/.zsh_history
-    chmod 600 /home/claude/.zsh_history_dir/.zsh_history
-fi
-
-# Remove existing .zsh_history if it's a regular file
-if [ -f /home/claude/.zsh_history ] && [ ! -L /home/claude/.zsh_history ]; then
-    rm -f /home/claude/.zsh_history
-fi
-
-# Create symlink to the persisted history file
-if [ ! -L /home/claude/.zsh_history ]; then
-    ln -s /home/claude/.zsh_history_dir/.zsh_history /home/claude/.zsh_history
-fi
-
 # Execute the original command
 exec "$@"

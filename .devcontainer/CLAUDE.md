@@ -18,7 +18,7 @@ cp .env.example .env
 # Edit .env as needed
 
 # Initialize (first time only)
-./initialize.sh /path/to/your-project
+./init-project.sh /path/to/your-project
 
 # Start services
 docker compose up -d
@@ -116,7 +116,7 @@ One-time setup script that performs critical host setup:
 
 Run once per project:
 ```bash
-./initialize.sh /absolute/path/to/project
+./init-project.sh /absolute/path/to/project
 ```
 
 This script MUST be run before starting the devcontainer to ensure proper permissions.

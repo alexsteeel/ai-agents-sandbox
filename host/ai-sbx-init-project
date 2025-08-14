@@ -1,0 +1,269 @@
+#!/bin/bash
+set -euo pipefail
+
+# AI Sandbox Project Initializer
+# Sets up proper permissions and group ownership for a project directory
+# This is installed system-wide and called by project-specific wrappers
+
+PROJECT_DIR="${1:-$(pwd)}"
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+print_status() { echo -e "${GREEN}[INIT]${NC} $1"; }
+print_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+
+# Validate project directory
+if [[ ! -d "$PROJECT_DIR" ]]; then
+    print_error "Project directory not found: $PROJECT_DIR"
+    echo "Usage: $0 [/path/to/project]"
+    echo "  If no path provided, uses current directory"
+    exit 1
+fi
+
+# Get absolute path
+PROJECT_DIR="$(cd "$PROJECT_DIR" && pwd)"
+PROJECT_NAME="$(basename "$PROJECT_DIR")"
+
+echo ""
+echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${BOLD}${BLUE}   AI Sandbox Project Initializer${NC}"
+echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${BOLD}Project:${NC} $PROJECT_NAME"
+echo -e "${BOLD}Path:${NC}    $PROJECT_DIR"
+echo -e "${BLUE}───────────────────────────────────────────────────────────${NC}"
+echo ""
+
+# Check if dev group exists
+DEV_GID=2000
+if ! getent group dev >/dev/null 2>&1; then
+    print_error "Group 'dev' (GID $DEV_GID) not found"
+    echo ""
+    echo "The AI Sandbox system is not installed. Please run:"
+    echo "  sudo /path/to/ai_agents_sandbox/install.sh"
+    echo ""
+    exit 1
+fi
+
+# Check if current user is in dev group
+if ! groups "$USER" | grep -q '\bdev\b'; then
+    print_warning "User '$USER' is not in 'dev' group"
+    echo ""
+    echo "You need to be added to the dev group. Run:"
+    echo "  sudo usermod -aG dev $USER"
+    echo ""
+    echo "Then log out and back in for changes to take effect."
+    exit 1
+fi
+
+print_status "Initializing project for AI Sandbox..."
+
+# Set group ownership to dev for the entire project
+print_info "Setting group ownership to 'dev'..."
+
+# Check if we own the directory
+if [[ -O "$PROJECT_DIR" ]]; then
+    # We own it, no sudo needed
+    # Check current group ownership
+    CURRENT_GROUP=$(stat -c '%G' "$PROJECT_DIR" 2>/dev/null || stat -f '%Sg' "$PROJECT_DIR" 2>/dev/null)
+    
+    if [[ "$CURRENT_GROUP" == "dev" ]]; then
+        print_status "✓ Group ownership already set to 'dev'"
+    elif chgrp -R dev "$PROJECT_DIR" 2>/dev/null; then
+        print_status "✓ Group ownership changed to 'dev'"
+    else
+        print_warning "Could not change group ownership"
+        echo "  Ensure you're in the 'dev' group: groups $USER"
+        echo "  You may need to log out and back in after being added to the group"
+    fi
+    
+    # Set group write permissions
+    print_info "Setting group write permissions..."
+    # Use find to handle permission errors gracefully
+    find "$PROJECT_DIR" -type f -exec chmod g+rw {} \; 2>/dev/null || true
+    find "$PROJECT_DIR" -type d -exec chmod g+rwx {} \; 2>/dev/null || true
+    print_status "✓ Group write permissions enabled (where possible)"
+    
+    # Set setgid bit on directories so new files inherit group
+    print_info "Enabling group inheritance on directories..."
+    find "$PROJECT_DIR" -type d -exec chmod g+s {} \; 2>/dev/null || true
+    print_status "✓ Group inheritance enabled (setgid)"
+    
+elif [[ -w "$PROJECT_DIR" ]]; then
+    # We can write but don't own - might need different approach
+    print_warning "You don't own $PROJECT_DIR but have write access"
+    echo "  Attempting to set permissions..."
+    
+    if chgrp -R dev "$PROJECT_DIR" 2>/dev/null; then
+        print_status "✓ Group ownership set to 'dev'"
+    else
+        print_warning "Cannot change group ownership without being the owner"
+        echo "  Ask the owner to run: chgrp -R dev $PROJECT_DIR"
+    fi
+    
+    # Use find to handle permission errors gracefully
+    find "$PROJECT_DIR" -type f -exec chmod g+rw {} \; 2>/dev/null || true
+    find "$PROJECT_DIR" -type d -exec chmod g+rwx {} \; 2>/dev/null || true
+    print_status "✓ Group write permissions set where possible"
+    
+    find "$PROJECT_DIR" -type d -exec chmod g+s {} \; 2>/dev/null || true
+    print_status "✓ Group inheritance set where possible"
+else
+    print_error "No write permission to $PROJECT_DIR"
+    echo "Please ensure you own the directory or have write permissions"
+    exit 1
+fi
+
+# Create notification directory for this user
+NOTIFICATION_DIR="$HOME/.ai_agents_sandbox/notifications"
+PROJECTS_DIR="$HOME/.ai_agents_sandbox/projects"
+
+if [[ ! -d "$NOTIFICATION_DIR" ]]; then
+    print_info "Creating notification directory..."
+    mkdir -p "$NOTIFICATION_DIR"
+    print_status "✓ Notification directory created"
+else
+    print_status "✓ Notification directory exists"
+fi
+
+if [[ ! -d "$PROJECTS_DIR" ]]; then
+    print_info "Creating projects directory..."
+    mkdir -p "$PROJECTS_DIR"
+    print_status "✓ Projects directory created"
+else
+    print_status "✓ Projects directory exists"
+fi
+
+# Check for .devcontainer directory
+DEVCONTAINER_DIR="$PROJECT_DIR/.devcontainer"
+if [[ -d "$DEVCONTAINER_DIR" ]]; then
+    print_status "✓ Found .devcontainer directory"
+    
+    # Create .env from template if needed
+    ENV_FILE="$DEVCONTAINER_DIR/.env"
+    ENV_TEMPLATE="$DEVCONTAINER_DIR/.env.project"
+    
+    if [[ ! -f "$ENV_FILE" ]] && [[ -f "$ENV_TEMPLATE" ]]; then
+        print_info "Creating .env file from template..."
+        cp "$ENV_TEMPLATE" "$ENV_FILE"
+        
+        # Update PROJECT_NAME and PROJECT_DIR in .env
+        if command -v sed >/dev/null 2>&1; then
+            sed -i "s|^PROJECT_NAME=.*|PROJECT_NAME=$PROJECT_NAME|" "$ENV_FILE"
+            sed -i "s|^PROJECT_DIR=.*|PROJECT_DIR=$PROJECT_DIR|" "$ENV_FILE"
+        fi
+        
+        print_status "✓ .env file created"
+    elif [[ -f "$ENV_FILE" ]]; then
+        print_status "✓ .env file already exists"
+    fi
+    
+    # ============================================================================
+    # GIT WORKTREE SUPPORT
+    # ============================================================================
+    
+    # Check if this is a git worktree and update docker-compose override if needed
+    if [[ -f "$PROJECT_DIR/.git" ]]; then
+        print_info "Detected git worktree, setting up parent repository mount..."
+        
+        # Read the gitdir path from .git file
+        GITDIR=$(grep "^gitdir:" "$PROJECT_DIR/.git" | cut -d' ' -f2)
+        
+        if [[ -n "$GITDIR" ]]; then
+            # Extract the parent git directory (remove /worktrees/... part)
+            PARENT_GIT_DIR=$(echo "$GITDIR" | sed 's|/\.git/worktrees/.*|/.git|')
+            # Get the actual parent directory (not .git)
+            PARENT_REPO_DIR=$(dirname "$PARENT_GIT_DIR")
+            
+            print_info "Parent repository: $PARENT_REPO_DIR"
+            
+            # Create or update override.yaml for the git mount
+            OVERRIDE_FILE="$DEVCONTAINER_DIR/override.yaml"
+            
+            # Check if override.yaml exists
+            if [[ -f "$OVERRIDE_FILE" ]]; then
+                # Check if the mount already exists
+                if grep -q "$PARENT_REPO_DIR:$PARENT_REPO_DIR" "$OVERRIDE_FILE" 2>/dev/null; then
+                    print_status "✓ Git parent mount already configured"
+                else
+                    print_info "Adding git parent mount to existing override.yaml..."
+                    
+                    # Check if volumes section exists for devcontainer service
+                    if grep -q "^  devcontainer:" "$OVERRIDE_FILE" && grep -q "^    volumes:" "$OVERRIDE_FILE"; then
+                        # Add to existing volumes section
+                        sed -i "/^    volumes:/a\\      - $PARENT_REPO_DIR:$PARENT_REPO_DIR" "$OVERRIDE_FILE"
+                    elif grep -q "^  devcontainer:" "$OVERRIDE_FILE"; then
+                        # Add volumes section to existing devcontainer service
+                        sed -i "/^  devcontainer:/a\\    volumes:\\n      - $PARENT_REPO_DIR:$PARENT_REPO_DIR" "$OVERRIDE_FILE"
+                    else
+                        # Add devcontainer service with volumes
+                        echo "" >> "$OVERRIDE_FILE"
+                        echo "  devcontainer:" >> "$OVERRIDE_FILE"
+                        echo "    volumes:" >> "$OVERRIDE_FILE"
+                        echo "      - $PARENT_REPO_DIR:$PARENT_REPO_DIR" >> "$OVERRIDE_FILE"
+                    fi
+                    
+                    print_status "✓ Added git parent directory mount to override.yaml"
+                fi
+            else
+                # Create new override.yaml with the mount
+                print_info "Creating override.yaml with git parent mount..."
+                cat > "$OVERRIDE_FILE" << EOF
+# Git worktree support - mount parent repository
+services:
+  devcontainer:
+    volumes:
+      - $PARENT_REPO_DIR:$PARENT_REPO_DIR
+EOF
+                print_status "✓ Created override.yaml with git parent mount"
+            fi
+        fi
+    elif [[ -d "$PROJECT_DIR/.git" ]]; then
+        print_info "Regular git repository detected (not a worktree)"
+    fi
+else
+    print_info "No .devcontainer directory found (optional)"
+fi
+
+# Summary
+echo ""
+echo -e "${GREEN}═══════════════════════════════════════════════════════════${NC}"
+echo -e "${BOLD}${GREEN}✓ Project initialization complete!${NC}"
+echo -e "${GREEN}───────────────────────────────────────────────────────────${NC}"
+echo ""
+echo "Project '$PROJECT_NAME' is now configured for AI Sandbox."
+echo ""
+echo -e "${BOLD}What was done:${NC}"
+echo "  • Group ownership set to 'dev'"
+echo "  • Group write permissions enabled"
+echo "  • Directory inheritance configured"
+echo "  • User directories created"
+if [[ -f "$ENV_FILE" ]]; then
+    echo "  • .env file configured"
+fi
+echo ""
+echo -e "${BOLD}Next steps:${NC}"
+if [[ -d "$DEVCONTAINER_DIR" ]]; then
+    echo "  1. Review .devcontainer/.env if needed"
+    echo "  2. Start containers:"
+    echo "     cd $DEVCONTAINER_DIR"
+    echo "     docker compose up -d"
+    echo "  3. Or open project in VS Code/PyCharm"
+else
+    echo "  1. Copy .devcontainer.example to your project:"
+    echo "     cp -r /usr/local/share/ai-sandbox/.devcontainer.example $DEVCONTAINER_DIR"
+    echo "  2. Run initialization again to configure .env"
+fi
+echo ""
+echo "For desktop notifications (optional):"
+echo "  ai-sbx-notify-watch"
+echo ""
+
+exit 0

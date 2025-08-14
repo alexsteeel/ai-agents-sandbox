@@ -128,6 +128,7 @@ install_host_scripts() {
     print_info "The following scripts will be installed to /usr/local/bin:"
     print_info "  • ai-sbx-task-worktree    - Create git worktree for new tasks"
     print_info "  • ai-sbx-notify-watch     - Desktop notification watcher (optional)"
+    print_info "  • ai-sbx-init-project     - Initialize project permissions for devcontainer"
     echo ""
     print_info "Additional setup:"
     print_info "  • Creates 'dev' group (GID 2000) for file sharing"
@@ -181,7 +182,7 @@ verify_installation() {
     done
     
     # Check installed scripts
-    for script in ai-sbx-task-worktree ai-sbx-notify-watch; do
+    for script in ai-sbx-task-worktree ai-sbx-notify-watch ai-sbx-init-project; do
         if command -v "$script" >/dev/null 2>&1; then
             print_status "✓ Script installed: $script"
         else
@@ -225,11 +226,15 @@ show_quickstart() {
     printf "1. Copy the template to your project:\n"
     printf "   ${GREEN}cp -r .devcontainer.example /path/to/project/.devcontainer${NC}\n"
     printf "\n"
-    printf "2. Configure (optional):\n"
+    printf "2. Initialize project permissions:\n"
+    printf "   ${GREEN}cd /path/to/project/.devcontainer${NC}\n"
+    printf "   ${GREEN}./initialize.sh${NC}\n"
+    printf "\n"
+    printf "3. Configure (optional):\n"
     printf "   - Edit: ${BLUE}.devcontainer/.env${NC} for PROJECT_NAME and proxy\n"
     printf "   - Add domains to: ${BLUE}.devcontainer/whitelist.txt${NC}\n"
     printf "\n"
-    printf "3. Open in your IDE:\n"
+    printf "4. Open in your IDE:\n"
     printf "   ${BOLD}PyCharm:${NC} Settings → Python Interpreter → Docker Compose → devcontainer\n"
     printf "   ${BOLD}VS Code:${NC} Click \"Reopen in Container\"\n"
     printf "\n"
@@ -239,6 +244,7 @@ show_quickstart() {
     printf "${BOLD}Available commands:${NC}\n"
     printf "   ${GREEN}ai-sbx-task-worktree \"task description\"${NC} - Create task branch\n"
     printf "   ${GREEN}ai-sbx-notify-watch &${NC} - Enable desktop notifications\n"
+    printf "   ${GREEN}ai-sbx-init-project [path]${NC} - Initialize project permissions\n"
     printf "\n"
     printf "${BOLD}For more help:${NC}\n"
     printf "   - Documentation: ${BLUE}README.md${NC}\n"

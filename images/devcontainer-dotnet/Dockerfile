@@ -2,7 +2,7 @@
 # Based on the devcontainer-base image with .NET 9 SDK installed
 
 ARG IMAGE_TAG=latest
-FROM claudecode/devcontainer:${IMAGE_TAG}
+FROM ai-sandbox/devcontainer:${IMAGE_TAG}
 
 # Switch to root for installations
 USER root

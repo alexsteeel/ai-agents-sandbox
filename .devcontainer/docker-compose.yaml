@@ -1,4 +1,4 @@
 include:
   - path:
-      - /usr/local/share/claude-devcontainer/docker-compose.base.yaml  # Third-party base from system install
-      - override.yaml                                                   # Local project-specific overrides
+      - /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+      - override.yaml

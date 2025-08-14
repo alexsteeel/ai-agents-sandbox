@@ -42,7 +42,8 @@
       "Bash(DOCKER_HOST= docker compose up -d devcontainer)",
       "Bash(tree:*)",
       "Bash(./install.sh)",
-      "Bash(./tests/test-installation.sh:*)"
+      "Bash(./tests/test-installation.sh:*)",
+      "WebSearch"
     ],
     "deny": []
   },

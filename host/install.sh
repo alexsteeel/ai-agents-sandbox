@@ -37,6 +37,7 @@ mkdir -p "$SHARE_DIR"
 SCRIPTS=(
     "ai-sbx-task-worktree"
     "ai-sbx-notify-watch"
+    "ai-sbx-init-project"
 )
 
 for script in "${SCRIPTS[@]}"; do

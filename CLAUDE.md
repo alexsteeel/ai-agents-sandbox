@@ -23,7 +23,10 @@ The foundation enforces strict network isolation with proxy-based egress control
 **NEVER compromise these security principles:**
 - **Non-root user only**: Container runs as user 'claude' (UID 1001), NEVER add sudo or root access
 - **Internal network isolation**: `internal: true` network - containers CANNOT access internet directly
-- **Proxy-only egress**: ALL outbound traffic MUST go through Tinyproxy (port 8888)
+- **Strict proxy isolation**: 
+  - Devcontainer MUST ONLY use tinyproxy-devcontainer:8888
+  - Docker service MUST ONLY use tinyproxy-dind:8888
+  - NEVER allow cross-proxy access between services
 - **No bypassing**: Containers cannot resolve DNS or connect without proxy
 - **Default deny**: Only explicitly whitelisted domains in filter can be accessed
 - **No passwords/SSH**: NEVER add SSH servers, passwords, or authentication bypasses
@@ -212,7 +215,7 @@ The custom tinyproxy image supports automatic upstream proxy configuration:
 **Environment Variables (.env):**
 ```bash
 # Simplified upstream proxy configuration
-UPSTREAM_PROXY=socks5://host.docker.internal:8900
+UPSTREAM_PROXY=socks5://host.gateway:8900
 # or
 UPSTREAM_PROXY=http://proxy.example.com:3128
 

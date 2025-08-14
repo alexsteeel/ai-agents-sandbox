@@ -10,6 +10,13 @@ cd "$SCRIPT_DIR"
 # Use IMAGE_TAG from environment if set, otherwise default to "latest"
 DEFAULT_TAG="${IMAGE_TAG:-latest}"
 
+# Image names
+IMAGE_DEVCONTAINER="ai-sandbox/devcontainer"
+IMAGE_TINYPROXY="ai-sandbox/tinyproxy-whitelist"
+IMAGE_TINYPROXY_DIND="ai-sandbox/tinyproxy-dind"
+IMAGE_DOTNET="ai-sandbox/devcontainer-dotnet"
+IMAGE_GOLANG="ai-sandbox/devcontainer-golang"
+
 # Color output for better readability
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -168,23 +175,23 @@ if [[ "$VERIFY_ONLY" == true ]]; then
     print_status "Verifying images..."
     
     if [[ "$BUILD_DEVCONTAINER" == true ]]; then
-        verify_image "claudecode/devcontainer" "$DEFAULT_TAG" || BUILD_FAILED=true
+        verify_image "$IMAGE_DEVCONTAINER" "$DEFAULT_TAG" || BUILD_FAILED=true
     fi
     
     if [[ "$BUILD_TINYPROXY" == true ]]; then
-        verify_image "tinyproxy-whitelist" "$DEFAULT_TAG" || BUILD_FAILED=true
+        verify_image "$IMAGE_TINYPROXY" "$DEFAULT_TAG" || BUILD_FAILED=true
     fi
     
     if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
-        verify_image "tinyproxy-dind" "$DEFAULT_TAG" || BUILD_FAILED=true
+        verify_image "$IMAGE_TINYPROXY_DIND" "$DEFAULT_TAG" || BUILD_FAILED=true
     fi
     
     if [[ "$BUILD_DOTNET" == true ]]; then
-        verify_image "claudecode/devcontainer-dotnet" "$DEFAULT_TAG" || BUILD_FAILED=true
+        verify_image "$IMAGE_DOTNET" "$DEFAULT_TAG" || BUILD_FAILED=true
     fi
     
     if [[ "$BUILD_GOLANG" == true ]]; then
-        verify_image "claudecode/devcontainer-golang" "$DEFAULT_TAG" || BUILD_FAILED=true
+        verify_image "$IMAGE_GOLANG" "$DEFAULT_TAG" || BUILD_FAILED=true
     fi
     
     if [[ "$BUILD_FAILED" == true ]]; then
@@ -213,35 +220,35 @@ check_and_build() {
 # Build devcontainer base image
 if [[ "$BUILD_DEVCONTAINER" == true ]]; then
     echo "=== Building DevContainer Base Image ==="
-    check_and_build "devcontainer-base" "claudecode/devcontainer" "$DEFAULT_TAG"
+    check_and_build "devcontainer-base" "$IMAGE_DEVCONTAINER" "$DEFAULT_TAG"
     echo ""
 fi
 
 # Build tinyproxy image
 if [[ "$BUILD_TINYPROXY" == true ]]; then
     echo "=== Building Tinyproxy Whitelist Image ==="
-    check_and_build "tinyproxy-extended" "tinyproxy-whitelist" "$DEFAULT_TAG"
+    check_and_build "tinyproxy-extended" "$IMAGE_TINYPROXY" "$DEFAULT_TAG"
     echo ""
 fi
 
 # Build tinyproxy-dind image
 if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
     echo "=== Building Tinyproxy DinD Image ==="
-    check_and_build "tinyproxy-dind" "tinyproxy-dind" "$DEFAULT_TAG"
+    check_and_build "tinyproxy-dind" "$IMAGE_TINYPROXY_DIND" "$DEFAULT_TAG"
     echo ""
 fi
 
 # Build .NET devcontainer image
 if [[ "$BUILD_DOTNET" == true ]]; then
     echo "=== Building .NET 9 DevContainer Image ==="
-    check_and_build "devcontainer-dotnet" "claudecode/devcontainer-dotnet" "$DEFAULT_TAG"
+    check_and_build "devcontainer-dotnet" "$IMAGE_DOTNET" "$DEFAULT_TAG"
     echo ""
 fi
 
 # Build Go devcontainer image
 if [[ "$BUILD_GOLANG" == true ]]; then
     echo "=== Building Go DevContainer Image ==="
-    check_and_build "devcontainer-golang" "claudecode/devcontainer-golang" "$DEFAULT_TAG"
+    check_and_build "devcontainer-golang" "$IMAGE_GOLANG" "$DEFAULT_TAG"
     echo ""
 fi
 
@@ -251,8 +258,8 @@ echo "========================================"
 
 # Show summary and verify all builds
 if [[ "$BUILD_DEVCONTAINER" == true ]]; then
-    if verify_image "claudecode/devcontainer" "$DEFAULT_TAG"; then
-        echo "✓ DevContainer: claudecode/devcontainer:$DEFAULT_TAG"
+    if verify_image "$IMAGE_DEVCONTAINER" "$DEFAULT_TAG"; then
+        echo "✓ DevContainer: ${IMAGE_DEVCONTAINER}:${DEFAULT_TAG}"
     else
         echo "✗ DevContainer: Build failed or image not found"
         BUILD_FAILED=true
@@ -260,8 +267,8 @@ if [[ "$BUILD_DEVCONTAINER" == true ]]; then
 fi
 
 if [[ "$BUILD_TINYPROXY" == true ]]; then
-    if verify_image "tinyproxy-whitelist" "$DEFAULT_TAG"; then
-        echo "✓ Tinyproxy: tinyproxy-whitelist:$DEFAULT_TAG"
+    if verify_image "$IMAGE_TINYPROXY" "$DEFAULT_TAG"; then
+        echo "✓ Tinyproxy: ${IMAGE_TINYPROXY}:${DEFAULT_TAG}"
     else
         echo "✗ Tinyproxy: Build failed or image not found"
         BUILD_FAILED=true
@@ -269,8 +276,8 @@ if [[ "$BUILD_TINYPROXY" == true ]]; then
 fi
 
 if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
-    if verify_image "tinyproxy-dind" "$DEFAULT_TAG"; then
-        echo "✓ Tinyproxy DinD: tinyproxy-dind:$DEFAULT_TAG"
+    if verify_image "$IMAGE_TINYPROXY_DIND" "$DEFAULT_TAG"; then
+        echo "✓ Tinyproxy DinD: ${IMAGE_TINYPROXY_DIND}:${DEFAULT_TAG}"
     else
         echo "✗ Tinyproxy DinD: Build failed or image not found"
         BUILD_FAILED=true
@@ -278,8 +285,8 @@ if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
 fi
 
 if [[ "$BUILD_DOTNET" == true ]]; then
-    if verify_image "claudecode/devcontainer-dotnet" "$DEFAULT_TAG"; then
-        echo "✓ .NET DevContainer: claudecode/devcontainer-dotnet:$DEFAULT_TAG"
+    if verify_image "$IMAGE_DOTNET" "$DEFAULT_TAG"; then
+        echo "✓ .NET DevContainer: ${IMAGE_DOTNET}:${DEFAULT_TAG}"
     else
         echo "✗ .NET DevContainer: Build failed or image not found"
         BUILD_FAILED=true
@@ -287,8 +294,8 @@ if [[ "$BUILD_DOTNET" == true ]]; then
 fi
 
 if [[ "$BUILD_GOLANG" == true ]]; then
-    if verify_image "claudecode/devcontainer-golang" "$DEFAULT_TAG"; then
-        echo "✓ Go DevContainer: claudecode/devcontainer-golang:$DEFAULT_TAG"
+    if verify_image "$IMAGE_GOLANG" "$DEFAULT_TAG"; then
+        echo "✓ Go DevContainer: ${IMAGE_GOLANG}:${DEFAULT_TAG}"
     else
         echo "✗ Go DevContainer: Build failed or image not found"
         BUILD_FAILED=true
