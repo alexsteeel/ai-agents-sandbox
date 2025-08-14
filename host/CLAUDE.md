@@ -2,6 +2,30 @@
 
 This directory contains scripts that run on the host system to support the devcontainer environment.
 
+## Key Scripts
+
+### `ai-sbx-init-project`
+Initializes a project for use with AI Sandbox devcontainers.
+
+**What it does:**
+- Sets up proper group permissions (dev group, GID 2000)
+- Creates/updates `.devcontainer/.env` with:
+  - `PROJECT_NAME`: Based on directory basename
+  - `PROJECT_DIR`: Absolute path to project
+  - `COMPOSE_PROJECT_NAME`: Ensures unique Docker container names
+- Creates user directories for notifications and projects
+- Handles git worktree configurations
+- Sets up directory inheritance (setgid) for collaborative development
+
+**Usage:**
+```bash
+ai-sbx-init-project /path/to/project
+# or from project directory:
+ai-sbx-init-project
+```
+
+**Important:** This script ensures each project gets unique volume and container names, preventing conflicts between multiple projects using the same devcontainer foundation.
+
 ## Notification System
 
 The notification system enables Claude Code running in containers to alert the host user when attention is needed.

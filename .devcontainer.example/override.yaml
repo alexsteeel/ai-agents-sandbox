@@ -1,20 +1,90 @@
-# Local project-specific overrides for the third-party base configuration
-# This file overrides specific settings from the system-installed base
+# Project-specific overrides for devcontainer configuration
+# This file extends the base docker-compose.yaml with your customizations
 
 services:
-  # Override devcontainer settings if needed
-  # devcontainer:
-  #   environment:
-  #     - CUSTOM_VAR=value
-  #   volumes:
-  #     - ./custom-config:/home/claude/.custom:ro
-
-  # Override proxy settings if needed
+  # ============================================================================
+  # PROXY CUSTOMIZATION
+  # ============================================================================
+  
+  # Customize proxy for your environment
   # tinyproxy-devcontainer:
   #   environment:
-  #     - UPSTREAM_PROXY=socks5://custom-proxy:1080
+  #     # Corporate proxy (overrides .env settings)
+  #     UPSTREAM_PROXY: http://corporate-proxy.company.com:8080
+  #     # Domains that bypass corporate proxy
+  #     NO_UPSTREAM: internal.company.com,*.local
+  #     # Additional whitelisted domains for your project
+  #     USER_WHITELIST_DOMAINS: api.myservice.com,cdn.myservice.com
+  
+  # Customize Docker registry proxy
+  # tinyproxy-dind:
+  #   environment:
+  #     # Private registries
+  #     USER_WHITELIST_DOMAINS: artifactory.company.com,nexus.company.com
 
-# Add project-specific volumes if needed
+  # ============================================================================
+  # DEVCONTAINER CUSTOMIZATION
+  # ============================================================================
+  
+  devcontainer:
+    # --- Environment Variables ---
+    # environment:
+    #   # Development settings
+    #   DEBUG: "true"
+    #   LOG_LEVEL: debug
+    #   
+    #   # Python specific
+    #   PYTHONPATH: /workspace
+    
+    # --- Volume Mounts ---
+    # volumes:
+    #   # Project configuration files
+    #   - ./config:/workspace/config:ro
+    #   - ./.env.local:/workspace/.env:ro
+    #
+    #   # Cache directories (improve performance)
+    #   - pip-cache:/home/claude/.cache/pip
+    #   - npm-cache:/home/claude/.npm
+    #   - cargo-cache:/home/claude/.cargo
+    
+    # --- Custom startup command ---
+    # command: /bin/bash -c "source /workspace/scripts/init.sh && tail -f /dev/null"
+    
+    # --- Resource limits ---
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '4'
+    #       memory: 8G
+    #     reservations:
+    #       cpus: '2'
+    #       memory: 4G
+
+    # --- Port forwarding (use sparingly) ---
+    # ports:
+    #   - "8000:8000"  # Development server
+    #   - "3000:3000"  # Frontend dev server
+    #   - "5432:5432"  # Database forward
+
+# ============================================================================
+# VOLUMES
+# ============================================================================
 
 # volumes:
-#   custom-data:
+#   # Development caches
+#   pip-cache:
+#   npm-cache:
+#   cargo-cache:
+
+# ============================================================================
+# IMPORTANT SECURITY NOTES
+# ============================================================================
+# 
+# 1. ALWAYS keep services on 'claude-internal' network
+# 2. NEVER expose ports unless absolutely necessary
+# 3. Use read-only mounts (:ro) for sensitive files
+# 4. Store secrets in .env file (not in this file)
+# 5. Don't add sudo or root access to containers
+# 6. Review all mounted volumes for security implications
+# 
+# ============================================================================

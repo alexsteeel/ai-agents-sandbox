@@ -146,23 +146,62 @@ DEVCONTAINER_DIR="$PROJECT_DIR/.devcontainer"
 if [[ -d "$DEVCONTAINER_DIR" ]]; then
     print_status "✓ Found .devcontainer directory"
     
-    # Create .env from template if needed
+    # Create or update .env file
     ENV_FILE="$DEVCONTAINER_DIR/.env"
-    ENV_TEMPLATE="$DEVCONTAINER_DIR/.env.project"
     
-    if [[ ! -f "$ENV_FILE" ]] && [[ -f "$ENV_TEMPLATE" ]]; then
-        print_info "Creating .env file from template..."
-        cp "$ENV_TEMPLATE" "$ENV_FILE"
+    if [[ ! -f "$ENV_FILE" ]]; then
+        # Create a new .env file
+        cat > "$ENV_FILE" << EOF
+PROJECT_NAME=$PROJECT_NAME
+PROJECT_DIR=$PROJECT_DIR
+COMPOSE_PROJECT_NAME=$PROJECT_NAME
+EOF
+        print_status "✓ .env file created with PROJECT_NAME=$PROJECT_NAME"
+    else
+        # Update existing .env file
+        NEEDS_UPDATE=false
         
-        # Update PROJECT_NAME and PROJECT_DIR in .env
-        if command -v sed >/dev/null 2>&1; then
-            sed -i "s|^PROJECT_NAME=.*|PROJECT_NAME=$PROJECT_NAME|" "$ENV_FILE"
-            sed -i "s|^PROJECT_DIR=.*|PROJECT_DIR=$PROJECT_DIR|" "$ENV_FILE"
+        # Update PROJECT_NAME if it exists, otherwise add it
+        if grep -q "^PROJECT_NAME=" "$ENV_FILE"; then
+            CURRENT_PROJECT_NAME=$(grep "^PROJECT_NAME=" "$ENV_FILE" | cut -d'=' -f2)
+            if [[ "$CURRENT_PROJECT_NAME" != "$PROJECT_NAME" ]]; then
+                sed -i "s|^PROJECT_NAME=.*|PROJECT_NAME=$PROJECT_NAME|" "$ENV_FILE"
+                NEEDS_UPDATE=true
+            fi
+        else
+            echo "PROJECT_NAME=$PROJECT_NAME" >> "$ENV_FILE"
+            NEEDS_UPDATE=true
         fi
         
-        print_status "✓ .env file created"
-    elif [[ -f "$ENV_FILE" ]]; then
-        print_status "✓ .env file already exists"
+        # Update PROJECT_DIR if it exists, otherwise add it
+        if grep -q "^PROJECT_DIR=" "$ENV_FILE"; then
+            CURRENT_PROJECT_DIR=$(grep "^PROJECT_DIR=" "$ENV_FILE" | cut -d'=' -f2)
+            if [[ "$CURRENT_PROJECT_DIR" != "$PROJECT_DIR" ]]; then
+                sed -i "s|^PROJECT_DIR=.*|PROJECT_DIR=$PROJECT_DIR|" "$ENV_FILE"
+                NEEDS_UPDATE=true
+            fi
+        else
+            echo "PROJECT_DIR=$PROJECT_DIR" >> "$ENV_FILE"
+            NEEDS_UPDATE=true
+        fi
+        
+        # Update COMPOSE_PROJECT_NAME if it exists, otherwise add it
+        if grep -q "^COMPOSE_PROJECT_NAME=" "$ENV_FILE"; then
+            CURRENT_COMPOSE_NAME=$(grep "^COMPOSE_PROJECT_NAME=" "$ENV_FILE" | cut -d'=' -f2)
+            if [[ "$CURRENT_COMPOSE_NAME" != "$PROJECT_NAME" ]]; then
+                sed -i "s|^COMPOSE_PROJECT_NAME=.*|COMPOSE_PROJECT_NAME=$PROJECT_NAME|" "$ENV_FILE"
+                NEEDS_UPDATE=true
+            fi
+        else
+            echo "COMPOSE_PROJECT_NAME=$PROJECT_NAME" >> "$ENV_FILE"
+            NEEDS_UPDATE=true
+        fi
+        
+        if [[ "$NEEDS_UPDATE" == "true" ]]; then
+            print_status "✓ .env file updated with PROJECT_NAME=$PROJECT_NAME"
+        else
+            print_status "✓ .env file already up to date"
+        fi
     fi
     
     # ============================================================================

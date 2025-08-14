@@ -6,59 +6,59 @@
     {
       "name": "analytics-engineer",
       "description": "Requirements analysis, data exploration, metrics design, business intelligence",
-      "path": ".ai_agents_sandbox/agents/analytics-engineer.md"
+      "path": ".claude/agents/analytics-engineer.md"
     },
     {
       "name": "code-reviewer",
       "description": "Automated code review using Codex CLI tool",
-      "path": ".ai_agents_sandbox/agents/code-reviewer.md"
+      "path": ".claude/agents/code-reviewer.md"
     },
     {
       "name": "qa-engineer",
       "description": "Test creation, quality assurance, test automation strategies",
-      "path": ".ai_agents_sandbox/agents/qa-engineer.md"
+      "path": ".claude/agents/qa-engineer.md"
     },
     {
       "name": "senior-devops-engineer",
       "description": "Infrastructure automation, CI/CD, containerization, monitoring, SRE",
-      "path": ".ai_agents_sandbox/agents/senior-devops-engineer.md"
+      "path": ".claude/agents/senior-devops-engineer.md"
     },
     {
       "name": "software-engineer",
       "description": "Software development, API design, business logic, performance optimization",
-      "path": ".ai_agents_sandbox/agents/software-engineer.md"
+      "path": ".claude/agents/software-engineer.md"
     },
     {
       "name": "technical-lead",
       "description": "Technical architecture, task planning, team coordination, system design",
-      "path": ".ai_agents_sandbox/agents/technical-lead.md"
+      "path": ".claude/agents/technical-lead.md"
     },
     {
       "name": "technical-writer",
       "description": "Technical documentation, API docs, user guides, runbooks, README files",
-      "path": ".ai_agents_sandbox/agents/technical-writer.md"
+      "path": ".claude/agents/technical-writer.md"
     }
   ],
   "commands": [
     {
       "name": "analyze-task",
       "description": "Analyze requirements and create implementation plan",
-      "path": ".ai_agents_sandbox/commands/analyze-task.md"
+      "path": ".claude/commands/analyze-task.md"
     },
     {
       "name": "create-documentation",
       "description": "Generate comprehensive documentation for code or systems",
-      "path": ".ai_agents_sandbox/commands/create-documentation.md"
+      "path": ".claude/commands/create-documentation.md"
     },
     {
       "name": "memorize-task",
       "description": "Store task context and requirements for later use",
-      "path": ".ai_agents_sandbox/commands/memorize-task.md"
+      "path": ".claude/commands/memorize-task.md"
     },
     {
       "name": "run-task",
       "description": "Execute a specific task with detailed instructions",
-      "path": ".ai_agents_sandbox/commands/run-task.md"
+      "path": ".claude/commands/run-task.md"
     }
   ],
   "hooks": {
@@ -68,11 +68,11 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run .ai_agents_sandbox/hooks/lint_common.py"
+            "command": "uv run .claude/hooks/lint_common.py"
           },
           {
             "type": "command",
-            "command": "uv run .ai_agents_sandbox/hooks/lint_python.py"
+            "command": "uv run .claude/hooks/lint_python.py"
           },
           {
             "type": "command",
@@ -92,24 +92,13 @@
         ]
       }
     ],
-    "ToolUse": [
+    "PostToolUse": [
       {
         "matcher": "TodoWrite.*completed",
         "hooks": [
           {
             "type": "command",
             "command": "bash /home/claude/claude-defaults/hooks/notify.sh complete 'Todo task completed'"
-          }
-        ]
-      }
-    ],
-    "Error": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash /home/claude/claude-defaults/hooks/notify.sh error 'Error occurred - check Claude'"
           }
         ]
       }

@@ -58,11 +58,11 @@ echo "$DEFAULT_WHITELIST" | while read -r domain; do
     fi
 done
 
-# Add user-provided whitelist if it exists
-if [ -f /etc/tinyproxy/user-whitelist.txt ]; then
-    cat /etc/tinyproxy/user-whitelist.txt | while read -r domain; do
-        # Skip empty lines and comments
-        if [ -n "$domain" ] && [ "${domain#\#}" = "$domain" ]; then
+# Add user whitelist from environment variable if provided
+if [ -n "$USER_WHITELIST_DOMAINS" ]; then
+    echo "$USER_WHITELIST_DOMAINS" | tr ',' '\n' | tr ' ' '\n' | while read -r domain; do
+        # Skip empty lines
+        if [ -n "$domain" ]; then
             echo "$domain" >> /etc/tinyproxy/filter
         fi
     done

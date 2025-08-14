@@ -24,7 +24,7 @@ This builds Docker images and installs helper commands.
 Your project needs a `.devcontainer/` folder:
 - **This repo**: Already has it, ready to use
 - **New projects**: Copy from `.devcontainer.example/`
-- Contains: docker-compose.yaml, whitelist.txt, Dockerfile, etc.
+- Contains: docker-compose.yaml, .env configuration, Dockerfile, etc.
 
 ## PyCharm Configuration
 
@@ -110,10 +110,13 @@ RUN pip install --user pandas numpy requests
 
 ### Add Whitelisted Domains
 
-Edit `.devcontainer/whitelist.txt`:
-```
-api.myservice.com
-auth.myservice.com
+Edit `.devcontainer/.env`:
+```bash
+# Add domains to the environment variable (comma or space separated)
+USER_WHITELIST_DOMAINS=api.myservice.com,auth.myservice.com
+
+# For Docker registries
+DIND_WHITELIST_DOMAINS=my.registry.com,artifactory.company.com
 ```
 
 ### Configure Proxy

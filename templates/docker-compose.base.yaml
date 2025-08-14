@@ -42,8 +42,8 @@ services:
       # Simplified upstream proxy configuration
       UPSTREAM_PROXY: ${UPSTREAM_PROXY:-}  # Format: socks5://host:port or http://host:port
       NO_UPSTREAM: ${NO_UPSTREAM:-}         # Domains that bypass upstream
+      USER_WHITELIST_DOMAINS: ${USER_WHITELIST_DOMAINS:-}  # Comma or space separated list
     volumes:
-      - ${WHITELIST_FILE:-./whitelist.txt}:/etc/tinyproxy/user-whitelist.txt:ro
       - proxy-devcontainer-logs:/var/log/tinyproxy
     extra_hosts:
       - "host.gateway:host-gateway"  # Maps to Docker host for upstream proxy
@@ -58,8 +58,8 @@ services:
     environment:
       # No upstream proxy for dind - direct registry access only
       UPSTREAM_PROXY_TYPE: none
+      USER_WHITELIST_DOMAINS: ${DIND_WHITELIST_DOMAINS:-}  # Additional registry domains
     volumes:
-      - ${DIND_WHITELIST_FILE:-./dind-whitelist.txt}:/etc/tinyproxy/user-whitelist.txt:ro
       - proxy-dind-logs:/var/log/tinyproxy
     networks:
       - claude-internal

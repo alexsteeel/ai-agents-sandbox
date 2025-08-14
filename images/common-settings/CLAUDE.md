@@ -68,7 +68,7 @@ Before adding a default domain, consider:
 - Can it be project-specific instead?
 - Is the domain trustworthy?
 
-Project-specific domains should go in `.devcontainer/whitelist.txt` instead.
+Project-specific domains should be added via the USER_WHITELIST_DOMAINS environment variable in `.env` instead.
 
 ## Integration
 
@@ -79,9 +79,8 @@ The whitelist is used at multiple stages:
 3. **Final filter**: Combined list used by tinyproxy for filtering
 
 Merge order (later overrides earlier):
-1. `devcontainer_base/default-whitelist.txt` (built into base image)
-2. `common_settings/default-whitelist.txt` (this file)
-3. `.devcontainer/whitelist.txt` (project-specific)
+1. `common_settings/default-whitelist.txt` (this file, built into images)
+2. `USER_WHITELIST_DOMAINS` environment variable (project-specific)
 
 ## Best Practices
 

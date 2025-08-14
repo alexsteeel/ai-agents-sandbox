@@ -7,10 +7,10 @@ echo "Preparing Tinyproxy whitelist filter..."
 # Start with default whitelist
 cat /etc/tinyproxy/default-whitelist.txt > /tmp/domains.txt 2>/dev/null || true
 
-# Add user whitelist if mounted
-if [ -f /etc/tinyproxy/user-whitelist.txt ]; then
-    echo "Adding user-defined domains to whitelist..."
-    cat /etc/tinyproxy/user-whitelist.txt >> /tmp/domains.txt
+# Add user whitelist from environment variable if provided
+if [ -n "$USER_WHITELIST_DOMAINS" ]; then
+    echo "Adding user-defined domains from environment..."
+    echo "$USER_WHITELIST_DOMAINS" | tr ',' '\n' | tr ' ' '\n' | grep -v '^$' >> /tmp/domains.txt
 fi
 
 # Process domains and create filter file
@@ -25,9 +25,12 @@ grep -v '^#' /tmp/domains.txt 2>/dev/null | \
     sort -u | \
     while read -r domain; do
         if [ -n "$domain" ]; then
-            # Add regex patterns for domain and subdomains
-            echo "${domain}" | sed 's/\./\\./g' >> /etc/tinyproxy/filter
-            echo "\\.${domain}" | sed 's/\./\\./g' >> /etc/tinyproxy/filter
+            # Escape dots in domain name
+            escaped_domain=$(echo "$domain" | sed 's/\./\\./g')
+            # Add patterns for domain with optional subdomain and optional port
+            # Pattern matches: domain.com, subdomain.domain.com, domain.com:port, subdomain.domain.com:port
+            echo "${escaped_domain}" >> /etc/tinyproxy/filter
+            echo "\\.${escaped_domain}" >> /etc/tinyproxy/filter
         fi
     done
 

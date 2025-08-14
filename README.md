@@ -274,7 +274,11 @@ That's it! The base template handles everything else.
 - **Tinyproxy** enforces whitelist-based filtering (default-deny)
 - Default whitelisted domains in `images/common-settings/default-whitelist.txt`:
   - GitHub, GitLab, PyPI, npm registry, JetBrains services
-- Add project-specific domains to `.devcontainer/whitelist.txt`
+- Add project-specific domains to `.env` file:
+  ```bash
+  USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
+  DIND_WHITELIST_DOMAINS=my.registry.com
+  ```
 
 ### Upstream Proxy Support
 Configure optional upstream proxy in `.devcontainer/.env`:

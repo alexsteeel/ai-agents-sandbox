@@ -1,4 +1,0 @@
-include:
-  - path:
-      - /usr/local/share/claude-devcontainer/docker-compose.base.yaml
-      - override.yaml

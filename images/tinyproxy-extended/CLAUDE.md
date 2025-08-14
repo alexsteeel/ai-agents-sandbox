@@ -30,20 +30,25 @@ Built automatically by unified build script:
 ### `entrypoint.sh`
 Dynamic configuration script that:
 1. **Merges whitelists** from multiple sources:
-   - `/default-whitelist.txt` (built-in defaults)
-   - `/common-whitelist.txt` (common settings)
-   - `/custom-whitelist.txt` (project-specific)
+   - `/etc/tinyproxy/default-whitelist.txt` (built-in defaults)
+   - `USER_WHITELIST_DOMAINS` environment variable (project-specific)
 
-2. **Configures upstream proxy** (if environment variables set):
+2. **Generates filter patterns** for each domain:
+   - Creates two patterns per domain: `domain\.com` and `\.domain\.com`
+   - First pattern matches exact domain (e.g., `gitlab.com`)
+   - Second pattern matches subdomains (e.g., `api.gitlab.com`)
+   - Patterns work with tinyproxy's URL matching that includes ports
+
+3. **Configures upstream proxy** (if environment variables set):
    - HTTP proxy: Uses `UPSTREAM_HTTP=host:port` format
    - SOCKS5 proxy: Uses `UPSTREAM_SOCKS5=host:port` format
    - Bypass domains: Uses `NO_UPSTREAM` for domains that skip upstream
    - Only one proxy type (HTTP or SOCKS5) can be active
 
-3. **Generates tinyproxy.conf** with:
+4. **Generates tinyproxy.conf** with:
    - Port 8888 binding
    - Default-deny policy (`FilterDefaultDeny Yes`)
-   - Merged filter file
+   - Merged filter file with proper patterns
    - Logging configuration
    - No upstream directives for bypass domains
 
@@ -80,11 +85,10 @@ When an upstream proxy is configured, you can specify domains that should connec
 ## Whitelist Management
 
 ### Adding Domains
-Edit `.devcontainer/whitelist.txt` (one domain per line):
-```
-example.com
-api.example.com
-*.example.org
+Set in `.devcontainer/.env` file:
+```bash
+# Comma or space separated
+USER_WHITELIST_DOMAINS=example.com,api.example.com,*.example.org
 ```
 
 ### Default Domains
@@ -140,8 +144,8 @@ curl -I https://google.com  # Should fail (unless whitelisted)
 ### Common Issues
 
 **"Access denied" for legitimate sites**:
-- Add domain to `.devcontainer/whitelist.txt`
-- Restart tinyproxy: `docker compose restart tinyproxy`
+- Add domain to `USER_WHITELIST_DOMAINS` in `.env`
+- Restart tinyproxy: `docker compose restart tinyproxy-devcontainer`
 
 **Upstream proxy not working**:
 - Verify `UPSTREAM_PROXY` format in `.env`

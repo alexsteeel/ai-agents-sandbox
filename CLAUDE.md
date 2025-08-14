@@ -58,11 +58,16 @@ The foundation enforces strict network isolation with proxy-based egress control
 - This repo already has it
 - For new projects, copy from `.devcontainer.example/`
 
-#### 2. Configure (optional)
+#### 2. Initialize Project
 ```bash
-cd .devcontainer
-vim .env          # Set PROJECT_NAME, proxy settings
-vim whitelist.txt # Add project-specific domains
+# Run initialization to set up permissions and generate .env
+ai-sbx-init-project /path/to/project
+
+# This automatically:
+# - Sets PROJECT_NAME based on directory name
+# - Sets PROJECT_DIR to absolute path
+# - Sets COMPOSE_PROJECT_NAME for unique container names
+# - Configures group permissions for collaboration
 ```
 
 #### 3. Open in IDE
@@ -160,9 +165,8 @@ tinyproxy (custom extended image)
 ├── Dynamic configuration via entrypoint
 ├── Automatic upstream proxy support
 └── Whitelisted domains merged from:
-    ├── Built-in defaults (images/devcontainer-base/default-whitelist.txt)
-    ├── Common settings (images/common-settings/default-whitelist.txt)
-    └── Project-specific (.devcontainer/whitelist.txt)
+    ├── Built-in defaults (images/common-settings/default-whitelist.txt)
+    └── User-defined via USER_WHITELIST_DOMAINS environment variable
 
 devcontainer (from base image or extended)
 ├── Network: claude-internal (isolated)
@@ -198,7 +202,14 @@ docker (Docker-in-Docker)
 ### Proxy Configuration
 
 **Adding whitelisted domains:**
-Edit `.devcontainer/whitelist.txt` (one domain per line)
+Edit `.devcontainer/.env` file:
+```bash
+# Add domains (comma or space separated)
+USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
+
+# For Docker registries
+DIND_WHITELIST_DOMAINS=my.registry.com,artifactory.company.com
+```
 
 **Default whitelisted domains:**
 - GitHub: github.com, raw.githubusercontent.com, github.githubassets.com
@@ -296,10 +307,12 @@ Pre-configured agents built into the base image:
 - Logs should be in `~/scripts/logs/` not `~/.ai_agents_sandbox/logs/`
 
 **Building Docker images from devcontainer:**
-- Add Docker registry domains to `.devcontainer/whitelist.txt`:
-  - docker.io, registry-1.docker.io, auth.docker.io, hub.docker.com
+- Add Docker registry domains to `.devcontainer/.env`:
+  ```bash
+  DIND_WHITELIST_DOMAINS=docker.io,registry-1.docker.io,auth.docker.io,hub.docker.com
+  ```
 - Or use the Docker daemon via docker-in-docker service
-- The dind proxy has separate whitelist in `dind-whitelist.txt`
+- The dind proxy uses DIND_WHITELIST_DOMAINS environment variable
 
 Remember: Security is paramount. When in doubt, choose the more restrictive option.
 

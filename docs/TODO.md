@@ -1,7 +1,4 @@
-- fix persistence of zshhistory
-- add golang, dotnet and python containers based on devcontainer base
 - add timings and statistics for tasks
-- add host script for create git worktree in current directory, go in this worktree, create task folder and open pycharm
 - get docker image cache storage (may be custom) add mount it to the devcontainer
 first:
 ❯ docker info | grep 'Storage Driver'
@@ -22,3 +19,13 @@ Storage Driver: overlay2
 - add hook to the log all workflow with timestamps: which agent and when was called.
 - add to the pycharm docs that if wants to connect from pycharm use tcp with https://docker:2376 and /certs/client
 - add to software engineer and qa ALWAYS run all tests suite after finish of task
+- hooks:  Invalid Settings
+  /home/claude/.ai_agents_sandbox/settings.json
+  └ hooks
+  ├ Error: "Error" is not valid. Expected one of: "PreToolUse", "PostToolUse", "Notification", "UserPromptSubmit", "SessionStart", "Stop", "SubagentStop",
+  "PreCompact"
+  └ ToolUse: "ToolUse" is not valid. Expected one of: "PreToolUse", "PostToolUse", "Notification", "UserPromptSubmit", "SessionStart", "Stop", "SubagentStop",
+  "PreCompact"
+
+Valid values: "PreToolUse", "PostToolUse", "Notification", "UserPromptSubmit", "SessionStart", "Stop", "SubagentStop", "PreCompact"
+Learn more: https://docs.anthropic.com/en/docs/claude-code/hooks
