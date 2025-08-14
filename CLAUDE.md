@@ -36,8 +36,8 @@ The foundation enforces strict network isolation with proxy-based egress control
 ./install.sh
 
 # This installs system-wide commands:
-# - claude-task-worktree: Create git worktree for new tasks
-# - claude-notify-watch: Host notification watcher (optional)
+# - ai-sbx-task-worktree: Create git worktree for new tasks
+# - ai-sbx-notify-watch: Host notification watcher (optional)
 ```
 
 ### Manual Build (if needed)
@@ -90,7 +90,7 @@ claude --dangerously-skip-permissions
 claude --dangerously-skip-permissions
 
 # Create isolated git worktree for new tasks (automated)
-claude-task-worktree "feature 123 implement user auth"
+ai-sbx-task-worktree "feature 123 implement user auth"
 # This creates worktree, task folder, and opens PyCharm
 
 # Or manually:
@@ -247,7 +247,7 @@ Pre-configured agents built into the base image:
 2. **Open project in IDE**:
    - **PyCharm**: Add Docker Compose interpreter
    - **VS Code**: Reopen in Container
-3. **Create tasks** (optional): `claude-task-worktree "task description"`
+3. **Create tasks** (optional): `ai-sbx-task-worktree "task description"`
 4. **IDE manages containers**: No manual start/stop needed
 5. **Security is automatic**: Internal network + proxy filtering
 
@@ -311,11 +311,11 @@ The devcontainer includes a notification system for alerting the host when Claud
 ### How it works
 1. **Container hook** (`/home/claude/claude-defaults/hooks/notify.sh`) writes notifications to `/home/claude/.ai_agents_sandbox/notifications/`
 2. **Volume mount** maps `$HOME/.ai_agents_sandbox/notifications` (host) to `/home/claude/.ai_agents_sandbox/notifications` (container)
-3. **Host watcher** (`claude-notify-watch`) monitors for notifications and displays desktop alerts
+3. **Host watcher** (`ai-sbx-notify-watch`) monitors for notifications and displays desktop alerts
 
 ### Setup
 1. **Installation**: Run `./install.sh` to install system-wide commands including notification watcher
-2. **Start watcher**: Run `claude-notify-watch` on host for desktop notifications (installed system-wide)
+2. **Start watcher**: Run `ai-sbx-notify-watch` on host for desktop notifications (installed system-wide)
 3. **Fast mode**: Install `inotify-tools` on host for instant notifications:
    ```bash
    sudo apt-get install inotify-tools  # Debian/Ubuntu

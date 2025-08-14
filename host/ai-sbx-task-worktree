@@ -2,8 +2,8 @@
 set -euo pipefail
 
 # Create a git worktree for a new task with proper structure
-# Usage: claude-task-worktree "task description"
-# Example: claude-task-worktree "devsecops 2193 add etran stations"
+# Usage: ai-sbx-task-worktree "task description"
+# Example: ai-sbx-task-worktree "devsecops 2193 add etran stations"
 
 # Color output
 RED='\033[0;31m'
@@ -13,10 +13,10 @@ BLUE='\033[0;34m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-print_status() { echo -e "${GREEN}➜${NC} $1"; }
-print_error() { echo -e "${RED}✗${NC} $1" >&2; }
-print_warning() { echo -e "${YELLOW}⚠${NC} $1"; }
-print_info() { echo -e "${BLUE}ℹ${NC} $1"; }
+print_status() { printf "${GREEN}➜${NC} %s\n" "$1"; }
+print_error() { printf "${RED}✗${NC} %s\n" "$1" >&2; }
+print_warning() { printf "${YELLOW}⚠${NC} %s\n" "$1"; }
+print_info() { printf "${BLUE}ℹ${NC} %s\n" "$1"; }
 
 # Check arguments
 if [[ $# -eq 0 ]]; then

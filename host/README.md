@@ -12,11 +12,11 @@ Installs two commands system-wide:
 
 ## Available Commands
 
-### `claude-task-worktree`
+### `ai-sbx-task-worktree`
 Creates a git worktree for a new task.
 
 ```bash
-claude-task-worktree "feature 123 implement user auth"
+ai-sbx-task-worktree "feature 123 implement user auth"
 ```
 
 Automatically:
@@ -25,11 +25,11 @@ Automatically:
 3. Creates: `tasks/feature-123-implement-user-auth/initial_requirements.md`
 4. Opens PyCharm (if available)
 
-### `claude-notify-watch`
+### `ai-sbx-notify-watch`
 Optional notification watcher for desktop alerts.
 
 ```bash
-claude-notify-watch &
+ai-sbx-notify-watch &
 ```
 
 Shows desktop notifications when containers need attention.

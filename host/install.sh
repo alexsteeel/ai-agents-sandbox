@@ -35,8 +35,8 @@ mkdir -p "$SHARE_DIR"
 
 # Install executable scripts to /usr/local/bin
 SCRIPTS=(
-    "claude-task-worktree"
-    "claude-notify-watch"
+    "ai-sbx-task-worktree"
+    "ai-sbx-notify-watch"
 )
 
 for script in "${SCRIPTS[@]}"; do
@@ -127,10 +127,8 @@ echo "Templates installed to: $SHARE_DIR"
 echo ""
 echo "Next steps:"
 echo "1. Log out and back in for group membership to take effect"
-echo "2. Run 'claude-devcontainer init /path/to/project' to set up a project"
-echo "3. (Optional) Run 'claude-notify-watch' to enable desktop notifications"
-echo ""
-echo "For help: claude-devcontainer help"
+echo "2. Copy .devcontainer.example to your project"
+echo "3. (Optional) Run 'ai-sbx-notify-watch' to enable desktop notifications"
 echo ""
 
 exit 0

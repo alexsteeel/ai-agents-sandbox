@@ -27,21 +27,21 @@ NC='\033[0m'
 
 print_header() {
     echo ""
-    echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════════${NC}"
-    echo -e "${BOLD}${BLUE}   AI Agents Sandbox Installer v${VERSION}${NC}"
-    echo -e "${BOLD}${BLUE}   Image Tag: ${IMAGE_TAG}${NC}"
-    echo -e "${BOLD}${BLUE}═══════════════════════════════════════════════════════════${NC}"
+    printf "${BOLD}${BLUE}═══════════════════════════════════════════════════════════${NC}\n"
+    printf "${BOLD}${BLUE}   AI Agents Sandbox Installer v${VERSION}${NC}\n"
+    printf "${BOLD}${BLUE}   Image Tag: ${IMAGE_TAG}${NC}\n"
+    printf "${BOLD}${BLUE}═══════════════════════════════════════════════════════════${NC}\n"
     echo ""
 }
 
-print_status() { echo -e "${GREEN}[INSTALL]${NC} $1"; }
-print_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+print_status() { printf "${GREEN}[INSTALL]${NC} %s\n" "$1"; }
+print_error() { printf "${RED}[ERROR]${NC} %s\n" "$1" >&2; }
+print_warning() { printf "${YELLOW}[WARNING]${NC} %s\n" "$1"; }
+print_info() { printf "${BLUE}[INFO]${NC} %s\n" "$1"; }
 print_section() { 
     echo ""
-    echo -e "${BOLD}${GREEN}▶ $1${NC}"
-    echo -e "${GREEN}$(printf '─%.0s' {1..60})${NC}"
+    printf "${BOLD}${GREEN}▶ %s${NC}\n" "$1"
+    printf "${GREEN}────────────────────────────────────────────────────────────${NC}\n"
 }
 
 # Check prerequisites
@@ -126,8 +126,8 @@ install_host_scripts() {
     print_section "Installing Host Scripts"
     
     print_info "The following scripts will be installed to /usr/local/bin:"
-    print_info "  • claude-task-worktree    - Create git worktree for new tasks"
-    print_info "  • claude-notify-watch     - Desktop notification watcher (optional)"
+    print_info "  • ai-sbx-task-worktree    - Create git worktree for new tasks"
+    print_info "  • ai-sbx-notify-watch     - Desktop notification watcher (optional)"
     echo ""
     print_info "Additional setup:"
     print_info "  • Creates 'dev' group (GID 2000) for file sharing"
@@ -181,7 +181,7 @@ verify_installation() {
     done
     
     # Check installed scripts
-    for script in claude-task-worktree claude-notify-watch; do
+    for script in ai-sbx-task-worktree ai-sbx-notify-watch; do
         if command -v "$script" >/dev/null 2>&1; then
             print_status "✓ Script installed: $script"
         else
@@ -218,37 +218,35 @@ verify_installation() {
 show_quickstart() {
     print_section "Installation Complete!"
     
-    cat <<EOF
-
-${BOLD}Quick Start Guide:${NC}
-
-${BOLD}For new projects:${NC}
-1. Copy the template to your project:
-   ${GREEN}cp -r .devcontainer.example /path/to/project/.devcontainer${NC}
-
-2. Configure (optional):
-   - Edit: ${BLUE}.devcontainer/.env${NC} for PROJECT_NAME and proxy
-   - Add domains to: ${BLUE}.devcontainer/whitelist.txt${NC}
-
-3. Open in your IDE:
-   ${BOLD}PyCharm:${NC} Settings → Python Interpreter → Docker Compose → devcontainer
-   ${BOLD}VS Code:${NC} Click "Reopen in Container"
-
-${BOLD}For this repository:${NC}
-   Just open in PyCharm/VS Code - ${GREEN}.devcontainer/${NC} is ready!
-
-${BOLD}Available commands:${NC}
-   ${GREEN}claude-task-worktree "task description"${NC} - Create task branch
-   ${GREEN}claude-notify-watch &${NC} - Enable desktop notifications
-
-${BOLD}For more help:${NC}
-   - Documentation: ${BLUE}README.md${NC}
-   - PyCharm guide: ${BLUE}docs/PYCHARM.md${NC}
-   - Development: ${BLUE}docs/DEVELOPMENT.md${NC}
-
-${BOLD}${YELLOW}Important:${NC} Log out and back in for group membership changes to take effect.
-
-EOF
+    printf "\n"
+    printf "${BOLD}Quick Start Guide:${NC}\n"
+    printf "\n"
+    printf "${BOLD}For new projects:${NC}\n"
+    printf "1. Copy the template to your project:\n"
+    printf "   ${GREEN}cp -r .devcontainer.example /path/to/project/.devcontainer${NC}\n"
+    printf "\n"
+    printf "2. Configure (optional):\n"
+    printf "   - Edit: ${BLUE}.devcontainer/.env${NC} for PROJECT_NAME and proxy\n"
+    printf "   - Add domains to: ${BLUE}.devcontainer/whitelist.txt${NC}\n"
+    printf "\n"
+    printf "3. Open in your IDE:\n"
+    printf "   ${BOLD}PyCharm:${NC} Settings → Python Interpreter → Docker Compose → devcontainer\n"
+    printf "   ${BOLD}VS Code:${NC} Click \"Reopen in Container\"\n"
+    printf "\n"
+    printf "${BOLD}For this repository:${NC}\n"
+    printf "   Just open in PyCharm/VS Code - ${GREEN}.devcontainer/${NC} is ready!\n"
+    printf "\n"
+    printf "${BOLD}Available commands:${NC}\n"
+    printf "   ${GREEN}ai-sbx-task-worktree \"task description\"${NC} - Create task branch\n"
+    printf "   ${GREEN}ai-sbx-notify-watch &${NC} - Enable desktop notifications\n"
+    printf "\n"
+    printf "${BOLD}For more help:${NC}\n"
+    printf "   - Documentation: ${BLUE}README.md${NC}\n"
+    printf "   - PyCharm guide: ${BLUE}docs/PYCHARM.md${NC}\n"
+    printf "   - Development: ${BLUE}docs/DEVELOPMENT.md${NC}\n"
+    printf "\n"
+    printf "${BOLD}${YELLOW}Important:${NC} Log out and back in for group membership changes to take effect.\n"
+    printf "\n"
 }
 
 # Main installation flow
