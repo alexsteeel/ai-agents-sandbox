@@ -40,6 +40,11 @@ auth.jetbrains.com
 sales.jetbrains.com
 jetbrains.com
 
+# Maven repositories for java plugins
+repo1.maven.org
+repository.jboss.org
+maven.aliyun.com
+
 # Powerlevel10k gitstatusd mirrors and GitHub release assets
 gitee.com
 github-releases.githubusercontent.com
