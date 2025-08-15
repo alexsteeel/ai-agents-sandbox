@@ -46,5 +46,4 @@ maven.aliyun.com
 
 # Powerlevel10k gitstatusd mirrors and GitHub release assets
 gitee.com
-github-releases.githubusercontent.com
 objects.githubusercontent.com

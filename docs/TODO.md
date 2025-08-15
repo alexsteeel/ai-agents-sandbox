@@ -10,7 +10,8 @@ Storage Driver: overlay2
   "data-root": "/media/bas/data/docker"
   }
 - update reviewer - only claude opus
-- add script for review requirement for codex
+- simplify analytics and tech lead agent prompts. now they are overcomplicated
+- add script for review requirements for codex
 - add images diagram to readme base > base_ai > python, golang, dotnet
 - move all claude install and settings and codex cli to separate image
 - add to the @run-codex logging of calls

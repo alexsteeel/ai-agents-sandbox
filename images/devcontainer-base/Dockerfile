@@ -117,6 +117,17 @@ RUN set -eux; \
       "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_${SHFMT_ARCH}"; \
     chmod +x /usr/local/bin/shfmt
 
+# Install yq (YAML processor)
+ENV YQ_VERSION=4.44.6
+RUN set -eux; \
+    ARCH=$(dpkg --print-architecture); \
+    if [ "$ARCH" = "amd64" ]; then YQ_ARCH="amd64"; \
+    elif [ "$ARCH" = "arm64" ]; then YQ_ARCH="arm64"; \
+    else echo "Unsupported arch: $ARCH" && exit 1; fi; \
+    wget -O /usr/local/bin/yq \
+      "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${YQ_ARCH}"; \
+    chmod +x /usr/local/bin/yq
+
 # Set up non-root user
 USER $USERNAME
 

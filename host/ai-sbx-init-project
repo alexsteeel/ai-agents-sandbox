@@ -19,6 +19,72 @@ print_status() { echo -e "${GREEN}[INIT]${NC} $1"; }
 print_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
 print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+print_debug() { [[ "${DEBUG:-}" == "true" ]] && echo -e "${BLUE}[DEBUG]${NC} $1" || true; }
+
+# Check for required tools early
+check_required_tools() {
+    local MISSING_TOOLS=()
+    
+    # Check for jq (JSON processor)
+    if ! command -v jq &> /dev/null; then
+        MISSING_TOOLS+=("jq")
+        print_debug "jq not found"
+    else
+        print_debug "jq found: $(command -v jq)"
+    fi
+    
+    # Check for yq (YAML processor)
+    if ! command -v yq &> /dev/null; then
+        MISSING_TOOLS+=("yq")
+        print_debug "yq not found"
+    else
+        # Check version (should be v4.x)
+        YQ_VERSION=$(yq --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1)
+        if [[ "${YQ_VERSION%%.*}" -lt 4 ]]; then
+            print_error "yq version 4.x or higher is required (found: $YQ_VERSION)"
+            print_info "Please upgrade yq to version 4.x or higher"
+            exit 1
+        fi
+        print_debug "yq found: $(command -v yq) (version: $YQ_VERSION)"
+    fi
+    
+    # Exit if any required tools are missing
+    if [[ ${#MISSING_TOOLS[@]} -gt 0 ]]; then
+        echo ""
+        print_error "Required tools are missing!"
+        echo ""
+        print_info "The following tools are required for this script:"
+        for tool in "${MISSING_TOOLS[@]}"; do
+            case $tool in
+                jq)
+                    echo ""
+                    print_info "  ${BOLD}jq${NC} - JSON processor"
+                    print_info "    Installation:"
+                    print_info "      • Ubuntu/Debian: ${GREEN}sudo apt install jq${NC}"
+                    print_info "      • RHEL/Fedora:   ${GREEN}sudo dnf install jq${NC}"
+                    print_info "      • MacOS:         ${GREEN}brew install jq${NC}"
+                    print_info "      • Manual:        https://github.com/jqlang/jq/releases"
+                    ;;
+                yq)
+                    echo ""
+                    print_info "  ${BOLD}yq${NC} - YAML processor (version 4.x)"
+                    print_info "    Installation:"
+                    print_info "      • Ubuntu/Debian: ${GREEN}sudo apt install yq${NC} or ${GREEN}wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && chmod +x /usr/local/bin/yq${NC}"
+                    print_info "      • RHEL/Fedora:   ${GREEN}sudo dnf install yq${NC} or use wget method above"
+                    print_info "      • MacOS:         ${GREEN}brew install yq${NC}"
+                    print_info "      • Manual:        https://github.com/mikefarah/yq/releases"
+                    ;;
+            esac
+        done
+        echo ""
+        print_info "After installing the missing tools, run this script again."
+        echo ""
+        exit 1
+    fi
+}
+
+# Check required tools before doing anything else
+check_required_tools
 
 # Validate project directory
 if [[ ! -d "$PROJECT_DIR" ]]; then
@@ -141,6 +207,11 @@ else
     print_status "✓ Projects directory exists"
 fi
 
+# Tools are already checked at the beginning, just set the flags
+# Both tools are guaranteed to be available at this point
+YQ_AVAILABLE=true
+JQ_AVAILABLE=true
+
 # Check for .devcontainer directory
 DEVCONTAINER_DIR="$PROJECT_DIR/.devcontainer"
 if [[ -d "$DEVCONTAINER_DIR" ]]; then
@@ -205,12 +276,20 @@ EOF
     fi
     
     # ============================================================================
+    # DYNAMIC VOLUME MOUNTS (Git Worktree & Docker Cache)
+    # ============================================================================
+    
+    OVERRIDE_FILE="$DEVCONTAINER_DIR/override.yaml"
+    DEVCONTAINER_MOUNTS=()
+    DOCKER_MOUNTS=()
+    
+    # ============================================================================
     # GIT WORKTREE SUPPORT
     # ============================================================================
     
-    # Check if this is a git worktree and update docker-compose override if needed
+    # Check if this is a git worktree
     if [[ -f "$PROJECT_DIR/.git" ]]; then
-        print_info "Detected git worktree, setting up parent repository mount..."
+        print_info "Detected git worktree, setting up parent .git directory mount..."
         
         # Read the gitdir path from .git file
         GITDIR=$(grep "^gitdir:" "$PROJECT_DIR/.git" | cut -d' ' -f2)
@@ -218,54 +297,139 @@ EOF
         if [[ -n "$GITDIR" ]]; then
             # Extract the parent git directory (remove /worktrees/... part)
             PARENT_GIT_DIR=$(echo "$GITDIR" | sed 's|/\.git/worktrees/.*|/.git|')
-            # Get the actual parent directory (not .git)
-            PARENT_REPO_DIR=$(dirname "$PARENT_GIT_DIR")
             
-            print_info "Parent repository: $PARENT_REPO_DIR"
-            
-            # Create or update override.yaml for the git mount
-            OVERRIDE_FILE="$DEVCONTAINER_DIR/override.yaml"
-            
-            # Check if override.yaml exists
-            if [[ -f "$OVERRIDE_FILE" ]]; then
-                # Check if the mount already exists
-                if grep -q "$PARENT_REPO_DIR:$PARENT_REPO_DIR" "$OVERRIDE_FILE" 2>/dev/null; then
-                    print_status "✓ Git parent mount already configured"
-                else
-                    print_info "Adding git parent mount to existing override.yaml..."
-                    
-                    # Check if volumes section exists for devcontainer service
-                    if grep -q "^  devcontainer:" "$OVERRIDE_FILE" && grep -q "^    volumes:" "$OVERRIDE_FILE"; then
-                        # Add to existing volumes section
-                        sed -i "/^    volumes:/a\\      - $PARENT_REPO_DIR:$PARENT_REPO_DIR" "$OVERRIDE_FILE"
-                    elif grep -q "^  devcontainer:" "$OVERRIDE_FILE"; then
-                        # Add volumes section to existing devcontainer service
-                        sed -i "/^  devcontainer:/a\\    volumes:\\n      - $PARENT_REPO_DIR:$PARENT_REPO_DIR" "$OVERRIDE_FILE"
-                    else
-                        # Add devcontainer service with volumes
-                        echo "" >> "$OVERRIDE_FILE"
-                        echo "  devcontainer:" >> "$OVERRIDE_FILE"
-                        echo "    volumes:" >> "$OVERRIDE_FILE"
-                        echo "      - $PARENT_REPO_DIR:$PARENT_REPO_DIR" >> "$OVERRIDE_FILE"
-                    fi
-                    
-                    print_status "✓ Added git parent directory mount to override.yaml"
-                fi
-            else
-                # Create new override.yaml with the mount
-                print_info "Creating override.yaml with git parent mount..."
-                cat > "$OVERRIDE_FILE" << EOF
-# Git worktree support - mount parent repository
-services:
-  devcontainer:
-    volumes:
-      - $PARENT_REPO_DIR:$PARENT_REPO_DIR
-EOF
-                print_status "✓ Created override.yaml with git parent mount"
-            fi
+            print_info "Parent .git directory: $PARENT_GIT_DIR"
+            # Mount only the .git directory from parent repository to devcontainer service
+            DEVCONTAINER_MOUNTS+=("$PARENT_GIT_DIR:$PARENT_GIT_DIR:ro")
         fi
     elif [[ -d "$PROJECT_DIR/.git" ]]; then
         print_info "Regular git repository detected (not a worktree)"
+    fi
+    
+    # ============================================================================
+    # DOCKER CACHE SUPPORT
+    # ============================================================================
+    
+    print_info "Detecting Docker storage configuration..."
+    
+    # Get Docker root directory (data-root from daemon.json or default)
+    DOCKER_DATA_ROOT=""
+    
+    # Check daemon.json for custom data-root using jq
+    if [[ -f "/etc/docker/daemon.json" ]]; then
+        DOCKER_DATA_ROOT=$(jq -r '.["data-root"] // empty' /etc/docker/daemon.json 2>/dev/null || true)
+        if [[ -n "$DOCKER_DATA_ROOT" ]]; then
+            print_debug "Docker data-root from daemon.json (via jq): $DOCKER_DATA_ROOT"
+        fi
+    fi
+    
+    # If not found in daemon.json, get from docker info
+    if [[ -z "$DOCKER_DATA_ROOT" ]]; then
+        DOCKER_DATA_ROOT=$(docker info 2>/dev/null | grep "Docker Root Dir" | awk '{print $NF}' || true)
+        if [[ -n "$DOCKER_DATA_ROOT" ]]; then
+            print_debug "Docker data-root from docker info: $DOCKER_DATA_ROOT"
+        fi
+    fi
+    
+    # Default to /var/lib/docker if nothing found
+    if [[ -z "$DOCKER_DATA_ROOT" ]]; then
+        DOCKER_DATA_ROOT="/var/lib/docker"
+        print_debug "Using default Docker data-root: $DOCKER_DATA_ROOT"
+    fi
+    
+    print_info "Docker data root: $DOCKER_DATA_ROOT"
+    
+    # Check if the Docker data directory exists and is accessible
+    if [[ -d "$DOCKER_DATA_ROOT" ]]; then
+        # BuildKit cache is always under the Docker data root
+        BUILDKIT_CACHE="$DOCKER_DATA_ROOT/buildkit"
+        if [[ -d "$BUILDKIT_CACHE" ]]; then
+            print_info "Found BuildKit cache directory at $BUILDKIT_CACHE"
+            # Mount buildkit cache for better layer caching - goes to docker service
+            DOCKER_MOUNTS+=("$BUILDKIT_CACHE:/var/lib/docker/buildkit")
+        fi
+        
+        # Mount overlay2 directory for layer reuse
+        OVERLAY_DIR="$DOCKER_DATA_ROOT/overlay2"
+        if [[ -d "$OVERLAY_DIR" ]]; then
+            print_info "Found overlay2 storage directory"
+            # Mount overlay2 as read-only for cache inspection - goes to docker service
+            # The dind container will still use its own overlay2 for writes
+            DOCKER_MOUNTS+=("$OVERLAY_DIR:/var/lib/docker-host/overlay2:ro")
+        fi
+        
+        # Mount image directory for image cache reuse
+        IMAGE_DIR="$DOCKER_DATA_ROOT/image"
+        if [[ -d "$IMAGE_DIR" ]]; then
+            print_info "Found Docker image directory"
+            # Image directory mount - goes to docker service
+            DOCKER_MOUNTS+=("$IMAGE_DIR:/var/lib/docker/image")
+        fi
+        
+        print_status "✓ Docker cache directories detected and will be mounted"
+    else
+        print_warning "Docker data directory not accessible: $DOCKER_DATA_ROOT"
+        print_info "Docker cache sharing will not be available"
+    fi
+    
+    # ============================================================================
+    # UPDATE OVERRIDE.YAML WITH ALL MOUNTS
+    # ============================================================================
+    
+    # Check if we have any mounts to add
+    TOTAL_MOUNTS=$((${#DEVCONTAINER_MOUNTS[@]} + ${#DOCKER_MOUNTS[@]}))
+    
+    if [[ $TOTAL_MOUNTS -gt 0 ]]; then
+        print_info "Updating override.yaml with dynamic mounts..."
+        
+        # Use yq for YAML manipulation
+        print_debug "Using yq for YAML manipulation"
+        
+        # Initialize override file if it doesn't exist
+        if [[ ! -f "$OVERRIDE_FILE" ]]; then
+            echo "# Dynamic volume mounts for devcontainer" > "$OVERRIDE_FILE"
+            echo "services:" >> "$OVERRIDE_FILE"
+        fi
+        
+        # Ensure services section exists
+        if ! yq eval '.services' "$OVERRIDE_FILE" > /dev/null 2>&1; then
+            yq eval '.services = {}' -i "$OVERRIDE_FILE"
+        fi
+        
+        # Add devcontainer mounts
+        if [[ ${#DEVCONTAINER_MOUNTS[@]} -gt 0 ]]; then
+            for mount in "${DEVCONTAINER_MOUNTS[@]}"; do
+                # Check if mount already exists
+                if ! yq eval ".services.devcontainer.volumes[] | select(. == \"$mount\")" "$OVERRIDE_FILE" 2>/dev/null | grep -q "$mount"; then
+                    print_debug "Adding mount to devcontainer: $mount"
+                    yq eval ".services.devcontainer.volumes += [\"$mount\"]" -i "$OVERRIDE_FILE"
+                else
+                    print_debug "Mount already exists for devcontainer: $mount"
+                fi
+            done
+        fi
+        
+        # Add docker service mounts
+        if [[ ${#DOCKER_MOUNTS[@]} -gt 0 ]]; then
+            print_info "Adding Docker cache mounts to docker service..."
+            
+            for mount in "${DOCKER_MOUNTS[@]}"; do
+                # Check if mount already exists
+                if ! yq eval ".services.docker.volumes[] | select(. == \"$mount\")" "$OVERRIDE_FILE" 2>/dev/null | grep -q "$mount"; then
+                    print_debug "Adding Docker cache mount: $mount"
+                    yq eval ".services.docker.volumes += [\"$mount\"]" -i "$OVERRIDE_FILE"
+                else
+                    print_debug "Docker cache mount already exists: $mount"
+                fi
+            done
+            
+            # Add environment variable to docker service to use cache
+            yq eval '.services.docker.environment.DOCKER_BUILDKIT_CACHE_MOUNT_NS = "host"' -i "$OVERRIDE_FILE"
+        fi
+        
+        print_status "✓ Dynamic mounts configured in override.yaml"
+    else
+        print_info "No dynamic mounts needed"
     fi
 else
     print_info "No .devcontainer directory found (optional)"

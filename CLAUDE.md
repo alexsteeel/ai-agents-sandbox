@@ -68,7 +68,18 @@ ai-sbx-init-project /path/to/project
 # - Sets PROJECT_DIR to absolute path
 # - Sets COMPOSE_PROJECT_NAME for unique container names
 # - Configures group permissions for collaboration
+# - Detects and mounts git worktree parent repositories
+# - Detects and mounts host Docker cache for layer reuse
+# - Installs yq if needed for YAML manipulation
 ```
+
+**Docker Cache Reuse:**
+The initialization script automatically detects your host's Docker storage location and mounts it to the Docker-in-Docker service for cache reuse. This includes:
+- BuildKit cache directory for build layer caching
+- Overlay2 storage for image layer inspection (read-only)
+- Image directory for image metadata reuse
+
+If you have a custom Docker data-root (e.g., `/media/bas/data/docker`), it will be detected from `/etc/docker/daemon.json` and used automatically.
 
 #### 3. Open in IDE
 
