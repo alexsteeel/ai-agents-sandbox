@@ -38,7 +38,7 @@ services:
 
   # Main proxy for devcontainer - supports upstream proxy
   tinyproxy-devcontainer:
-    image: ai-sandbox/tinyproxy-whitelist:latest
+    image: ai-agents-sandbox/tinyproxy:latest
     restart: unless-stopped
     environment:
       # Simplified upstream proxy configuration
@@ -55,7 +55,7 @@ services:
 
   # Dedicated proxy for Docker-in-Docker - no upstream, direct registry access
   tinyproxy-dind:
-    image: ai-sandbox/tinyproxy-dind:latest
+    image: ai-agents-sandbox/tinyproxy-dind:latest
     restart: unless-stopped
     environment:
       # No upstream proxy for dind - direct registry access only
@@ -83,12 +83,12 @@ services:
       # JetBrains remote development
       JETBRAINS_REMOTE_RUN: "true"
       # Claude Code configuration
-      CLAUDE_CONFIG_DIR: /home/claude/.ai_agents_sandbox
+      CLAUDE_CONFIG_DIR: /home/claude/.claude
       NODE_OPTIONS: --max-old-space-size=4096
     volumes:
       # Core volumes
       - ${PROJECT_DIR:-..}:/workspace
-      - claude-code-config:/home/claude/.ai_agents_sandbox
+      - claude-code-config:/home/claude/.claude
       - docker-certs-client:/certs/client:ro
       
       # User configuration volumes

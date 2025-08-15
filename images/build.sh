@@ -11,11 +11,12 @@ cd "$SCRIPT_DIR"
 DEFAULT_TAG="${IMAGE_TAG:-latest}"
 
 # Image names
-IMAGE_DEVCONTAINER="ai-sandbox/devcontainer"
-IMAGE_TINYPROXY="ai-sandbox/tinyproxy-whitelist"
-IMAGE_TINYPROXY_DIND="ai-sandbox/tinyproxy-dind"
-IMAGE_DOTNET="ai-sandbox/devcontainer-dotnet"
-IMAGE_GOLANG="ai-sandbox/devcontainer-golang"
+IMAGE_DEVCONTAINER="ai-agents-sandbox/devcontainer"
+IMAGE_TINYPROXY_BASE="ai-agents-sandbox/tinyproxy-base"
+IMAGE_TINYPROXY="ai-agents-sandbox/tinyproxy"
+IMAGE_TINYPROXY_DIND="ai-agents-sandbox/tinyproxy-dind"
+IMAGE_DOTNET="ai-agents-sandbox/devcontainer-dotnet"
+IMAGE_GOLANG="ai-agents-sandbox/devcontainer-golang"
 
 # Color output for better readability
 RED='\033[0;31m'
@@ -78,6 +79,7 @@ verify_image() {
 
 # Parse command line arguments
 BUILD_DEVCONTAINER=false
+BUILD_TINYPROXY_BASE=false
 BUILD_TINYPROXY=false
 BUILD_TINYPROXY_DIND=false
 BUILD_DOTNET=false
@@ -88,6 +90,7 @@ FORCE_REBUILD=false
 if [[ $# -eq 0 ]]; then
     # No arguments - build all
     BUILD_DEVCONTAINER=true
+    BUILD_TINYPROXY_BASE=true
     BUILD_TINYPROXY=true
     BUILD_TINYPROXY_DIND=true
     BUILD_DOTNET=true
@@ -97,6 +100,9 @@ else
         case $arg in
             devcontainer)
                 BUILD_DEVCONTAINER=true
+                ;;
+            tinyproxy-base)
+                BUILD_TINYPROXY_BASE=true
                 ;;
             tinyproxy)
                 BUILD_TINYPROXY=true
@@ -112,6 +118,7 @@ else
                 ;;
             all)
                 BUILD_DEVCONTAINER=true
+                BUILD_TINYPROXY_BASE=true
                 BUILD_TINYPROXY=true
                 BUILD_TINYPROXY_DIND=true
                 BUILD_DOTNET=true
@@ -120,6 +127,7 @@ else
             --verify)
                 VERIFY_ONLY=true
                 BUILD_DEVCONTAINER=true
+                BUILD_TINYPROXY_BASE=true
                 BUILD_TINYPROXY=true
                 BUILD_TINYPROXY_DIND=true
                 BUILD_DOTNET=true
@@ -133,6 +141,7 @@ else
                 echo ""
                 echo "IMAGES:"
                 echo "  devcontainer   - Build devcontainer base image"
+                echo "  tinyproxy-base - Build tinyproxy base image"
                 echo "  tinyproxy      - Build tinyproxy with whitelist image"
                 echo "  tinyproxy-dind - Build tinyproxy for Docker-in-Docker"
                 echo "  dotnet         - Build .NET 9 devcontainer image"
@@ -176,6 +185,10 @@ if [[ "$VERIFY_ONLY" == true ]]; then
     
     if [[ "$BUILD_DEVCONTAINER" == true ]]; then
         verify_image "$IMAGE_DEVCONTAINER" "$DEFAULT_TAG" || BUILD_FAILED=true
+    fi
+    
+    if [[ "$BUILD_TINYPROXY_BASE" == true ]]; then
+        verify_image "$IMAGE_TINYPROXY_BASE" "$DEFAULT_TAG" || BUILD_FAILED=true
     fi
     
     if [[ "$BUILD_TINYPROXY" == true ]]; then
@@ -224,10 +237,17 @@ if [[ "$BUILD_DEVCONTAINER" == true ]]; then
     echo ""
 fi
 
+# Build tinyproxy base image
+if [[ "$BUILD_TINYPROXY_BASE" == true ]]; then
+    echo "=== Building Tinyproxy Base Image ==="
+    check_and_build "tinyproxy-base" "$IMAGE_TINYPROXY_BASE" "$DEFAULT_TAG"
+    echo ""
+fi
+
 # Build tinyproxy image
 if [[ "$BUILD_TINYPROXY" == true ]]; then
     echo "=== Building Tinyproxy Whitelist Image ==="
-    check_and_build "tinyproxy-extended" "$IMAGE_TINYPROXY" "$DEFAULT_TAG"
+    check_and_build "tinyproxy" "$IMAGE_TINYPROXY" "$DEFAULT_TAG"
     echo ""
 fi
 
@@ -262,6 +282,15 @@ if [[ "$BUILD_DEVCONTAINER" == true ]]; then
         echo "✓ DevContainer: ${IMAGE_DEVCONTAINER}:${DEFAULT_TAG}"
     else
         echo "✗ DevContainer: Build failed or image not found"
+        BUILD_FAILED=true
+    fi
+fi
+
+if [[ "$BUILD_TINYPROXY_BASE" == true ]]; then
+    if verify_image "$IMAGE_TINYPROXY_BASE" "$DEFAULT_TAG"; then
+        echo "✓ Tinyproxy Base: ${IMAGE_TINYPROXY_BASE}:${DEFAULT_TAG}"
+    else
+        echo "✗ Tinyproxy Base: Build failed or image not found"
         BUILD_FAILED=true
     fi
 fi

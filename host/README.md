@@ -72,7 +72,7 @@ The `install.sh` script:
 2. Creates the `dev` group (GID 2000) for file sharing
 3. Creates `~/.ai_agents_sandbox/notifications` for container alerts
 4. Creates `~/.ai_agents_sandbox/projects` for cross-project statistics
-5. Installs the base Docker Compose template to `/usr/local/share/claude-devcontainer`
+5. Installs the base Docker Compose template to `/usr/local/share/ai-agents-sandbox`
 
 ## Philosophy
 

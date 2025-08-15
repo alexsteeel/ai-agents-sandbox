@@ -1,7 +1,7 @@
 # Example custom Dockerfile (optional)
 # Only needed if you want to extend the base image
 
-FROM claudecode/devcontainer:latest
+FROM ai-agents-sandbox/devcontainer:latest
 
 # This project doesn't need customization, but here's how you would do it:
 

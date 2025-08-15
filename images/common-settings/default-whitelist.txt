@@ -4,7 +4,6 @@
 # Source control and releases
 github.com
 raw.githubusercontent.com
-codeload.github.com
 
 # Python packages (uv/uvx, ruff, black, etc.)
 pypi.org

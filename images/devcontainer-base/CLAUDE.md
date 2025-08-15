@@ -15,7 +15,7 @@ Provides a reusable base image with:
 
 The base image is built using:
 ```bash
-./images/build.sh devcontainer  # Builds claudecode/devcontainer:latest
+./images/build.sh devcontainer  # Builds ai-agents-sandbox/devcontainer:latest
 # Or from images directory:
 cd images && ./build.sh devcontainer
 ```
@@ -144,8 +144,8 @@ The image enforces:
 
 After building, run validation tests:
 ```bash
-docker run --rm claudecode/devcontainer:latest /usr/local/bin/test-tools.sh
-docker run --rm claudecode/devcontainer:latest /usr/local/bin/test-permissions.sh
+docker run --rm ai-agents-sandbox/devcontainer:latest /usr/local/bin/test-tools.sh
+docker run --rm ai-agents-sandbox/devcontainer:latest /usr/local/bin/test-permissions.sh
 ```
 
 Network tests require proper compose setup:
@@ -158,7 +158,7 @@ docker exec devcontainer /usr/local/bin/test-network.sh
 
 Projects can extend this base:
 ```dockerfile
-FROM claudecode/devcontainer:latest
+FROM ai-agents-sandbox/devcontainer:latest
 # Add project-specific tools
 USER claude
 WORKDIR /workspace

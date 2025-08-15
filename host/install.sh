@@ -25,7 +25,7 @@ fi
 
 # Installation directories
 BIN_DIR="/usr/local/bin"
-SHARE_DIR="/usr/local/share/claude-devcontainer"
+SHARE_DIR="/usr/local/share/ai-agents-sandbox"
 
 print_status "Installing Claude DevContainer host scripts..."
 

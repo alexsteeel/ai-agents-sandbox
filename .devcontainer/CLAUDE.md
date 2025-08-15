@@ -48,13 +48,13 @@ Orchestrates three services:
 1. **tinyproxy**: Filtering proxy gateway
    - Network: claude-external (bridge)
    - Port: 8888
-   - Image: claudecode/tinyproxy:latest
+   - Image: ai-agents-sandbox/tinyproxy:latest
 
 2. **devcontainer**: Development environment
    - Network: claude-internal (internal)
    - User: claude (non-root)
    - Proxy: All traffic via tinyproxy-devcontainer
-   - Image: claudecode/devcontainer:latest or custom
+   - Image: ai-agents-sandbox/devcontainer:latest or custom
    - Notification support via mounted volume
 
 3. **docker**: Docker daemon (Docker-in-Docker)
@@ -102,7 +102,7 @@ Project-specific Docker Compose overrides:
 
 **Path considerations**:
 - Docker Compose doesn't support VS Code variables (`${localWorkspaceFolder}`)
-- **Important**: Relative paths won't work because the base compose file is in `/usr/local/share/claude-devcontainer`
+- **Important**: Relative paths won't work because the base compose file is in `/usr/local/share/ai-agents-sandbox`
 - **Use environment variables**: `context: ${PROJECT_DIR}/.devcontainer` (PROJECT_DIR is set in .env)
 - This ensures the build context is correctly resolved regardless of where Docker Compose runs from
 
@@ -125,7 +125,7 @@ This script MUST be run before starting the devcontainer to ensure proper permis
 ### `Dockerfile` (optional)
 Extend base image for project needs:
 ```dockerfile
-FROM claudecode/devcontainer:latest
+FROM ai-agents-sandbox/devcontainer:latest
 
 # Add project-specific tools (as non-root user)
 USER claude

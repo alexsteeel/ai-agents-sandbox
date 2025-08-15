@@ -264,7 +264,7 @@ A ready-to-use template for new projects:
 For the absolute minimum, you only need `.devcontainer/docker-compose.yaml`:
 ```yaml
 include:
-  - path: /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+  - path: /usr/local/share/ai-agents-sandbox/docker-compose.base.yaml
 ```
 That's it! The base template handles everything else.
 

@@ -107,7 +107,7 @@ check_proxy_connectivity() {
     echo ""
     echo "Testing network isolation (direct connection should fail):"
     # Run in subshell to avoid affecting parent environment
-    if (unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY && curl --max-time 3 -s https://github.com 2>&1 | grep -q "Could not resolve host"); then
+    if (unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY && curl --max-time 3 -s https://instagram.com 2>&1 | grep -q "Could not resolve host"); then
         echo -e "${GREEN}✓${NC} Network isolation working (direct connection blocked)"
         ((TESTS_PASSED++))
     else

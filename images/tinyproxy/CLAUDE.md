@@ -4,7 +4,7 @@ This directory contains the custom tinyproxy Docker image for secure proxy filte
 
 ## Purpose
 
-Extends the standard tinyproxy image with:
+Extends the base tinyproxy image with:
 - Dynamic configuration via environment variables
 - Automatic upstream proxy support
 - Whitelist merging from multiple sources
@@ -15,7 +15,7 @@ Extends the standard tinyproxy image with:
 Built automatically by unified build script:
 ```bash
 # From project root
-./images/build.sh tinyproxy  # Builds tinyproxy-whitelist:latest
+./images/build.sh tinyproxy  # Builds tinyproxy:latest
 # Or build all images:
 ./images/build.sh all
 ```
@@ -23,7 +23,6 @@ Built automatically by unified build script:
 ## Components
 
 ### `Dockerfile`
-- Based on `tinyproxy/tinyproxy:latest`
 - Adds custom entrypoint for dynamic configuration
 - Includes utilities for whitelist management
 

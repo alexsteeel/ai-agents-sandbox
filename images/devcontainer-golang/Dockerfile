@@ -2,7 +2,7 @@
 # Based on the devcontainer-base image with latest Go installed
 
 ARG IMAGE_TAG=latest
-FROM ai-sandbox/devcontainer:${IMAGE_TAG}
+FROM ai-agents-sandbox/devcontainer:${IMAGE_TAG}
 
 # Switch to root for installations
 USER root

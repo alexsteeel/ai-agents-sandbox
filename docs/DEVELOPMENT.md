@@ -10,7 +10,7 @@ ai_agents_sandbox/
 ├── .devcontainer.example/  # Template for new projects
 ├── images/                 # Docker image sources
 │   ├── devcontainer-base/  # Base development image
-│   ├── tinyproxy-extended/ # Proxy with whitelist filtering
+│   ├── tinyproxy/ # Proxy with whitelist filtering
 │   ├── tinyproxy-dind/     # Proxy for Docker-in-Docker
 │   └── common-settings/    # Shared configurations
 ├── templates/              # System templates
@@ -115,7 +115,7 @@ This repository already has a working `.devcontainer/` configuration:
 ./images/build.sh devcontainer
 
 # Tag for release
-docker tag claudecode/devcontainer:latest claudecode/devcontainer:1.0.0
+docker tag ai-agents-sandbox/devcontainer:latest ai-agents-sandbox/devcontainer:1.0.0
 ```
 
 ### Release Process
@@ -127,8 +127,8 @@ docker tag claudecode/devcontainer:latest claudecode/devcontainer:1.0.0
 2. Build and tag images:
    ```bash
    ./images/build.sh all
-   docker tag claudecode/devcontainer:latest claudecode/devcontainer:1.0.0
-   docker tag tinyproxy-whitelist:latest tinyproxy-whitelist:1.0.0
+   docker tag ai-agents-sandbox/devcontainer:latest ai-agents-sandbox/devcontainer:1.0.0
+   docker tag tinyproxy:latest tinyproxy:1.0.0
    docker tag tinyproxy-dind:latest tinyproxy-dind:1.0.0
    ```
 
@@ -151,7 +151,7 @@ docker tag claudecode/devcontainer:latest claudecode/devcontainer:1.0.0
 The `docker-compose.yaml` uses Docker Compose's include feature:
 ```yaml
 include:
-  - path: /usr/local/share/claude-devcontainer/docker-compose.base.yaml
+  - path: /usr/local/share/ai-agents-sandbox/docker-compose.base.yaml
   - override.yaml
 ```
 

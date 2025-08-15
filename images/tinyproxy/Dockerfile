@@ -1,8 +1,9 @@
 ARG IMAGE_TAG=latest
 FROM ai-agents-sandbox/tinyproxy-base:${IMAGE_TAG}
 
-COPY images/tinyproxy-dind/tinyproxy.conf /etc/tinyproxy/tinyproxy.conf
-COPY images/tinyproxy-dind/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY images/common-settings/default-whitelist.txt /etc/tinyproxy/default-whitelist.txt
+COPY images/tinyproxy/tinyproxy.conf /etc/tinyproxy/tinyproxy.conf.default
+COPY images/tinyproxy/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh && \
     chown -R tinyproxy:tinyproxy /etc/tinyproxy && \
     chmod 755 /etc/tinyproxy

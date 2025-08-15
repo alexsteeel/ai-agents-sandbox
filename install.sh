@@ -171,7 +171,7 @@ verify_installation() {
     local errors=0
     
     # Check Docker images
-    for image_name in "claudecode/devcontainer" "tinyproxy-whitelist" "tinyproxy-dind" "claudecode/devcontainer-dotnet" "claudecode/devcontainer-golang"; do
+    for image_name in "ai-agents-sandbox/devcontainer" "ai-agents-sandbox/tinyproxy-base" "ai-agents-sandbox/tinyproxy" "ai-agents-sandbox/tinyproxy-dind" "ai-agents-sandbox/devcontainer-dotnet" "ai-agents-sandbox/devcontainer-golang"; do
         image_full="${image_name}:${IMAGE_TAG}"
         if docker image inspect "$image_full" >/dev/null 2>&1; then
             print_status "✓ Docker image found: $image_full"
@@ -192,7 +192,7 @@ verify_installation() {
     done
     
     # Check templates
-    if [[ -d "/usr/local/share/claude-devcontainer" ]]; then
+    if [[ -d "/usr/local/share/ai-agents-sandbox" ]]; then
         print_status "✓ Templates installed"
     else
         print_error "✗ Templates not found"

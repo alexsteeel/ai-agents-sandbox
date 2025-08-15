@@ -8,7 +8,7 @@ This repository provides a **base devcontainer foundation** for secure, isolated
 
 - **images/**: Docker images for the devcontainer foundation and proxy services
   - **devcontainer-base/**: Reusable foundation with all tools, scripts, and security controls
-  - **tinyproxy-extended/**: Custom tinyproxy with whitelist filtering
+  - **tinyproxy/**: Custom tinyproxy with whitelist filtering
   - **tinyproxy-dind/**: Dedicated proxy for Docker-in-Docker
   - **common-settings/**: Shared configuration and whitelists
 - **.devcontainer/**: Minimal example showing how users implement the foundation in their projects
@@ -141,7 +141,7 @@ Internet ←→ [tinyproxy] ←→ [claude-external network]
 
 ### Container Structure
 
-**Base Image (claudecode/devcontainer:latest)**
+**Base Image (ai-agents-sandbox/devcontainer:latest)**
 ```
 Built-in tools and scripts:
 ├── /usr/local/bin/devcontainer-init    # Initialization script
