@@ -87,7 +87,7 @@ graph TD
     G -->|Yes| H[Request Approval]
     H --> I{{User Approves?}}
     I -->|No - Changes Needed| F
-    I -->|Yes| J[3. run-task]
+    I -->|Yes| J[3. implement-task]
     J --> K[Implementation]
     K --> L[Testing & QA]
     L --> M[Code Review]
@@ -108,7 +108,7 @@ graph TD
    - Identifies remaining unclear points
    - Repeats until all requirements are clear
 
-3. **`run-task`**: Implementation phase
+3. **`implement-task`**: Implementation phase
    - Executes approved plan
    - Coordinates with specialized agents (Software, QA, DevOps)
    - Runs testing and validation
@@ -156,8 +156,9 @@ flowchart TD
 ./install.sh
 
 # This installs these commands system-wide:
-# - claude-task-worktree: Create git worktree for new tasks
-# - claude-notify-watch: Host notification watcher (optional)
+# - ai-sbx-task-worktree: Create git worktree for new tasks
+# - ai-sbx-notify-watch: Host notification watcher (optional)
+# - ai-sbx-init-project: Initialize project with proper permissions
 ```
 
 ### Using in Your Project
@@ -167,14 +168,20 @@ flowchart TD
    cp -r /path/to/ai_agents_sandbox/.devcontainer.example /path/to/your-project/.devcontainer
    ```
 
-2. **Configure (optional):**
+2. **Initialize project:**
+   ```bash
+   ai-sbx-init-project /path/to/your-project
+   # This sets up permissions, creates .env, configures mounts
+   ```
+
+3. **Configure (optional):**
    ```bash
    cd /path/to/your-project/.devcontainer
-   vim .env  # Set PROJECT_NAME, configure proxy if needed
+   vim .env  # Adjust proxy settings if needed
    vim whitelist.txt  # Add your project's domains
    ```
 
-3. **Open in your IDE** (handles everything automatically):
+4. **Open in your IDE** (handles everything automatically):
    
    **VS Code:**
    - Open project folder
@@ -196,10 +203,10 @@ flowchart TD
    - Just run: `claude --dangerously-skip-permissions`
    - No container needed
 
-4. **For parallel tasks** (optional):
+5. **For parallel tasks** (optional):
    ```bash
    # Automated: creates worktree + task folder + opens PyCharm
-   claude-task-worktree "feature 123 implement user auth"
+   ai-sbx-task-worktree "feature 123 implement user auth"
    ```
 
 ### IDE-Specific Workflows
@@ -238,11 +245,14 @@ flowchart TD
 ### Available Commands
 
 ```bash
+# Project initialization:
+ai-sbx-init-project [/path/to/project]  # Initialize project with proper permissions
+
 # Task management:
-claude-task-worktree "task description"  # Create task worktree
+ai-sbx-task-worktree "task description"  # Create task worktree
 
 # Optional notifications:
-claude-notify-watch            # Watch for container notifications
+ai-sbx-notify-watch            # Watch for container notifications
 ```
 
 **Note:** Your IDE (VS Code/PyCharm) handles starting, stopping, and managing containers automatically. No manual Docker commands needed!
@@ -315,7 +325,7 @@ The environment includes a host notification system for alerts from Claude Code:
    ```
 3. Start the notification watcher on your host:
    ```bash
-   claude-notify-watch  # Installed system-wide by ./install.sh
+   ai-sbx-notify-watch  # Installed system-wide by ./install.sh
    ```
 
 ### How it works

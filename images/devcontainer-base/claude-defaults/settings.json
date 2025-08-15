@@ -56,9 +56,9 @@
       "path": ".claude/commands/memorize-task.md"
     },
     {
-      "name": "run-task",
+      "name": "implement-task",
       "description": "Execute a specific task with detailed instructions",
-      "path": ".claude/commands/run-task.md"
+      "path": ".claude/commands/implement-task.md"
     }
   ],
   "hooks": {
