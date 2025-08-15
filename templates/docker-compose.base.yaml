@@ -23,6 +23,8 @@ services:
       https_proxy: http://tinyproxy-dind:8888
       no_proxy: localhost,127.0.0.1,::1
     volumes:
+      # must be added here for successful mounts to interpreter containers inside devcontainer
+      - ${PROJECT_DIR:-..}:/workspace
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
       - docker-data:/var/lib/docker
