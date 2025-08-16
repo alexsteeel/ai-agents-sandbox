@@ -126,7 +126,7 @@ install_host_scripts() {
     print_section "Installing Host Scripts"
     
     print_info "The following scripts will be installed to /usr/local/bin:"
-    print_info "  • ai-sbx-task-worktree    - Create git worktree for new tasks"
+    print_info "  • ai-sbx-create-task-worktree    - Create git worktree for new tasks"
     print_info "  • ai-sbx-notify-watch     - Desktop notification watcher (optional)"
     print_info "  • ai-sbx-init-project     - Initialize project permissions for devcontainer"
     echo ""
@@ -182,7 +182,7 @@ verify_installation() {
     done
     
     # Check installed scripts
-    for script in ai-sbx-task-worktree ai-sbx-notify-watch ai-sbx-init-project; do
+    for script in ai-sbx-create-task-worktree ai-sbx-remove-task-worktree ai-sbx-notify-watch ai-sbx-init-project; do
         if command -v "$script" >/dev/null 2>&1; then
             print_status "✓ Script installed: $script"
         else
@@ -242,7 +242,8 @@ show_quickstart() {
     printf "   Just open in PyCharm/VS Code - ${GREEN}.devcontainer/${NC} is ready!\n"
     printf "\n"
     printf "${BOLD}Available commands:${NC}\n"
-    printf "   ${GREEN}ai-sbx-task-worktree \"task description\"${NC} - Create task branch\n"
+    printf "   ${GREEN}ai-sbx-create-task-worktree \"task description\"${NC} - Create task branch\n"
+    printf "   ${GREEN}ai-sbx-remove-task-worktree [worktree/branch]${NC} - Remove task worktree\n"
     printf "   ${GREEN}ai-sbx-notify-watch &${NC} - Enable desktop notifications\n"
     printf "   ${GREEN}ai-sbx-init-project [path]${NC} - Initialize project permissions\n"
     printf "\n"

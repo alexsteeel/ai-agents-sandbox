@@ -149,14 +149,19 @@ flowchart TD
 
 ## Quick start
 
-### One-Time Setup (System-wide Installation)
+### One-Time Setup
 
 ```bash
-# Install everything (builds images + installs helper commands)
+# Option 1: System-wide installation (recommended, requires sudo)
 ./install.sh
 
-# This installs these commands system-wide:
-# - ai-sbx-task-worktree: Create git worktree for new tasks
+# Option 2: User-local installation (no sudo required)
+./install.sh --user
+# Note: With --user, add ~/.local/bin to your PATH:
+# export PATH="$HOME/.local/bin:$PATH"
+
+# Both options install these commands:
+# - ai-sbx-create-task-worktree: Create git worktree for new tasks
 # - ai-sbx-notify-watch: Host notification watcher (optional)
 # - ai-sbx-init-project: Initialize project with proper permissions
 ```
@@ -206,7 +211,7 @@ flowchart TD
 5. **For parallel tasks** (optional):
    ```bash
    # Automated: creates worktree + task folder + opens PyCharm
-   ai-sbx-task-worktree "feature 123 implement user auth"
+   ai-sbx-create-task-worktree "feature 123 implement user auth"
    ```
 
 ### IDE-Specific Workflows
@@ -249,7 +254,7 @@ flowchart TD
 ai-sbx-init-project [/path/to/project]  # Initialize project with proper permissions
 
 # Task management:
-ai-sbx-task-worktree "task description"  # Create task worktree
+ai-sbx-create-task-worktree "task description"  # Create task worktree
 
 # Optional notifications:
 ai-sbx-notify-watch            # Watch for container notifications

@@ -4,6 +4,60 @@ This directory contains scripts that run on the host system to support the devco
 
 ## Key Scripts
 
+### `ai-sbx-create-task-worktree`
+Creates a git worktree for new development tasks with proper structure and IDE integration.
+
+**What it does:**
+- Creates worktree with repository name prefix (e.g., `ai-agents-sandbox-fix-12-add-tests`)
+- Generates branch name from task description
+- Creates task folder structure with initial requirements template
+- Detects available IDEs (VS Code, PyCharm, Rider, GoLand)
+- Shows interactive menu when multiple IDEs are detected
+- Automatically initializes devcontainer for the worktree
+- Opens selected IDE with the new worktree
+
+**Usage:**
+```bash
+ai-sbx-create-task-worktree "feature 123 implement user auth"
+ai-sbx-create-task-worktree "bugfix 5678 fix memory leak"
+```
+
+**IDE Support:**
+- Automatically detects VS Code, PyCharm, Rider, and GoLand
+- Shows selection menu when multiple IDEs are available
+- Opens IDE in background after worktree creation
+
+### `ai-sbx-remove-task-worktree`
+Safely removes git worktrees with optional branch cleanup.
+
+**What it does:**
+- Shows interactive menu of all worktrees when run without arguments
+- Accepts worktree path, branch name, or partial match as argument
+- Displays associated branch information before removal
+- Asks for confirmation before removing (warns about uncommitted changes)
+- Optionally deletes the associated branch after worktree removal
+- Uses force removal to handle uncommitted changes
+
+**Usage:**
+```bash
+# Interactive menu
+ai-sbx-remove-task-worktree
+
+# Remove by path
+ai-sbx-remove-task-worktree ../ai-agents-sandbox-fix-12-add-tests
+
+# Remove by branch name
+ai-sbx-remove-task-worktree fix-12-add-tests
+
+# Remove by partial match
+ai-sbx-remove-task-worktree fix-12
+```
+
+**Branch Cleanup:**
+- After removing worktree, prompts to delete the branch
+- Prevents "branch already exists" errors when recreating worktrees
+- Shows command to manually delete branch if kept
+
 ### `ai-sbx-init-project`
 Initializes a project for use with AI Sandbox devcontainers.
 

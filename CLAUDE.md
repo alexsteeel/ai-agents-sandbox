@@ -39,7 +39,8 @@ The foundation enforces strict network isolation with proxy-based egress control
 ./install.sh
 
 # This installs system-wide commands:
-# - ai-sbx-task-worktree: Create git worktree for new tasks
+# - ai-sbx-create-task-worktree: Create git worktree for new tasks
+# - ai-sbx-remove-task-worktree: Remove git worktree and optionally its branch
 # - ai-sbx-notify-watch: Host notification watcher (optional)
 ```
 
@@ -109,12 +110,17 @@ claude --dangerously-skip-permissions
 claude --dangerously-skip-permissions
 
 # Create isolated git worktree for new tasks (automated)
-ai-sbx-task-worktree "feature 123 implement user auth"
-# This creates worktree, task folder, and opens PyCharm
+ai-sbx-create-task-worktree "feature 123 implement user auth"
+# This creates worktree with repo prefix, task folder, and opens IDE
+
+# Remove worktree when done
+ai-sbx-remove-task-worktree  # Interactive menu
+ai-sbx-remove-task-worktree fix-123  # By branch or partial name
 
 # Or manually:
-git worktree add -b task-name ../project-name-task-name
+git worktree add -b task-name ../repo-name-task-name
 git worktree list
+git worktree remove ../repo-name-task-name
 ```
 
 ### Linting and Code Quality
@@ -272,9 +278,10 @@ Pre-configured agents built into the base image:
 2. **Open project in IDE**:
    - **PyCharm**: Add Docker Compose interpreter
    - **VS Code**: Reopen in Container
-3. **Create tasks** (optional): `ai-sbx-task-worktree "task description"`
-4. **IDE manages containers**: No manual start/stop needed
-5. **Security is automatic**: Internal network + proxy filtering
+3. **Create tasks** (optional): `ai-sbx-create-task-worktree "task description"`
+4. **Remove tasks** (when done): `ai-sbx-remove-task-worktree [worktree/branch]`
+5. **IDE manages containers**: No manual start/stop needed
+6. **Security is automatic**: Internal network + proxy filtering
 
 ## Important Security Notes
 

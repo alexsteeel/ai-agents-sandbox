@@ -1,0 +1,219 @@
+#!/bin/bash
+set -euo pipefail
+
+# Create a git worktree for a new task with proper structure
+# Usage: ai-sbx-create-task-worktree "task description"
+# Example: ai-sbx-create-task-worktree "bugfix 5678 fix memory leak"
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+print_status() { printf "${GREEN}➜${NC} %s\n" "$1"; }
+print_error() { printf "${RED}✗${NC} %s\n" "$1" >&2; }
+print_warning() { printf "${YELLOW}⚠${NC} %s\n" "$1"; }
+print_info() { printf "${BLUE}ℹ${NC} %s\n" "$1"; }
+
+# Function to detect available IDEs
+detect_ides() {
+    local ides=()
+    
+    # Check for VS Code
+    if command -v code >/dev/null 2>&1; then
+        ides+=("vscode:VS_Code:code")
+    fi
+    
+    # Check for PyCharm
+    if command -v pycharm >/dev/null 2>&1; then
+        ides+=("pycharm:PyCharm:pycharm")
+    elif command -v pycharm.sh >/dev/null 2>&1; then
+        ides+=("pycharm:PyCharm:pycharm.sh")
+    fi
+    
+    # Check for Rider
+    if command -v rider >/dev/null 2>&1; then
+        ides+=("rider:Rider:rider")
+    elif command -v rider.sh >/dev/null 2>&1; then
+        ides+=("rider:Rider:rider.sh")
+    fi
+    
+    # Check for GoLand
+    if command -v goland >/dev/null 2>&1; then
+        ides+=("goland:GoLand:goland")
+    elif command -v goland.sh >/dev/null 2>&1; then
+        ides+=("goland:GoLand:goland.sh")
+    fi
+    
+    printf '%s\n' "${ides[@]}"
+}
+
+# Function to open IDE
+open_ide() {
+    local ide_command="$1"
+    local ide_name="$2"
+    local project_path="$3"
+    
+    print_status "Opening ${ide_name}..."
+    "${ide_command}" "${project_path}" &
+    print_status "${ide_name} opened in background"
+}
+
+# Check arguments
+if [[ $# -eq 0 ]]; then
+    print_error "Task description required"
+    echo ""
+    echo "Usage: $0 \"task description\""
+    echo ""
+    echo "Examples:"
+    echo "  $0 \"feature 1234 implement user authentication\""
+    echo "  $0 \"bugfix 5678 fix memory leak\""
+    echo ""
+    exit 1
+fi
+
+TASK_DESCRIPTION="$1"
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    print_error "Not in a git repository"
+    exit 1
+fi
+
+# Get the current repository name
+REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
+
+# Convert task description to branch name format
+# "bugfix 5678 fix memory leak" -> "bugfix-5678-fix-memory-leak"
+BRANCH_NAME=$(echo "$TASK_DESCRIPTION" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-\|-$//g')
+
+# Create worktree directory name with repo prefix
+WORKTREE_DIR="../${REPO_NAME}-${BRANCH_NAME}"
+
+# Check if worktree already exists
+if git worktree list | grep -q "$WORKTREE_DIR"; then
+    print_error "Worktree already exists: $WORKTREE_DIR"
+    print_info "To remove it: ai-sbx-remove-task-worktree"
+    exit 1
+fi
+
+# Check if directory already exists
+if [[ -d "$WORKTREE_DIR" ]]; then
+    print_error "Directory already exists: $WORKTREE_DIR"
+    exit 1
+fi
+
+# Create the worktree
+print_status "Creating worktree: $WORKTREE_DIR"
+print_status "Branch name: $BRANCH_NAME"
+echo ""
+
+if git worktree add -b "$BRANCH_NAME" "$WORKTREE_DIR"; then
+    print_status "Worktree created successfully"
+else
+    print_error "Failed to create worktree"
+    exit 1
+fi
+
+# Get absolute path to worktree
+WORKTREE_ABS_PATH=$(realpath "$WORKTREE_DIR")
+print_status "Worktree created at: $WORKTREE_ABS_PATH"
+
+# Create task folder structure
+TASK_DIR="$WORKTREE_ABS_PATH/tasks/${BRANCH_NAME}"
+print_status "Creating task folder: $TASK_DIR"
+mkdir -p "$TASK_DIR"
+
+# Create initial requirements file
+REQUIREMENTS_FILE="$TASK_DIR/initial_requirements.md"
+print_status "Creating initial requirements file: $REQUIREMENTS_FILE"
+
+cat > "$REQUIREMENTS_FILE" << EOF
+# Task: $TASK_DESCRIPTION
+
+## Task ID: $BRANCH_NAME
+
+## Created: $(date +"%Y-%m-%d %H:%M:%S")
+
+## Initial Requirements
+
+[Describe the task requirements here]
+
+## Acceptance Criteria
+
+- [ ] Criteria 1
+- [ ] Criteria 2
+- [ ] Criteria 3
+
+## Technical Approach
+
+[Describe the technical approach]
+
+## Notes
+
+[Additional notes]
+EOF
+
+print_status "Initial requirements file created"
+
+# Detect and open IDE
+mapfile -t available_ides < <(detect_ides)
+
+if [[ ${#available_ides[@]} -eq 0 ]]; then
+    print_warning "No supported IDEs found in PATH"
+    print_info "You can open the project manually from: $WORKTREE_ABS_PATH"
+elif [[ ${#available_ides[@]} -eq 1 ]]; then
+    # Only one IDE available, open it directly
+    IFS=':' read -r ide_id ide_name ide_command <<< "${available_ides[0]}"
+    open_ide "${ide_command}" "${ide_name}" "$WORKTREE_ABS_PATH"
+else
+    # Multiple IDEs available, show menu
+    echo ""
+    print_status "Multiple IDEs detected. Please select one:"
+    echo ""
+    
+    declare -A ide_map
+    i=1
+    for ide_entry in "${available_ides[@]}"; do
+        IFS=':' read -r ide_id ide_name ide_command <<< "${ide_entry}"
+        ide_name="${ide_name//_/ }"
+        echo "  ${i}. ${ide_name}"
+        ide_map[${i}]="${ide_command}:${ide_name}"
+        ((i++))
+    done
+    echo "  0. Skip (open manually later)"
+    echo ""
+    
+    read -p "Enter your choice [0-$((i-1))]: " choice
+    
+    if [[ "${choice}" == "0" ]]; then
+        print_info "Skipping IDE launch. You can open the project manually from: $WORKTREE_ABS_PATH"
+    elif [[ -n "${ide_map[${choice}]}" ]]; then
+        IFS=':' read -r ide_command ide_name <<< "${ide_map[${choice}]}"
+        open_ide "${ide_command}" "${ide_name}" "$WORKTREE_ABS_PATH"
+    else
+        print_warning "Invalid choice. You can open the project manually from: $WORKTREE_ABS_PATH"
+    fi
+fi
+
+# Summary
+echo ""
+echo "================================================================"
+echo -e "${BOLD}${GREEN}Task worktree created successfully!${NC}"
+echo ""
+echo -e "${BOLD}Worktree:${NC} $WORKTREE_ABS_PATH"
+echo -e "${BOLD}Branch:${NC} $BRANCH_NAME"
+echo -e "${BOLD}Task folder:${NC} $TASK_DIR"
+echo -e "${BOLD}Requirements:${NC} $REQUIREMENTS_FILE"
+echo ""
+echo "Next steps:"
+echo "1. Edit the initial requirements in: $REQUIREMENTS_FILE"
+echo "2. Start the devcontainer if needed"
+echo "3. Begin development"
+echo ""
+echo "To remove this worktree later:"
+echo "  git worktree remove $WORKTREE_DIR"
+echo "================================================================"

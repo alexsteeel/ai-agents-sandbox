@@ -12,11 +12,11 @@ Installs two commands system-wide:
 
 ## Available Commands
 
-### `ai-sbx-task-worktree`
+### `ai-sbx-create-task-worktree`
 Creates a git worktree for a new task.
 
 ```bash
-ai-sbx-task-worktree "feature 123 implement user auth"
+ai-sbx-create-task-worktree "feature 123 implement user auth"
 ```
 
 Automatically:

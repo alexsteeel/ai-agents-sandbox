@@ -35,7 +35,8 @@ mkdir -p "$SHARE_DIR"
 
 # Install executable scripts to /usr/local/bin
 SCRIPTS=(
-    "ai-sbx-task-worktree"
+    "ai-sbx-create-task-worktree"
+    "ai-sbx-remove-task-worktree"
     "ai-sbx-notify-watch"
     "ai-sbx-init-project"
 )
