@@ -5,7 +5,7 @@ set -euo pipefail
 # Based on rpardini/docker-registry-proxy
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROXY_DIR="/usr/local/share/ai-sandbox/docker-proxy"
+PROXY_DIR="/usr/local/share/ai-agents-sandbox/docker-proxy"
 
 # Color output
 GREEN='\033[0;32m'

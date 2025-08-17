@@ -47,7 +47,6 @@ services:
       - claude-internal
       - claude-external
 
-
   # Development container
   devcontainer:
     user: claude

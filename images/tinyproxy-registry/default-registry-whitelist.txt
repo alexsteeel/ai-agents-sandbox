@@ -45,5 +45,5 @@ registry.redhat.io
 
 # Common CDNs for container images
 cloudflare.docker.com
-*.cloudfront.net
-*.amazonaws.com
+\.cloudfront\.net$
+\.amazonaws\.com$

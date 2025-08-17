@@ -311,7 +311,7 @@ EOF
         print_status "✓ Docker registry proxy already running"
     else
         # Start the proxy if not running
-        PROXY_DIR="/usr/local/share/ai-sandbox/docker-proxy"
+        PROXY_DIR="/usr/local/share/ai-agents-sandbox/docker-proxy"
         if [[ -f "$PROXY_DIR/docker-compose.yaml" ]]; then
             print_info "Starting Docker registry proxy..."
             (cd "$PROXY_DIR" && docker compose up -d) >/dev/null 2>&1
