@@ -16,7 +16,7 @@ if [ -d /home/claude/.codex ]; then
             true
         else
             echo "Warning: .codex directory is owned by root and not writable"
-            echo "To fix: Run 'sudo chown -R claude:dev /home/claude/.codex' from host"
+            echo "To fix: Run 'sudo chown -R claude:local-ai-team /home/claude/.codex' from host"
         fi
     fi
 else

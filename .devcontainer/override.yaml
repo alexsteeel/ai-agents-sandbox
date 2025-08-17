@@ -1,15 +1,1 @@
-services:
-  tinyproxy-devcontainer:
-    image: ai-agents-sandbox/tinyproxy:1.0.0
-    environment:
-      USER_WHITELIST_DOMAINS: gitlab.com,youtrack.com
-  
-  tinyproxy-dind:
-    image: ai-agents-sandbox/tinyproxy-dind:1.0.0
-    environment:
-      USER_WHITELIST_DOMAINS: hub.docker.com
-
-  devcontainer:
-    build:
-      context: .
-      dockerfile: Dockerfile
+# Project-specific overrides

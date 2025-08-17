@@ -33,7 +33,7 @@ ENV GOPATH=/home/claude/go \
 
 # Create Go workspace directories with proper permissions
 RUN mkdir -p /home/claude/go/{bin,src,pkg} \
-    && chown -R claude:dev /home/claude/go
+    && chown -R claude:local-ai-team /home/claude/go
 
 # Switch back to claude user
 USER claude

@@ -44,13 +44,13 @@ ARG USERNAME=claude
 ARG USER_UID=1001
 ARG USER_GID=1001
 ARG WORKSPACE_GID=2000
-ARG WORKSPACE_GROUPNAME=dev
+ARG WORKSPACE_GROUPNAME=local-ai-team
 
 RUN set -eux; \
     getent group "$USER_GID" || groupadd --gid "$USER_GID" "$USERNAME"; \
     getent group "$WORKSPACE_GID" || groupadd --gid "$WORKSPACE_GID" "$WORKSPACE_GROUPNAME"; \
     id -u "$USERNAME" >/dev/null 2>&1 || useradd --uid "$USER_UID" --gid "$USER_GID" -m "$USERNAME"; \
-    # add to dev regardless
+    # add to local-ai-team regardless
     usermod -aG "$WORKSPACE_GROUPNAME" "$USERNAME"; \
     # add to docker only if it exists
     if getent group docker >/dev/null; then usermod -aG docker "$USERNAME"; fi
@@ -187,7 +187,7 @@ RUN mkdir -p /home/$USERNAME/scripts/logs && \
 COPY images/common-settings/default-whitelist.txt /usr/local/etc/default-whitelist.txt
 
 # Copy entrypoint script
-COPY --chown=claude:dev images/devcontainer-base/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chown=claude:local-ai-team images/devcontainer-base/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

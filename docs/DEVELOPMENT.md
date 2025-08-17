@@ -152,7 +152,7 @@ The `docker-compose.yaml` uses Docker Compose's include feature:
 ```yaml
 include:
   - path: /usr/local/share/ai-agents-sandbox/docker-compose.base.yaml
-  - override.yaml
+  - override.user.yaml
 ```
 
 This allows:
@@ -198,9 +198,9 @@ docker compose up -d --force-recreate
 ### Permission issues
 
 ```bash
-# Ensure dev group exists
-sudo groupadd -g 2000 dev
-sudo usermod -aG dev $USER
+# Ensure local-ai-team group exists
+sudo groupadd -g 2000 local-ai-team
+sudo usermod -aG local-ai-team $USER
 # Re-login for group changes
 ```
 

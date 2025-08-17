@@ -7,7 +7,7 @@
   - Set default editor from nano to vim
   - Copy local settings of zsh
 - Connect Pycharm to devcontainer through JetBrains Gateway
-- The issue with different users on the host and inside devcontainer is solved with common group dev. 
+- The issue with different users on the host and inside devcontainer is solved with common group local-ai-team. 
 
 ## Using
 Start claude

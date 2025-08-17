@@ -1,0 +1,132 @@
+#!/bin/bash
+set -euo pipefail
+
+# AI Sandbox Docker Proxy Manager
+# Based on rpardini/docker-registry-proxy
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROXY_DIR="/usr/local/share/ai-sandbox/docker-proxy"
+
+# Color output
+GREEN='\033[0;32m'
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+print_status() { echo -e "${GREEN}[PROXY]${NC} $1"; }
+print_error() { echo -e "${RED}[ERROR]${NC} $1" >&2; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+
+ACTION="${1:-status}"
+
+case "$ACTION" in
+    start)
+        if docker ps --format '{{.Names}}' | grep -q '^ai-sbx-docker-proxy$'; then
+            print_warning "Docker proxy is already running"
+        else
+            print_status "Starting Docker caching proxy..."
+            (cd "$PROXY_DIR" && docker compose up -d)
+            print_status "✓ Proxy started on localhost:3128"
+            print_info "Configure Docker daemon to use: http://host.docker.internal:3128"
+        fi
+        ;;
+        
+    stop)
+        if docker ps --format '{{.Names}}' | grep -q '^ai-sbx-docker-proxy$'; then
+            print_status "Stopping Docker caching proxy..."
+            (cd "$PROXY_DIR" && docker compose down)
+            print_status "✓ Proxy stopped"
+        else
+            print_warning "Proxy is not running"
+        fi
+        ;;
+        
+    restart)
+        $0 stop
+        $0 start
+        ;;
+        
+    status)
+        if docker ps --format '{{.Names}}' | grep -q '^ai-sbx-docker-proxy$'; then
+            print_status "Docker proxy is running on localhost:3128"
+            echo ""
+            echo "Container details:"
+            docker ps --filter "name=ai-sbx-docker-proxy" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            echo ""
+            echo "Cache volume:"
+            docker volume ls --filter "name=ai-sbx-proxy-cache" --format "table {{.Driver}}\t{{.Name}}"
+            echo ""
+            echo "Cache size:"
+            docker exec ai-sbx-docker-proxy du -sh /docker_mirror_cache 2>/dev/null || echo "Unable to determine"
+        else
+            print_warning "Proxy is not running"
+            echo "Start it with: $0 start"
+        fi
+        ;;
+        
+    logs)
+        docker logs ai-sbx-docker-proxy "${@:2}"
+        ;;
+        
+    clean)
+        read -p "This will remove all cached images. Are you sure? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_status "Cleaning proxy cache..."
+            (cd "$PROXY_DIR" && docker compose down -v)
+            print_status "✓ Cache cleaned"
+        else
+            print_status "Clean cancelled"
+        fi
+        ;;
+        
+    stats)
+        if docker ps --format '{{.Names}}' | grep -q '^ai-sbx-docker-proxy$'; then
+            print_status "Cache Statistics"
+            echo ""
+            echo "Cache directory contents:"
+            docker exec ai-sbx-docker-proxy find /docker_mirror_cache -type f -name "*.json" | head -20
+            echo ""
+            echo "Total cache size:"
+            docker exec ai-sbx-docker-proxy du -sh /docker_mirror_cache
+            echo ""
+            echo "Cached registries:"
+            docker exec ai-sbx-docker-proxy ls -la /docker_mirror_cache/ 2>/dev/null | grep "^d" | awk '{print $NF}' | grep -v "^\." || echo "No cached registries yet"
+        else
+            print_error "Proxy is not running"
+        fi
+        ;;
+        
+    ca-cert)
+        if docker ps --format '{{.Names}}' | grep -q '^ai-sbx-docker-proxy$'; then
+            print_status "CA Certificate for proxy:"
+            echo ""
+            docker exec ai-sbx-docker-proxy cat /ca/ca.crt
+            echo ""
+            print_info "Add this certificate to Docker daemon to enable HTTPS proxy"
+        else
+            print_error "Proxy is not running"
+        fi
+        ;;
+        
+    *)
+        echo "Usage: $0 {start|stop|restart|status|logs|clean|stats|ca-cert}"
+        echo ""
+        echo "Commands:"
+        echo "  start    - Start the Docker caching proxy"
+        echo "  stop     - Stop the proxy"
+        echo "  restart  - Restart the proxy"
+        echo "  status   - Show proxy status"
+        echo "  logs     - Show proxy logs"
+        echo "  clean    - Remove all cached data (destructive)"
+        echo "  stats    - Show cache statistics"
+        echo "  ca-cert  - Show CA certificate for HTTPS proxy"
+        echo ""
+        echo "The proxy caches Docker images from all major registries transparently."
+        echo "No need to change image names - just configure Docker to use the proxy."
+        exit 1
+        ;;
+esac

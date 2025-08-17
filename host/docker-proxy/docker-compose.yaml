@@ -1,0 +1,71 @@
+services:
+  docker-registry-proxy:
+    image: rpardini/docker-registry-proxy:0.6.5
+    container_name: ai-sbx-docker-proxy
+    restart: unless-stopped
+    ports:
+      - "3128:3128"  # HTTP proxy port
+    volumes:
+      - ai-sbx-proxy-cache:/docker_mirror_cache
+      - ai-sbx-proxy-certs:/ca
+    environment:
+      # Enable manifest caching to avoid rate limits
+      ENABLE_MANIFEST_CACHE: "true"
+      
+      # Max cache size (default 32gb)
+      CACHE_MAX_SIZE: "${CACHE_MAX_SIZE:-32g}"
+      
+      # Registries to cache (space-separated)
+      # Default: Docker Hub, gcr.io, quay.io, k8s.io
+      # Users can add more via ADDITIONAL_REGISTRIES env var
+      REGISTRIES: "docker.io gcr.io quay.io registry.k8s.io ghcr.io ${ADDITIONAL_REGISTRIES:-}"
+      
+      # Authentication for private registries (optional)
+      # Format: "registry:username:password registry2:user:pass"
+      AUTH_REGISTRIES: "${AUTH_REGISTRIES:-}"
+      
+      # Allow push operations (default false for caching only)
+      ALLOW_PUSH: "${ALLOW_PUSH:-false}"
+      
+      # Disable IPv6 if needed
+      DISABLE_IPV6: "${DISABLE_IPV6:-false}"
+      
+      # Always use tinyproxy-registry for internet access
+      HTTP_PROXY: "http://tinyproxy-registry:8888"
+      HTTPS_PROXY: "http://tinyproxy-registry:8888"
+      NO_PROXY: "localhost,127.0.0.1"
+    networks:
+      - ai-sbx-proxy-internal  # Only internal network
+    depends_on:
+      - tinyproxy-registry
+  
+  # Tinyproxy for docker-registry-proxy internet access (registry domains only)
+  tinyproxy-registry:
+    image: ai-agents-sandbox/tinyproxy-registry:${IMAGE_TAG:-1.0.0}
+    container_name: ai-sbx-tinyproxy-registry
+    restart: unless-stopped
+    environment:
+      # Add additional registry domains beyond the defaults
+      REGISTRY_WHITELIST: "${REGISTRY_WHITELIST:-}"
+      # Optional: Chain to corporate proxy
+      UPSTREAM_PROXY: "${UPSTREAM_PROXY:-}"
+      NO_UPSTREAM: "${NO_UPSTREAM:-}"
+    networks:
+      - ai-sbx-proxy-internal  # To receive requests from docker-registry-proxy
+      - ai-sbx-proxy-external  # To access internet
+
+networks:
+  ai-sbx-proxy-external:
+    name: ai-sbx-proxy-external
+    driver: bridge
+  ai-sbx-proxy-internal:
+    name: ai-sbx-proxy-internal
+    driver: bridge
+
+volumes:
+  ai-sbx-proxy-cache:
+    name: ai-sbx-proxy-cache
+    driver: local
+  ai-sbx-proxy-certs:
+    name: ai-sbx-proxy-certs
+    driver: local

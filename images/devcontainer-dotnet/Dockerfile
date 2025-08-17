@@ -42,7 +42,7 @@ ENV DOTNET_CLI_TELEMETRY_OPTOUT=1 \
 
 # Create NuGet cache directory with proper permissions
 RUN mkdir -p /home/claude/.nuget/packages \
-    && chown -R claude:dev /home/claude/.nuget
+    && chown -R claude:local-ai-team /home/claude/.nuget
 
 # Switch back to claude user
 USER claude

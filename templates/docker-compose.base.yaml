@@ -11,17 +11,13 @@ x-devcontainer-proxy-env: &devcontainer-proxy-env
 services:
   # Docker-in-Docker service
   docker:
-    image: docker:28-dind
+    image: ai-agents-sandbox/docker-dind:${IMAGE_TAG:-1.0.0}
     privileged: true  # Required for DinD
     restart: unless-stopped
     environment:
-      # DinD ONLY uses tinyproxy-dind for registry access - NEVER tinyproxy-devcontainer
-      HTTP_PROXY: http://tinyproxy-dind:8888
-      HTTPS_PROXY: http://tinyproxy-dind:8888
-      NO_PROXY: localhost,127.0.0.1,::1
-      http_proxy: http://tinyproxy-dind:8888
-      https_proxy: http://tinyproxy-dind:8888
-      no_proxy: localhost,127.0.0.1,::1
+      # Docker only needs to access docker-registry-proxy, no other internet access
+      # The proxy is configured via override.docker-proxy.yaml
+      NO_PROXY: localhost,127.0.0.1,::1,docker
     volumes:
       # must be added here for successful mounts to interpreter containers inside devcontainer
       - ${PROJECT_DIR:-..}:/workspace
@@ -32,13 +28,11 @@ services:
       - /run
       - /tmp
     networks:
-      - claude-internal
-    depends_on:
-      - tinyproxy-dind  # ONLY depends on its own proxy
+      - claude-internal  # Internal network only - no direct internet access
 
   # Main proxy for devcontainer - supports upstream proxy
   tinyproxy-devcontainer:
-    image: ai-agents-sandbox/tinyproxy:latest
+    image: ai-agents-sandbox/tinyproxy:${IMAGE_TAG:-1.0.0}
     restart: unless-stopped
     environment:
       # Simplified upstream proxy configuration
@@ -53,19 +47,6 @@ services:
       - claude-internal
       - claude-external
 
-  # Dedicated proxy for Docker-in-Docker - no upstream, direct registry access
-  tinyproxy-dind:
-    image: ai-agents-sandbox/tinyproxy-dind:latest
-    restart: unless-stopped
-    environment:
-      # No upstream proxy for dind - direct registry access only
-      UPSTREAM_PROXY_TYPE: none
-      USER_WHITELIST_DOMAINS: ${DIND_WHITELIST_DOMAINS:-}  # Additional registry domains
-    volumes:
-      - proxy-dind-logs:/var/log/tinyproxy
-    networks:
-      - claude-internal
-      - claude-external
 
   # Development container
   devcontainer:
@@ -124,8 +105,6 @@ volumes:
     name: ${PROJECT_NAME:-project}-docker-data
   proxy-devcontainer-logs:
     name: ${PROJECT_NAME:-project}-proxy-devcontainer-logs
-  proxy-dind-logs:
-    name: ${PROJECT_NAME:-project}-proxy-dind-logs
   claude-code-config:
     name: ${PROJECT_NAME:-project}-claude-code-config
   codex:

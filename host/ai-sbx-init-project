@@ -107,10 +107,10 @@ echo -e "${BOLD}Path:${NC}    $PROJECT_DIR"
 echo -e "${BLUE}───────────────────────────────────────────────────────────${NC}"
 echo ""
 
-# Check if dev group exists
+# Check if local-ai-team group exists
 DEV_GID=2000
-if ! getent group dev >/dev/null 2>&1; then
-    print_error "Group 'dev' (GID $DEV_GID) not found"
+if ! getent group local-ai-team >/dev/null 2>&1; then
+    print_error "Group 'local-ai-team' (GID $DEV_GID) not found"
     echo ""
     echo "The AI Sandbox system is not installed. Please run:"
     echo "  sudo /path/to/ai_agents_sandbox/install.sh"
@@ -118,12 +118,12 @@ if ! getent group dev >/dev/null 2>&1; then
     exit 1
 fi
 
-# Check if current user is in dev group
-if ! groups "$USER" | grep -q '\bdev\b'; then
-    print_warning "User '$USER' is not in 'dev' group"
+# Check if current user is in local-ai-team group
+if ! groups "$USER" | grep -q '\blocal-ai-team\b'; then
+    print_warning "User '$USER' is not in 'local-ai-team' group"
     echo ""
-    echo "You need to be added to the dev group. Run:"
-    echo "  sudo usermod -aG dev $USER"
+    echo "You need to be added to the local-ai-team group. Run:"
+    echo "  sudo usermod -aG local-ai-team $USER"
     echo ""
     echo "Then log out and back in for changes to take effect."
     exit 1
@@ -131,8 +131,8 @@ fi
 
 print_status "Initializing project for AI Sandbox..."
 
-# Set group ownership to dev for the entire project
-print_info "Setting group ownership to 'dev'..."
+# Set group ownership to local-ai-team for the entire project
+print_info "Setting group ownership to 'local-ai-team'..."
 
 # Check if we own the directory
 if [[ -O "$PROJECT_DIR" ]]; then
@@ -140,13 +140,13 @@ if [[ -O "$PROJECT_DIR" ]]; then
     # Check current group ownership
     CURRENT_GROUP=$(stat -c '%G' "$PROJECT_DIR" 2>/dev/null || stat -f '%Sg' "$PROJECT_DIR" 2>/dev/null)
     
-    if [[ "$CURRENT_GROUP" == "dev" ]]; then
-        print_status "✓ Group ownership already set to 'dev'"
-    elif chgrp -R dev "$PROJECT_DIR" 2>/dev/null; then
-        print_status "✓ Group ownership changed to 'dev'"
+    if [[ "$CURRENT_GROUP" == "local-ai-team" ]]; then
+        print_status "✓ Group ownership already set to 'local-ai-team'"
+    elif chgrp -R local-ai-team "$PROJECT_DIR" 2>/dev/null; then
+        print_status "✓ Group ownership changed to 'local-ai-team'"
     else
         print_warning "Could not change group ownership"
-        echo "  Ensure you're in the 'dev' group: groups $USER"
+        echo "  Ensure you're in the 'local-ai-team' group: groups $USER"
         echo "  You may need to log out and back in after being added to the group"
     fi
     
@@ -167,11 +167,11 @@ elif [[ -w "$PROJECT_DIR" ]]; then
     print_warning "You don't own $PROJECT_DIR but have write access"
     echo "  Attempting to set permissions..."
     
-    if chgrp -R dev "$PROJECT_DIR" 2>/dev/null; then
-        print_status "✓ Group ownership set to 'dev'"
+    if chgrp -R local-ai-team "$PROJECT_DIR" 2>/dev/null; then
+        print_status "✓ Group ownership set to 'local-ai-team'"
     else
         print_warning "Cannot change group ownership without being the owner"
-        echo "  Ask the owner to run: chgrp -R dev $PROJECT_DIR"
+        echo "  Ask the owner to run: chgrp -R local-ai-team $PROJECT_DIR"
     fi
     
     # Use find to handle permission errors gracefully
@@ -278,18 +278,12 @@ EOF
     # ============================================================================
     # DYNAMIC VOLUME MOUNTS (Git Worktree & Docker Cache)
     # ============================================================================
-    
-    OVERRIDE_FILE="$DEVCONTAINER_DIR/override.yaml"
-    DEVCONTAINER_MOUNTS=()
-    DOCKER_MOUNTS=()
-    
-    # ============================================================================
     # GIT WORKTREE SUPPORT
     # ============================================================================
     
     # Check if this is a git worktree
     if [[ -f "$PROJECT_DIR/.git" ]]; then
-        print_info "Detected git worktree, setting up parent .git directory mount..."
+        print_info "Detected git worktree"
         
         # Read the gitdir path from .git file
         GITDIR=$(grep "^gitdir:" "$PROJECT_DIR/.git" | cut -d' ' -f2)
@@ -299,137 +293,44 @@ EOF
             PARENT_GIT_DIR=$(echo "$GITDIR" | sed 's|/\.git/worktrees/.*|/.git|')
             
             print_info "Parent .git directory: $PARENT_GIT_DIR"
-            # Mount only the .git directory from parent repository to devcontainer service
-            DEVCONTAINER_MOUNTS+=("$PARENT_GIT_DIR:$PARENT_GIT_DIR:ro")
         fi
     elif [[ -d "$PROJECT_DIR/.git" ]]; then
         print_info "Regular git repository detected (not a worktree)"
     fi
     
     # ============================================================================
-    # DOCKER CACHE SUPPORT
+    # LOCAL DOCKER REGISTRY SUPPORT
     # ============================================================================
     
-    print_info "Detecting Docker storage configuration..."
+    print_info "Setting up Docker registry proxy for image caching..."
     
-    # Get Docker root directory (data-root from daemon.json or default)
-    DOCKER_DATA_ROOT=""
-    
-    # Check daemon.json for custom data-root using jq
-    if [[ -f "/etc/docker/daemon.json" ]]; then
-        DOCKER_DATA_ROOT=$(jq -r '.["data-root"] // empty' /etc/docker/daemon.json 2>/dev/null || true)
-        if [[ -n "$DOCKER_DATA_ROOT" ]]; then
-            print_debug "Docker data-root from daemon.json (via jq): $DOCKER_DATA_ROOT"
-        fi
-    fi
-    
-    # If not found in daemon.json, get from docker info
-    if [[ -z "$DOCKER_DATA_ROOT" ]]; then
-        DOCKER_DATA_ROOT=$(docker info 2>/dev/null | grep "Docker Root Dir" | awk '{print $NF}' || true)
-        if [[ -n "$DOCKER_DATA_ROOT" ]]; then
-            print_debug "Docker data-root from docker info: $DOCKER_DATA_ROOT"
-        fi
-    fi
-    
-    # Default to /var/lib/docker if nothing found
-    if [[ -z "$DOCKER_DATA_ROOT" ]]; then
-        DOCKER_DATA_ROOT="/var/lib/docker"
-        print_debug "Using default Docker data-root: $DOCKER_DATA_ROOT"
-    fi
-    
-    print_info "Docker data root: $DOCKER_DATA_ROOT"
-    
-    # Check if the Docker data directory exists and is accessible
-    if [[ -d "$DOCKER_DATA_ROOT" ]]; then
-        # BuildKit cache is always under the Docker data root
-        BUILDKIT_CACHE="$DOCKER_DATA_ROOT/buildkit"
-        if [[ -d "$BUILDKIT_CACHE" ]]; then
-            print_info "Found BuildKit cache directory at $BUILDKIT_CACHE"
-            # Mount buildkit cache for better layer caching - goes to docker service
-            DOCKER_MOUNTS+=("$BUILDKIT_CACHE:/var/lib/docker/buildkit")
-        fi
-        
-        # Mount overlay2 directory for layer reuse
-        OVERLAY_DIR="$DOCKER_DATA_ROOT/overlay2"
-        if [[ -d "$OVERLAY_DIR" ]]; then
-            print_info "Found overlay2 storage directory"
-            # Mount overlay2 as read-only for cache inspection - goes to docker service
-            # The dind container will still use its own overlay2 for writes
-            DOCKER_MOUNTS+=("$OVERLAY_DIR:/var/lib/docker-host/overlay2:ro")
-        fi
-        
-        # Mount image directory for image cache reuse
-        IMAGE_DIR="$DOCKER_DATA_ROOT/image"
-        if [[ -d "$IMAGE_DIR" ]]; then
-            print_info "Found Docker image directory"
-            # Image directory mount - goes to docker service
-            DOCKER_MOUNTS+=("$IMAGE_DIR:/var/lib/docker/image")
-        fi
-        
-        print_status "✓ Docker cache directories detected and will be mounted"
+    # Check if proxy is already running
+    PROXY_RUNNING=false
+    if docker ps --format '{{.Names}}' | grep -q '^ai-sbx-docker-proxy$'; then
+        PROXY_RUNNING=true
+        print_status "✓ Docker registry proxy already running"
     else
-        print_warning "Docker data directory not accessible: $DOCKER_DATA_ROOT"
-        print_info "Docker cache sharing will not be available"
+        # Start the proxy if not running
+        PROXY_DIR="/usr/local/share/ai-sandbox/docker-proxy"
+        if [[ -f "$PROXY_DIR/docker-compose.yaml" ]]; then
+            print_info "Starting Docker registry proxy..."
+            (cd "$PROXY_DIR" && docker compose up -d) >/dev/null 2>&1
+            if docker ps --format '{{.Names}}' | grep -q '^ai-sbx-docker-proxy$'; then
+                print_status "✓ Docker registry proxy started on localhost:3128"
+                PROXY_RUNNING=true
+            else
+                print_warning "Failed to start Docker registry proxy"
+                print_info "Docker image caching will not be available"
+            fi
+        else
+            print_warning "Docker proxy configuration not found at $PROXY_DIR"
+            print_info "Docker image caching will not be available"
+        fi
     fi
     
-    # ============================================================================
-    # UPDATE OVERRIDE.YAML WITH ALL MOUNTS
-    # ============================================================================
-    
-    # Check if we have any mounts to add
-    TOTAL_MOUNTS=$((${#DEVCONTAINER_MOUNTS[@]} + ${#DOCKER_MOUNTS[@]}))
-    
-    if [[ $TOTAL_MOUNTS -gt 0 ]]; then
-        print_info "Updating override.yaml with dynamic mounts..."
-        
-        # Use yq for YAML manipulation
-        print_debug "Using yq for YAML manipulation"
-        
-        # Initialize override file if it doesn't exist
-        if [[ ! -f "$OVERRIDE_FILE" ]]; then
-            echo "# Dynamic volume mounts for devcontainer" > "$OVERRIDE_FILE"
-            echo "services:" >> "$OVERRIDE_FILE"
-        fi
-        
-        # Ensure services section exists
-        if ! yq eval '.services' "$OVERRIDE_FILE" > /dev/null 2>&1; then
-            yq eval '.services = {}' -i "$OVERRIDE_FILE"
-        fi
-        
-        # Add devcontainer mounts
-        if [[ ${#DEVCONTAINER_MOUNTS[@]} -gt 0 ]]; then
-            for mount in "${DEVCONTAINER_MOUNTS[@]}"; do
-                # Check if mount already exists
-                if ! yq eval ".services.devcontainer.volumes[] | select(. == \"$mount\")" "$OVERRIDE_FILE" 2>/dev/null | grep -q "$mount"; then
-                    print_debug "Adding mount to devcontainer: $mount"
-                    yq eval ".services.devcontainer.volumes += [\"$mount\"]" -i "$OVERRIDE_FILE"
-                else
-                    print_debug "Mount already exists for devcontainer: $mount"
-                fi
-            done
-        fi
-        
-        # Add docker service mounts
-        if [[ ${#DOCKER_MOUNTS[@]} -gt 0 ]]; then
-            print_info "Adding Docker cache mounts to docker service..."
-            
-            for mount in "${DOCKER_MOUNTS[@]}"; do
-                # Check if mount already exists
-                if ! yq eval ".services.docker.volumes[] | select(. == \"$mount\")" "$OVERRIDE_FILE" 2>/dev/null | grep -q "$mount"; then
-                    print_debug "Adding Docker cache mount: $mount"
-                    yq eval ".services.docker.volumes += [\"$mount\"]" -i "$OVERRIDE_FILE"
-                else
-                    print_debug "Docker cache mount already exists: $mount"
-                fi
-            done
-            
-            # Add environment variable to docker service to use cache
-            yq eval '.services.docker.environment.DOCKER_BUILDKIT_CACHE_MOUNT_NS = "host"' -i "$OVERRIDE_FILE"
-        fi
-        
-        print_status "✓ Dynamic mounts configured in override.yaml"
-    else
-        print_info "No dynamic mounts needed"
+    # The proxy is configured in override.docker-proxy.yaml
+    if [[ "$PROXY_RUNNING" == "true" ]]; then
+        print_status "✓ Docker proxy caching available"
     fi
 else
     print_info "No .devcontainer directory found (optional)"
@@ -444,7 +345,7 @@ echo ""
 echo "Project '$PROJECT_NAME' is now configured for AI Sandbox."
 echo ""
 echo -e "${BOLD}What was done:${NC}"
-echo "  • Group ownership set to 'dev'"
+echo "  • Group ownership set to 'local-ai-team'"
 echo "  • Group write permissions enabled"
 echo "  • Directory inheritance configured"
 echo "  • User directories created"

@@ -17,7 +17,7 @@ It lets you run several tasks **in parallel**, each in its **own isolated enviro
 * **Non-root users.** Default user inside containers is **non-root** (user: claude, UID: 1001).
   * **Write access only to:** the **workspace** and the user's **home directory**.
   * No write access elsewhere; **no `sudo`** in images.
-  * Group `dev` (GID: 2000) for shared file access between host and container.
+  * Group `local-ai-team` (GID: 2000) for shared file access between host and container.
 
 * **Restricted networking.** **Default-deny egress**; outbound HTTP/HTTPS goes through **Tinyproxy** with whitelist filtering.
   * **Upstream proxy support:** Optional SOCKS5/HTTP upstream proxy for additional routing (e.g., SSH tunnels).
@@ -357,3 +357,13 @@ From within the container:
 *This repository provides a **secure foundation** for AI-assisted development. It's minimal, portable, secure by default, and easy to extend.*
 
 **For contributors:** See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for working on this repository.
+
+## Acknowledgments
+
+This project uses and extends the following excellent open-source projects:
+
+- **[docker-registry-proxy](https://github.com/rpardini/docker-registry-proxy)** - Transparent caching proxy for Docker registries with HTTPS interception
+- **[Tinyproxy](https://github.com/tinyproxy/tinyproxy)** - Lightweight HTTP/HTTPS proxy daemon for POSIX systems
+- **[Docker-in-Docker](https://github.com/docker-library/docker)** - Official Docker image for Docker-in-Docker functionality
+
+Special thanks to the maintainers and contributors of these projects for making secure, isolated development environments possible.

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Unified build script for all Docker images
-# This script builds all images required for the Claude DevContainer system
+# This script builds all images required for the AI Agents Sandbox system
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -14,7 +14,7 @@ DEFAULT_TAG="${IMAGE_TAG:-latest}"
 IMAGE_DEVCONTAINER="ai-agents-sandbox/devcontainer"
 IMAGE_TINYPROXY_BASE="ai-agents-sandbox/tinyproxy-base"
 IMAGE_TINYPROXY="ai-agents-sandbox/tinyproxy"
-IMAGE_TINYPROXY_DIND="ai-agents-sandbox/tinyproxy-dind"
+IMAGE_DOCKER_DIND="ai-agents-sandbox/docker-dind"
 IMAGE_DOTNET="ai-agents-sandbox/devcontainer-dotnet"
 IMAGE_GOLANG="ai-agents-sandbox/devcontainer-golang"
 
@@ -82,6 +82,7 @@ BUILD_DEVCONTAINER=false
 BUILD_TINYPROXY_BASE=false
 BUILD_TINYPROXY=false
 BUILD_TINYPROXY_DIND=false
+BUILD_DOCKER_DIND=false
 BUILD_DOTNET=false
 BUILD_GOLANG=false
 VERIFY_ONLY=false
@@ -110,6 +111,9 @@ else
             tinyproxy-dind)
                 BUILD_TINYPROXY_DIND=true
                 ;;
+            docker-dind)
+                BUILD_DOCKER_DIND=true
+                ;;
             dotnet)
                 BUILD_DOTNET=true
                 ;;
@@ -121,6 +125,7 @@ else
                 BUILD_TINYPROXY_BASE=true
                 BUILD_TINYPROXY=true
                 BUILD_TINYPROXY_DIND=true
+                BUILD_DOCKER_DIND=true
                 BUILD_DOTNET=true
                 BUILD_GOLANG=true
                 ;;
@@ -130,6 +135,7 @@ else
                 BUILD_TINYPROXY_BASE=true
                 BUILD_TINYPROXY=true
                 BUILD_TINYPROXY_DIND=true
+                BUILD_DOCKER_DIND=true
                 BUILD_DOTNET=true
                 BUILD_GOLANG=true
                 ;;
@@ -144,6 +150,7 @@ else
                 echo "  tinyproxy-base - Build tinyproxy base image"
                 echo "  tinyproxy      - Build tinyproxy with whitelist image"
                 echo "  tinyproxy-dind - Build tinyproxy for Docker-in-Docker"
+                echo "  docker-dind    - Build Docker-in-Docker with registry support"
                 echo "  dotnet         - Build .NET 9 devcontainer image"
                 echo "  golang, go     - Build Go devcontainer image"
                 echo "  all            - Build all images (default)"
@@ -170,7 +177,7 @@ else
 fi
 
 echo "========================================"
-echo "    Claude DevContainer Image Builder"
+echo "    AI Agents Sandbox Image Builder"
 echo "========================================"
 echo "    Image Tag: $DEFAULT_TAG"
 echo "========================================"
@@ -197,6 +204,10 @@ if [[ "$VERIFY_ONLY" == true ]]; then
     
     if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
         verify_image "$IMAGE_TINYPROXY_DIND" "$DEFAULT_TAG" || BUILD_FAILED=true
+    fi
+    
+    if [[ "$BUILD_DOCKER_DIND" == true ]]; then
+        verify_image "$IMAGE_DOCKER_DIND" "$DEFAULT_TAG" || BUILD_FAILED=true
     fi
     
     if [[ "$BUILD_DOTNET" == true ]]; then
@@ -251,10 +262,17 @@ if [[ "$BUILD_TINYPROXY" == true ]]; then
     echo ""
 fi
 
-# Build tinyproxy-dind image
-if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
-    echo "=== Building Tinyproxy DinD Image ==="
-    check_and_build "tinyproxy-dind" "$IMAGE_TINYPROXY_DIND" "$DEFAULT_TAG"
+# Build tinyproxy-registry image
+if [[ "$BUILD_TINYPROXY_REGISTRY" == true ]]; then
+    echo "=== Building Tinyproxy Registry Image ==="
+    check_and_build "tinyproxy-registry" "$IMAGE_TINYPROXY_REGISTRY" "$DEFAULT_TAG"
+    echo ""
+fi
+
+# Build docker-dind image
+if [[ "$BUILD_DOCKER_DIND" == true ]]; then
+    echo "=== Building Docker DinD Image ==="
+    check_and_build "docker-dind" "$IMAGE_DOCKER_DIND" "$DEFAULT_TAG"
     echo ""
 fi
 
@@ -304,11 +322,20 @@ if [[ "$BUILD_TINYPROXY" == true ]]; then
     fi
 fi
 
-if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
-    if verify_image "$IMAGE_TINYPROXY_DIND" "$DEFAULT_TAG"; then
-        echo "✓ Tinyproxy DinD: ${IMAGE_TINYPROXY_DIND}:${DEFAULT_TAG}"
+if [[ "$BUILD_TINYPROXY_REGISTRY" == true ]]; then
+    if verify_image "$IMAGE_TINYPROXY_REGISTRY" "$DEFAULT_TAG"; then
+        echo "✓ Tinyproxy Registry: ${IMAGE_TINYPROXY_REGISTRY}:${DEFAULT_TAG}"
     else
-        echo "✗ Tinyproxy DinD: Build failed or image not found"
+        echo "✗ Tinyproxy Registry: Build failed or image not found"
+        BUILD_FAILED=true
+    fi
+fi
+
+if [[ "$BUILD_DOCKER_DIND" == true ]]; then
+    if verify_image "$IMAGE_DOCKER_DIND" "$DEFAULT_TAG"; then
+        echo "✓ Docker DinD: ${IMAGE_DOCKER_DIND}:${DEFAULT_TAG}"
+    else
+        echo "✗ Docker DinD: Build failed or image not found"
         BUILD_FAILED=true
     fi
 fi

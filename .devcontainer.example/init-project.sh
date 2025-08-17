@@ -18,7 +18,7 @@ else
     echo "  sudo /path/to/ai_agents_sandbox/install.sh"
     echo ""
     echo "Or if you just need to set permissions manually:"
-    echo "  sudo chgrp -R dev '$PROJECT_DIR'"
+    echo "  sudo chgrp -R local-ai-team '$PROJECT_DIR'"
     echo "  sudo chmod -R g+rw '$PROJECT_DIR'"
     echo "  find '$PROJECT_DIR' -type d -exec chmod g+s {} +"
     exit 1

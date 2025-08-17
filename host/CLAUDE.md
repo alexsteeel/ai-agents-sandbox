@@ -62,7 +62,7 @@ ai-sbx-remove-task-worktree fix-12
 Initializes a project for use with AI Sandbox devcontainers.
 
 **What it does:**
-- Sets up proper group permissions (dev group, GID 2000)
+- Sets up proper group permissions (local-ai-team group, GID 2000)
 - Creates/updates `.devcontainer/.env` with:
   - `PROJECT_NAME`: Based on directory basename
   - `PROJECT_DIR`: Absolute path to project
@@ -180,7 +180,7 @@ The system supports different urgency levels:
 
 #### Permission errors
 - Re-run initialize.sh to fix permissions
-- Ensure you're in the `dev` group: `groups $USER`
+- Ensure you're in the `local-ai-team` group: `groups $USER`
 - Directory should have group write permissions
 
 ### How It Works
@@ -225,7 +225,7 @@ fi
 - Notification directory is shared between host and container
 - Only text files are written (no executable code)
 - Files are immediately deleted after processing
-- Directory has restricted permissions (dev group only)
+- Directory has restricted permissions (local-ai-team group only)
 
 ### Future Enhancements
 

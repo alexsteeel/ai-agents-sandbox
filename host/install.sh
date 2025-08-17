@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Host scripts installer
-# Installs Claude DevContainer management scripts to system paths
+# Installs AI Agents Sandbox management scripts to system paths
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -27,7 +27,7 @@ fi
 BIN_DIR="/usr/local/bin"
 SHARE_DIR="/usr/local/share/ai-agents-sandbox"
 
-print_status "Installing Claude DevContainer host scripts..."
+print_status "Installing AI Agents Sandbox host scripts..."
 
 # Create share directory
 print_status "Creating shared directory: $SHARE_DIR"
@@ -76,21 +76,37 @@ else
     print_warning "Templates directory not found at $TEMPLATE_DIR"
 fi
 
-# Create dev group if it doesn't exist
-DEV_GID=2000
-if ! getent group $DEV_GID >/dev/null 2>&1; then
-    print_status "Creating dev group (GID $DEV_GID) for file sharing..."
-    groupadd -g $DEV_GID dev
-    print_status "✓ Group 'dev' created"
+# Copy docker-proxy configuration
+DOCKER_PROXY_DIR="$SCRIPT_DIR/docker-proxy"
+if [[ -d "$DOCKER_PROXY_DIR" ]]; then
+    print_status "Installing Docker proxy configuration to $SHARE_DIR/docker-proxy"
+    mkdir -p "$SHARE_DIR/docker-proxy"
+    cp -r "$DOCKER_PROXY_DIR"/* "$SHARE_DIR/docker-proxy/"
+    
+    # Set proper permissions
+    chmod 644 "$SHARE_DIR/docker-proxy"/*.yaml 2>/dev/null || true
+    chmod 644 "$SHARE_DIR/docker-proxy"/*.md 2>/dev/null || true
+    
+    print_status "✓ Docker proxy configuration installed"
 else
-    print_status "✓ Group 'dev' already exists"
+    print_warning "Docker proxy directory not found at $DOCKER_PROXY_DIR"
 fi
 
-# Add current user (if using sudo) to dev group
+# Create local-ai-team group if it doesn't exist
+DEV_GID=2000
+if ! getent group $DEV_GID >/dev/null 2>&1; then
+    print_status "Creating local-ai-team group (GID $DEV_GID) for file sharing..."
+    groupadd -g $DEV_GID local-ai-team
+    print_status "✓ Group 'local-ai-team' created"
+else
+    print_status "✓ Group 'local-ai-team' already exists"
+fi
+
+# Add current user (if using sudo) to local-ai-team group
 if [[ -n "${SUDO_USER:-}" ]]; then
-    print_status "Adding $SUDO_USER to dev group..."
-    usermod -aG dev "$SUDO_USER"
-    print_status "✓ User added to dev group"
+    print_status "Adding $SUDO_USER to local-ai-team group..."
+    usermod -aG local-ai-team "$SUDO_USER"
+    print_status "✓ User added to local-ai-team group"
 fi
 
 # Create notification directory with proper permissions

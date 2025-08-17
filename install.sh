@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Claude DevContainer System Installer
+# AI Agents Sandbox System Installer
 # This is the master installer that sets up everything:
 # - Builds all Docker images
 # - Installs host scripts system-wide
@@ -128,13 +128,14 @@ install_host_scripts() {
     print_info "The following scripts will be installed to /usr/local/bin:"
     print_info "  • ai-sbx-create-task-worktree    - Create git worktree for new tasks"
     print_info "  • ai-sbx-notify-watch     - Desktop notification watcher (optional)"
-    print_info "  • ai-sbx-init-project     - Initialize project permissions for devcontainer"
+    print_info "  • ai-sbx-init-project     - Initialize project with Docker proxy"
     echo ""
     print_info "Additional setup:"
-    print_info "  • Creates 'dev' group (GID 2000) for file sharing"
+    print_info "  • Creates 'local-ai-team' group (GID 2000) for file sharing"
     print_info "  • Creates ~/.ai_agents_sandbox/notifications for alerts"
     print_info "  • Creates ~/.ai_agents_sandbox/projects for statistics"
     print_info "  • Installs base Docker Compose template"
+    print_info "  • Sets up Docker proxy for transparent image caching"
     echo ""
     
     if [[ ! -f "host/install.sh" ]]; then
@@ -162,7 +163,24 @@ install_host_scripts() {
     fi
     
     print_status "✓ Host scripts installed successfully"
-}
+    
+    # Install registry configuration
+    print_info "Installing Docker registry configuration..."
+    
+    if [[ -f "host/registry/install.sh" ]]; then
+        chmod +x host/registry/install.sh
+        
+        if [[ $EUID -ne 0 ]]; then
+            sudo ./host/registry/install.sh
+        else
+            ./host/registry/install.sh
+        fi
+        
+        print_status "✓ Registry configuration installed"
+    else
+        print_warning "Registry install script not found - skipping"
+    fi
+}\
 
 # Verify installation
 verify_installation() {
@@ -171,7 +189,7 @@ verify_installation() {
     local errors=0
     
     # Check Docker images
-    for image_name in "ai-agents-sandbox/devcontainer" "ai-agents-sandbox/tinyproxy-base" "ai-agents-sandbox/tinyproxy" "ai-agents-sandbox/tinyproxy-dind" "ai-agents-sandbox/devcontainer-dotnet" "ai-agents-sandbox/devcontainer-golang"; do
+    for image_name in "ai-agents-sandbox/devcontainer" "ai-agents-sandbox/tinyproxy-base" "ai-agents-sandbox/tinyproxy" "ai-agents-sandbox/tinyproxy-registry" "ai-agents-sandbox/docker-dind" "ai-agents-sandbox/devcontainer-dotnet" "ai-agents-sandbox/devcontainer-golang"; do
         image_full="${image_name}:${IMAGE_TAG}"
         if docker image inspect "$image_full" >/dev/null 2>&1; then
             print_status "✓ Docker image found: $image_full"
@@ -199,11 +217,11 @@ verify_installation() {
         ((errors++))
     fi
     
-    # Check dev group
+    # Check local-ai-team group
     if getent group 2000 >/dev/null 2>&1; then
-        print_status "✓ Dev group (GID 2000) exists"
+        print_status "✓ Local-ai-team group (GID 2000) exists"
     else
-        print_warning "⚠ Dev group not created (may need to run as root)"
+        print_warning "⚠ Local-ai-team group not created (may need to run as root)"
     fi
     
     if [[ $errors -gt 0 ]]; then

@@ -5,7 +5,7 @@ This directory contains the foundation Docker image for secure devcontainer envi
 ## Purpose
 
 Provides a reusable base image with:
-- Non-root user setup (claude:dev)
+- Non-root user setup (claude:local-ai-team)
 - Development tools (Node.js, Python/uv, Docker CLI)
 - Security controls and network isolation support
 - Claude Code defaults and linting hooks
@@ -54,7 +54,7 @@ Security and setup scripts installed in the image:
   - Confirms non-root user enforcement
   - Checks file ownership and permissions
   - Validates security constraints
-  - Verifies `/workspace/projects` directory has group `dev` for shared access
+  - Verifies `/workspace/projects` directory has group `local-ai-team` for shared access
 
 - **`test-tools.sh`**: Development tools verification
   - Tests all installed tools and versions
@@ -95,7 +95,7 @@ Built-in allowed domains for proxy filtering:
 
 **Base**: Ubuntu 22.04
 **User**: claude (UID 1001)
-**Group**: dev (GID 2000)
+**Group**: local-ai-team (GID 2000)
 **Shell**: zsh with Powerlevel10k
 
 **Installed Tools**:
@@ -110,7 +110,7 @@ Built-in allowed domains for proxy filtering:
 - `/home/claude/scripts/logs/`: Script execution logs (separate from .claude/)
 - `/home/claude/claude-defaults/`: Source for Claude Code configurations
 - `/home/claude/.claude/`: Runtime Claude Code configuration (populated by setup script)
-- `/home/claude/.claude/projects/`: Mount point for host projects directory (group: dev)
+- `/home/claude/.claude/projects/`: Mount point for host projects directory (group: local-ai-team)
 - `/workspace/.notifications/`: Mount point for host notification system
 
 ## Security Constraints

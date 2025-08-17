@@ -34,7 +34,6 @@ download.jetbrains.com
 download-cdn.jetbrains.com
 data.services.jetbrains.com
 resources.jetbrains.com
-package-search.jetbrains.com
 auth.jetbrains.com
 sales.jetbrains.com
 jetbrains.com

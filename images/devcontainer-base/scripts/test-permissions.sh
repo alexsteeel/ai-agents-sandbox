@@ -13,7 +13,7 @@ NC='\033[0m' # No Color
 
 # Expected user and group
 EXPECTED_USER="claude"
-EXPECTED_GROUP="dev"
+EXPECTED_GROUP="local-ai-team"
 EXPECTED_UID="1001"
 EXPECTED_GID="2000"
 
@@ -65,7 +65,7 @@ check_workspace_permissions() {
     echo "  Group: $ws_group"
     echo "  Mode: $ws_mode"
     
-    # Workspace should be owned by host user (not claude) but group should be dev
+    # Workspace should be owned by host user (not claude) but group should be local-ai-team
     if [[ "$ws_group" == "$EXPECTED_GROUP" ]]; then
         echo -e "  ${GREEN}✓${NC} Workspace group is $EXPECTED_GROUP"
         ((TESTS_PASSED++))
@@ -106,7 +106,7 @@ check_workspace_permissions() {
         echo "  Group: $proj_group"
         echo "  Mode: $proj_mode"
         
-        # Projects directory MUST have group 'dev'
+        # Projects directory MUST have group 'local-ai-team'
         if [[ "$proj_group" == "$EXPECTED_GROUP" ]]; then
             echo -e "  ${GREEN}✓${NC} Projects directory group is $EXPECTED_GROUP"
             ((TESTS_PASSED++))

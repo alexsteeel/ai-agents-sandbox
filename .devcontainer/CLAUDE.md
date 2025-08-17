@@ -60,12 +60,8 @@ Orchestrates three services:
 3. **docker**: Docker daemon (Docker-in-Docker)
    - Network: claude-internal (internal)
    - Privileged: Required for Docker-in-Docker
-   - Certificates: Shared with devcontainer
-   - Uses tinyproxy-dind for registry access
-
-4. **tinyproxy-dind**: Dedicated proxy for Docker
-   - Uses DIND_WHITELIST_DOMAINS environment variable
-   - No upstream proxy (direct registry access)
+   - Certificates: TLS certificates for docker-registry-proxy
+   - Uses docker-registry-proxy for all image pulls
 
 ### `devcontainer.json`
 VS Code configuration:
@@ -83,15 +79,11 @@ services:
   tinyproxy-devcontainer:
     environment:
       USER_WHITELIST_DOMAINS: gitlab.com,youtrack.com,api.myproject.com
-  
-  tinyproxy-dind:
-    environment:
-      USER_WHITELIST_DOMAINS: hub.docker.com,registry-1.docker.io
 ```
 
 These domains are merged with built-in defaults at runtime. The entrypoint script generates two patterns per domain to match both the exact domain and its subdomains.
 
-**Note**: Docker registry domains are needed only if you build Docker images from within the devcontainer.
+**Note**: Docker registry access is handled transparently by docker-registry-proxy. To add custom registries, edit `host/docker-proxy/.env`.
 
 ### `override.yaml`
 Project-specific Docker Compose overrides:
@@ -109,7 +101,7 @@ Project-specific Docker Compose overrides:
 ### `initialize.sh`
 One-time setup script that performs critical host setup:
 
-1. **Creates dev group** (GID 2000) on host for file sharing
+1. **Creates local-ai-team group** (GID 2000) on host for file sharing
 2. **Sets directory permissions** so container's claude user can write
 3. **Starts Docker services** with project-specific namespace
 4. **Copies Docker certificates** from docker-in-docker container
@@ -140,17 +132,19 @@ WORKDIR /workspace
 ```
 Internet
     ↕
-[tinyproxy] - claude-external network (bridge)
+[tinyproxy-devcontainer] - claude-external network (bridge)
     ↕ (proxy only)
 [devcontainer] - claude-internal network (internal: true)
     ↕ (local only)
 [docker] - claude-internal network (internal: true)
+    ↓
+[docker-registry-proxy] - Transparent image caching
 ```
 
-**Security Enforcement**:
+**Simplified Security Model**:
 - Internal network blocks direct internet access
-- All HTTP(S) traffic must use proxy
-- DNS resolution fails without proxy
+- Devcontainer uses tinyproxy for general internet
+- Docker uses docker-registry-proxy for images only
 - No container can bypass isolation
 
 ## IDE Integration
@@ -257,8 +251,8 @@ docker exec devcontainer curl https://blocked.com      # Denied
 
 ### Permission Errors
 - Never use sudo in containers
-- Check file ownership: should be claude:dev
-- Use `chown claude:dev` if needed
+- Check file ownership: should be claude:local-ai-team
+- Use `chown claude:local-ai-team` if needed
 
 ## Security Checklist
 

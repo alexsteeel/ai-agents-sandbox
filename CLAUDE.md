@@ -8,8 +8,8 @@ This repository provides a **base devcontainer foundation** for secure, isolated
 
 - **images/**: Docker images for the devcontainer foundation and proxy services
   - **devcontainer-base/**: Reusable foundation with all tools, scripts, and security controls
-  - **tinyproxy/**: Custom tinyproxy with whitelist filtering
-  - **tinyproxy-dind/**: Dedicated proxy for Docker-in-Docker
+  - **tinyproxy/**: Custom tinyproxy with whitelist filtering for devcontainer
+  - **docker-dind/**: Docker-in-Docker service (uses docker-registry-proxy)
   - **common-settings/**: Shared configuration and whitelists
 - **.devcontainer/**: Minimal example showing how users implement the foundation in their projects
 - **docs/**: Documentation and notes
@@ -23,10 +23,10 @@ The foundation enforces strict network isolation with proxy-based egress control
 **NEVER compromise these security principles:**
 - **Non-root user only**: Container runs as user 'claude' (UID 1001), NEVER add sudo or root access
 - **Internal network isolation**: `internal: true` network - containers CANNOT access internet directly
-- **Strict proxy isolation**: 
-  - Devcontainer MUST ONLY use tinyproxy-devcontainer:8888
-  - Docker service MUST ONLY use tinyproxy-dind:8888
-  - NEVER allow cross-proxy access between services
+- **Simplified proxy architecture**: 
+  - Devcontainer uses tinyproxy-devcontainer:8888 for general internet
+  - Docker service uses docker-registry-proxy:3128 for image pulls only
+  - No direct internet access from internal network
 - **No bypassing**: Containers cannot resolve DNS or connect without proxy
 - **Default deny**: Only explicitly whitelisted domains in filter can be accessed
 - **No passwords/SSH**: NEVER add SSH servers, passwords, or authentication bypasses
@@ -49,7 +49,7 @@ The foundation enforces strict network isolation with proxy-based egress control
 # Build specific images manually:
 ./images/build.sh devcontainer   # Build devcontainer base image
 ./images/build.sh tinyproxy      # Build tinyproxy image
-./images/build.sh tinyproxy-dind # Build tinyproxy-dind image
+./images/build.sh docker-dind    # Build Docker-in-Docker image
 ./images/build.sh all            # Build all images
 ```
 
@@ -70,17 +70,17 @@ ai-sbx-init-project /path/to/project
 # - Sets COMPOSE_PROJECT_NAME for unique container names
 # - Configures group permissions for collaboration
 # - Detects and mounts git worktree parent repositories
-# - Detects and mounts host Docker cache for layer reuse
+# - Starts docker-registry-proxy for transparent Docker image caching
 # - Installs yq if needed for YAML manipulation
 ```
 
-**Docker Cache Reuse:**
-The initialization script automatically detects your host's Docker storage location and mounts it to the Docker-in-Docker service for cache reuse. This includes:
-- BuildKit cache directory for build layer caching
-- Overlay2 storage for image layer inspection (read-only)
-- Image directory for image metadata reuse
-
-If you have a custom Docker data-root (e.g., `/media/bas/data/docker`), it will be detected from `/etc/docker/daemon.json` and used automatically.
+**Docker Image Caching:**
+The initialization script automatically starts a docker-registry-proxy that transparently caches Docker images:
+- Caches images from Docker Hub, gcr.io, quay.io, k8s.io, ghcr.io
+- No need to change image names or use `docker tag`
+- Efficiently handles large (4GB+) test images
+- Shared cache across all projects
+- See `host/docker-proxy/README.md` for details
 
 #### 3. Open in IDE
 
@@ -141,20 +141,24 @@ Linting results are logged to:
 ### Network Security Model
 
 ```
-Internet ←→ [tinyproxy] ←→ [claude-external network]
-                                         ↑
-                                   (NO DIRECT ACCESS)
-                                         ↓
-                            [claude-internal network (internal: true)]
-                                    ↓            ↓
-                            [devcontainer]  [docker]
+Internet ←→ [tinyproxy-devcontainer] ←→ [claude-external network]
+                                                ↑
+                                          (NO DIRECT ACCESS)
+                                                ↓
+                                  [claude-internal network (internal: true)]
+                                           ↓            ↓
+                                    [devcontainer]  [docker]
+                                                        ↓
+                                             [docker-registry-proxy]
+                                                        ↓
+                                                   Internet
 ```
 
-**Key Points:**
+**Simplified Architecture:**
+- `devcontainer`: Uses `tinyproxy-devcontainer` for general internet access
+- `docker`: Only connects to `docker-registry-proxy` for image pulls (no tinyproxy-dind needed!)
+- `docker-registry-proxy`: Caches images transparently, can optionally use corporate proxy
 - `claude-internal`: **MUST** remain `internal: true` - blocks all direct internet access
-- `claude-external`: Only for proxy service
-- Containers on internal network can ONLY access internet through proxy
-- DNS resolution blocked without proxy
 
 ### Container Structure
 
@@ -168,14 +172,14 @@ Built-in tools and scripts:
 │   └── notify.sh                       # Notification hook for host alerts
 ├── User: claude (UID 1001) - NON-ROOT ONLY
 ├── NO sudo, NO root access
-├── Group: dev (GID 2000) for file sharing
+├── Group: local-ai-team (GID 2000) for file sharing
 └── Tools: Node.js 20, Python (uv), Docker CLI, linters
 ```
 
 **Runtime Services**
 ```
-tinyproxy (custom extended image)
-├── ONLY gateway to internet
+tinyproxy-devcontainer (custom extended image)
+├── Gateway to internet for devcontainer
 ├── Port 8888
 ├── Default-deny filter policy
 ├── FilterDefaultDeny Yes
@@ -187,13 +191,21 @@ tinyproxy (custom extended image)
 
 devcontainer (from base image or extended)
 ├── Network: claude-internal (isolated)
-├── All HTTP(S) via proxy environment variables
+├── All HTTP(S) via tinyproxy-devcontainer:8888
 └── Runs devcontainer-init on startup
 
 docker (Docker-in-Docker)
 ├── Network: claude-internal (isolated)
-├── TLS certificates in ~/.claude-docker-certs
-└── Docker daemon for container operations
+├── Uses docker-registry-proxy for image pulls
+├── No direct internet access needed
+└── TLS certificates for docker-registry-proxy
+
+docker-registry-proxy (transparent cache)
+├── Caches images from multiple registries
+├── Port 3128 (HTTP proxy)
+├── Transparent HTTPS interception with CA cert
+├── Optional: Can use tinyproxy for corporate restrictions
+└── Shared cache across all projects
 ```
 
 ### IDE Integration (PyCharm/VS Code)
@@ -224,8 +236,8 @@ Edit `.devcontainer/.env` file:
 # Add domains (comma or space separated)
 USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
 
-# For Docker registries
-DIND_WHITELIST_DOMAINS=my.registry.com,artifactory.company.com
+# For additional Docker registries (in docker-proxy/.env)
+ADDITIONAL_REGISTRIES=my.registry.com artifactory.company.com
 ```
 
 **Default whitelisted domains:**
@@ -325,12 +337,12 @@ Pre-configured agents built into the base image:
 - Logs should be in `~/scripts/logs/` not `~/.ai_agents_sandbox/logs/`
 
 **Building Docker images from devcontainer:**
-- Add Docker registry domains to `.devcontainer/.env`:
+- Docker automatically uses docker-registry-proxy for all image pulls
+- Add custom registries to `host/docker-proxy/.env`:
   ```bash
-  DIND_WHITELIST_DOMAINS=docker.io,registry-1.docker.io,auth.docker.io,hub.docker.com
+  ADDITIONAL_REGISTRIES=my.registry.com artifactory.company.com
   ```
-- Or use the Docker daemon via docker-in-docker service
-- The dind proxy uses DIND_WHITELIST_DOMAINS environment variable
+- Images are transparently cached without configuration changes
 
 Remember: Security is paramount. When in doubt, choose the more restrictive option.
 

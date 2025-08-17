@@ -30,3 +30,5 @@ Storage Driver: overlay2
 
 Valid values: "PreToolUse", "PostToolUse", "Notification", "UserPromptSubmit", "SessionStart", "Stop", "SubagentStop", "PreCompact"
 Learn more: https://docs.anthropic.com/en/docs/claude-code/hooks
+
+- add command review current changes for redundant code
