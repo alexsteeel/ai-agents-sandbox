@@ -17,7 +17,7 @@ It lets you run several tasks **in parallel**, each in its **own isolated enviro
 * **Non-root users.** Default user inside containers is **non-root** (user: claude, UID: 1001).
   * **Write access only to:** the **workspace** and the user's **home directory**.
   * No write access elsewhere; **no `sudo`** in images.
-  * Group `local-ai-team` (GID: 2000) for shared file access between host and container.
+  * Group `local-ai-team` (GID: 3000) for shared file access between host and container.
 
 * **Restricted networking.** **Default-deny egress**; outbound HTTP/HTTPS goes through **Tinyproxy** with whitelist filtering.
   * **Upstream proxy support:** Optional SOCKS5/HTTP upstream proxy for additional routing (e.g., SSH tunnels).

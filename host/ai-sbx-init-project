@@ -108,7 +108,7 @@ echo -e "${BLUE}─────────────────────�
 echo ""
 
 # Check if local-ai-team group exists
-DEV_GID=2000
+DEV_GID=3000
 if ! getent group local-ai-team >/dev/null 2>&1; then
     print_error "Group 'local-ai-team' (GID $DEV_GID) not found"
     echo ""

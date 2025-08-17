@@ -95,7 +95,7 @@ Built-in allowed domains for proxy filtering:
 
 **Base**: Ubuntu 22.04
 **User**: claude (UID 1001)
-**Group**: local-ai-team (GID 2000)
+**Group**: local-ai-team (GID 3000)
 **Shell**: zsh with Powerlevel10k
 
 **Installed Tools**:

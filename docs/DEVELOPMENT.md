@@ -199,7 +199,7 @@ docker compose up -d --force-recreate
 
 ```bash
 # Ensure local-ai-team group exists
-sudo groupadd -g 2000 local-ai-team
+sudo groupadd -g 3000 local-ai-team
 sudo usermod -aG local-ai-team $USER
 # Re-login for group changes
 ```

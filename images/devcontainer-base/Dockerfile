@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y lsb-release \
 ARG USERNAME=claude
 ARG USER_UID=1001
 ARG USER_GID=1001
-ARG WORKSPACE_GID=2000
+ARG WORKSPACE_GID=3000
 ARG WORKSPACE_GROUPNAME=local-ai-team
 
 RUN set -eux; \

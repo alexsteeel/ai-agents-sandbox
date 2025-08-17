@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 EXPECTED_USER="claude"
 EXPECTED_GROUP="local-ai-team"
 EXPECTED_UID="1001"
-EXPECTED_GID="2000"
+EXPECTED_GID="3000"
 
 # Test result tracking
 TESTS_PASSED=0

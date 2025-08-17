@@ -172,7 +172,7 @@ Built-in tools and scripts:
 │   └── notify.sh                       # Notification hook for host alerts
 ├── User: claude (UID 1001) - NON-ROOT ONLY
 ├── NO sudo, NO root access
-├── Group: local-ai-team (GID 2000) for file sharing
+├── Group: local-ai-team (GID 3000) for file sharing
 └── Tools: Node.js 20, Python (uv), Docker CLI, linters
 ```
 

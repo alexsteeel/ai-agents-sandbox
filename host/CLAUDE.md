@@ -62,7 +62,7 @@ ai-sbx-remove-task-worktree fix-12
 Initializes a project for use with AI Sandbox devcontainers.
 
 **What it does:**
-- Sets up proper group permissions (local-ai-team group, GID 2000)
+- Sets up proper group permissions (local-ai-team group, GID 3000)
 - Creates/updates `.devcontainer/.env` with:
   - `PROJECT_NAME`: Based on directory basename
   - `PROJECT_DIR`: Absolute path to project

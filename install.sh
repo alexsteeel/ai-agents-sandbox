@@ -131,7 +131,7 @@ install_host_scripts() {
     print_info "  • ai-sbx-init-project     - Initialize project with Docker proxy"
     echo ""
     print_info "Additional setup:"
-    print_info "  • Creates 'local-ai-team' group (GID 2000) for file sharing"
+    print_info "  • Creates 'local-ai-team' group (GID 3000) for file sharing"
     print_info "  • Creates ~/.ai_agents_sandbox/notifications for alerts"
     print_info "  • Creates ~/.ai_agents_sandbox/projects for statistics"
     print_info "  • Installs base Docker Compose template"
@@ -163,23 +163,6 @@ install_host_scripts() {
     fi
     
     print_status "✓ Host scripts installed successfully"
-    
-    # Install registry configuration
-    print_info "Installing Docker registry configuration..."
-    
-    if [[ -f "host/registry/install.sh" ]]; then
-        chmod +x host/registry/install.sh
-        
-        if [[ $EUID -ne 0 ]]; then
-            sudo ./host/registry/install.sh
-        else
-            ./host/registry/install.sh
-        fi
-        
-        print_status "✓ Registry configuration installed"
-    else
-        print_warning "Registry install script not found - skipping"
-    fi
 }\
 
 # Verify installation
@@ -218,8 +201,8 @@ verify_installation() {
     fi
     
     # Check local-ai-team group
-    if getent group 2000 >/dev/null 2>&1; then
-        print_status "✓ Local-ai-team group (GID 2000) exists"
+    if getent group 3000 >/dev/null 2>&1; then
+        print_status "✓ Local-ai-team group (GID 3000) exists"
     else
         print_warning "⚠ Local-ai-team group not created (may need to run as root)"
     fi

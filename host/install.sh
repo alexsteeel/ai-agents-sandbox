@@ -93,8 +93,8 @@ else
 fi
 
 # Create local-ai-team group if it doesn't exist
-DEV_GID=2000
-if ! getent group $DEV_GID >/dev/null 2>&1; then
+DEV_GID=3000
+if ! getent group local-ai-team >/dev/null 2>&1; then
     print_status "Creating local-ai-team group (GID $DEV_GID) for file sharing..."
     groupadd -g $DEV_GID local-ai-team
     print_status "✓ Group 'local-ai-team' created"

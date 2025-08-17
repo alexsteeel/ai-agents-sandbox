@@ -69,7 +69,7 @@ Just run `claude --dangerously-skip-permissions` - no container needed.
 
 The `install.sh` script:
 1. Installs the two helper scripts to `/usr/local/bin`
-2. Creates the `local-ai-team` group (GID 2000) for file sharing
+2. Creates the `local-ai-team` group (GID 3000) for file sharing
 3. Creates `~/.ai_agents_sandbox/notifications` for container alerts
 4. Creates `~/.ai_agents_sandbox/projects` for cross-project statistics
 5. Installs the base Docker Compose template to `/usr/local/share/ai-agents-sandbox`

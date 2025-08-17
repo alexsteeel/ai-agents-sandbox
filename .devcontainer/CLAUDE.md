@@ -101,7 +101,7 @@ Project-specific Docker Compose overrides:
 ### `initialize.sh`
 One-time setup script that performs critical host setup:
 
-1. **Creates local-ai-team group** (GID 2000) on host for file sharing
+1. **Creates local-ai-team group** (GID 3000) on host for file sharing
 2. **Sets directory permissions** so container's claude user can write
 3. **Starts Docker services** with project-specific namespace
 4. **Copies Docker certificates** from docker-in-docker container
