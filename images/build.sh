@@ -14,7 +14,6 @@ DEFAULT_TAG="${IMAGE_TAG:-latest}"
 IMAGE_DEVCONTAINER="ai-agents-sandbox/devcontainer"
 IMAGE_TINYPROXY_BASE="ai-agents-sandbox/tinyproxy-base"
 IMAGE_TINYPROXY="ai-agents-sandbox/tinyproxy"
-IMAGE_TINYPROXY_DIND="ai-agents-sandbox/tinyproxy-dind"
 IMAGE_TINYPROXY_REGISTRY="ai-agents-sandbox/tinyproxy-registry"
 IMAGE_DOCKER_DIND="ai-agents-sandbox/docker-dind"
 IMAGE_DOTNET="ai-agents-sandbox/devcontainer-dotnet"
@@ -83,7 +82,6 @@ verify_image() {
 BUILD_DEVCONTAINER=false
 BUILD_TINYPROXY_BASE=false
 BUILD_TINYPROXY=false
-BUILD_TINYPROXY_DIND=false
 BUILD_TINYPROXY_REGISTRY=false
 BUILD_DOCKER_DIND=false
 BUILD_DOTNET=false
@@ -96,7 +94,6 @@ if [[ $# -eq 0 ]]; then
     BUILD_DEVCONTAINER=true
     BUILD_TINYPROXY_BASE=true
     BUILD_TINYPROXY=true
-    BUILD_TINYPROXY_DIND=true
     BUILD_TINYPROXY_REGISTRY=true
     BUILD_DOTNET=true
     BUILD_GOLANG=true
@@ -111,9 +108,6 @@ else
                 ;;
             tinyproxy)
                 BUILD_TINYPROXY=true
-                ;;
-            tinyproxy-dind)
-                BUILD_TINYPROXY_DIND=true
                 ;;
             tinyproxy-registry)
                 BUILD_TINYPROXY_REGISTRY=true
@@ -131,7 +125,6 @@ else
                 BUILD_DEVCONTAINER=true
                 BUILD_TINYPROXY_BASE=true
                 BUILD_TINYPROXY=true
-                BUILD_TINYPROXY_DIND=true
                 BUILD_TINYPROXY_REGISTRY=true
                 BUILD_DOCKER_DIND=true
                 BUILD_DOTNET=true
@@ -142,7 +135,6 @@ else
                 BUILD_DEVCONTAINER=true
                 BUILD_TINYPROXY_BASE=true
                 BUILD_TINYPROXY=true
-                BUILD_TINYPROXY_DIND=true
                 BUILD_TINYPROXY_REGISTRY=true
                 BUILD_DOCKER_DIND=true
                 BUILD_DOTNET=true
@@ -158,7 +150,6 @@ else
                 echo "  devcontainer   - Build devcontainer base image"
                 echo "  tinyproxy-base - Build tinyproxy base image"
                 echo "  tinyproxy      - Build tinyproxy with whitelist image"
-                echo "  tinyproxy-dind - Build tinyproxy for Docker-in-Docker"
                 echo "  tinyproxy-registry - Build tinyproxy for registry filtering"
                 echo "  docker-dind    - Build Docker-in-Docker with registry support"
                 echo "  dotnet         - Build .NET 9 devcontainer image"
@@ -210,10 +201,6 @@ if [[ "$VERIFY_ONLY" == true ]]; then
     
     if [[ "$BUILD_TINYPROXY" == true ]]; then
         verify_image "$IMAGE_TINYPROXY" "$DEFAULT_TAG" || BUILD_FAILED=true
-    fi
-    
-    if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
-        verify_image "$IMAGE_TINYPROXY_DIND" "$DEFAULT_TAG" || BUILD_FAILED=true
     fi
     
     if [[ "$BUILD_DOCKER_DIND" == true ]]; then
@@ -269,13 +256,6 @@ fi
 if [[ "$BUILD_TINYPROXY" == true ]]; then
     echo "=== Building Tinyproxy Whitelist Image ==="
     check_and_build "tinyproxy" "$IMAGE_TINYPROXY" "$DEFAULT_TAG"
-    echo ""
-fi
-
-# Build tinyproxy-dind image
-if [[ "$BUILD_TINYPROXY_DIND" == true ]]; then
-    echo "=== Building Tinyproxy DinD Image ==="
-    check_and_build "tinyproxy-dind" "$IMAGE_TINYPROXY_DIND" "$DEFAULT_TAG"
     echo ""
 fi
 

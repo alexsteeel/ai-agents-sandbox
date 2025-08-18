@@ -41,7 +41,7 @@ services:
   
   # Tinyproxy for docker-registry-proxy internet access (registry domains only)
   tinyproxy-registry:
-    image: ai-agents-sandbox/tinyproxy-registry:${IMAGE_TAG:-1.0.0}
+    image: ai-agents-sandbox/tinyproxy-registry:${IMAGE_TAG:-1.0.1}
     container_name: ai-sbx-tinyproxy-registry
     restart: unless-stopped
     environment:

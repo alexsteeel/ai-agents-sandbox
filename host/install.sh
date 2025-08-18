@@ -63,7 +63,7 @@ for script in "${SCRIPTS[@]}"; do
 done
 
 # Copy templates to share directory
-TEMPLATE_DIR="$SCRIPT_DIR/../templates"
+TEMPLATE_DIR="$SCRIPT_DIR/templates"
 if [[ -d "$TEMPLATE_DIR" ]]; then
     print_status "Installing templates to $SHARE_DIR"
     cp -r "$TEMPLATE_DIR"/* "$SHARE_DIR/"

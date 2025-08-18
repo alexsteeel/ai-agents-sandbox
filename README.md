@@ -1,6 +1,8 @@
 # Isolated AI Development Environments
 
 > ⚠️ **This system is under active development** - expect frequent updates and improvements.
+> 
+> 💡 **We welcome your ideas!** Feel free to share suggestions, use cases, or feedback in the [Discussions](https://github.com/alexsteeel/ai-agents-sandbox/discussions) section.
 
 This repository is a **foundation** (with a **full working example**) for per-task, **agent-centric** development.
 It lets you run several tasks **in parallel**, each in its **own isolated environment**.
@@ -10,7 +12,7 @@ It lets you run several tasks **in parallel**, each in its **own isolated enviro
 * **Per-task isolation.** Each task lives in its own Git **worktree** with its own containers and network.
 * **Agent-centric workflow.** The **AI agents** run **together** in the same sandbox (Claude Code, Codex CLI, Gemini CLI …).
 * **Pluggable services.** Start the services you need (DBs, object storage, caches, brokers, vector stores, …).
-* **Highly customizable.** Swap agents, services, env vars, and compose files without modifying the base.
+* **Highly customizable.** Swap agents, services, env vars, and compose files.
 
 ## Security model
 
@@ -21,9 +23,11 @@ It lets you run several tasks **in parallel**, each in its **own isolated enviro
 
 * **Restricted networking.** **Default-deny egress**; outbound HTTP/HTTPS goes through **Tinyproxy** with whitelist filtering.
   * **Upstream proxy support:** Optional SOCKS5/HTTP upstream proxy for additional routing (e.g., SSH tunnels).
-  * **Dual proxy setup:** Separate proxies for devcontainer and Docker-in-Docker with different whitelists.
+  * **Docker registry proxy:** Transparent caching proxy for Docker images, isolated from host network.
 
 * **Isolated Docker.** Docker-in-Docker is **network-isolated** and constrained; it cannot access host Docker or host files.
+  * Uses **docker-registry-proxy** for all image pulls with transparent caching.
+  * Registry domains automatically whitelisted (Docker Hub, gcr.io, quay.io, k8s.io, ghcr.io).
 
 * **Constrained devcontainer.** Minimal capabilities and internal networking only.
 
@@ -69,52 +73,6 @@ flowchart TD
     AN --> SE
     QA --> CR
 ```
-
----
-
-# Task Execution Workflow
-
-The environment includes a structured workflow for taking tasks from requirements to implementation:
-
-```mermaid
-graph TD
-    A[Initial Task/Requirements] -->|1. analyze-task| B[Requirements Analysis]
-    B --> D[Ask Questions]
-    D --> E[User Provides Answers]
-    E -->|2. review-answers| F[Review & Update Artifacts]
-    F --> G{{All Clear?}}
-    G -->|No - More Questions| D
-    G -->|Yes| H[Request Approval]
-    H --> I{{User Approves?}}
-    I -->|No - Changes Needed| F
-    I -->|Yes| J[3. implement-task]
-    J --> K[Implementation]
-    K --> L[Testing & QA]
-    L --> M[Code Review]
-    M --> N[Final Validation]
-    N --> O[Delivery]
-```
-
-### Workflow Commands:
-1. **`analyze-task`**: Initial requirements analysis
-   - Reads task description
-   - Identifies potential issues and risks
-   - Creates `requirements.md`, `answers.md`, `plan.md`
-   - Asks critical clarifying questions
-
-2. **`review-answers`**: Iterative clarification
-   - Reviews user-provided answers
-   - Updates task artifacts based on new information
-   - Identifies remaining unclear points
-   - Repeats until all requirements are clear
-
-3. **`implement-task`**: Implementation phase
-   - Executes approved plan
-   - Coordinates with specialized agents (Software, QA, DevOps)
-   - Runs testing and validation
-   - Delivers final implementation
-
-All task artifacts are stored in `tasks/<task_name>/` folders for organization and tracking.
 
 ---
 
@@ -182,8 +140,7 @@ flowchart TD
 3. **Configure (optional):**
    ```bash
    cd /path/to/your-project/.devcontainer
-   vim .env  # Adjust proxy settings if needed
-   vim whitelist.txt  # Add your project's domains
+   vim override.user.yaml  # Add services, domains, environment variables
    ```
 
 4. **Open in your IDE** (handles everything automatically):
@@ -204,48 +161,12 @@ flowchart TD
    - Click **OK** - PyCharm will start the containers automatically
    - PyCharm manages the entire container lifecycle (start/stop/restart)
    
-   **Claude Code:**
-   - Just run: `claude --dangerously-skip-permissions`
-   - No container needed
-
 5. **For parallel tasks** (optional):
    ```bash
    # Automated: creates worktree + task folder + opens PyCharm
    ai-sbx-create-task-worktree "feature 123 implement user auth"
    ```
 
-### IDE-Specific Workflows
-
-#### PyCharm Detailed Setup
-
-1. **Ensure `.devcontainer/` exists in your project**
-   - Copy from `.devcontainer.example/` as shown above
-
-2. **Configure PyCharm interpreter:**
-   - Open PyCharm → Open your project folder
-   - **File** → **Settings** (or **PyCharm** → **Preferences** on macOS)
-   - Navigate to **Project: [YourProject]** → **Python Interpreter**
-   - Click the gear icon ⚙️ → **Add...**
-   - Select **Docker Compose** from the left panel
-   - Configure:
-     - **Server:** Docker (should be auto-detected)
-     - **Configuration files:** `.devcontainer/docker-compose.yaml`
-     - **Service:** `devcontainer`
-     - **Environment variables:** Leave as is
-     - **Python interpreter path:** `/usr/local/bin/python`
-   - Click **OK** and wait for PyCharm to build/start containers
-
-3. **Using the environment:**
-   - PyCharm automatically starts containers when you open the project
-   - Run/Debug configurations work inside the container
-   - Terminal opens inside the container
-   - File changes sync automatically
-   - Containers stop when you close the project
-
-4. **Tips for PyCharm:**
-   - Enable **Docker** plugin if not already enabled
-   - For better performance, increase Docker memory in Docker Desktop settings
-   - PyCharm's **Services** tool window shows container logs and status
 
 ### Available Commands
 
@@ -266,46 +187,77 @@ ai-sbx-notify-watch            # Watch for container notifications
 
 A ready-to-use template for new projects:
 
-- **`docker-compose.yaml`** - Includes the system base template
-- **`override.yaml`** - For your customizations (image versions, etc.)
-- **`.env.example`** - Minimal configuration (PROJECT_NAME, proxy settings)
-- **`whitelist.txt`** - Domains your project can access
-- **`dind-whitelist.txt`** - Docker registry domains
+- **`devcontainer.json`** - IDE configuration (VS Code/PyCharm compatible)
+- **`local.project.yaml`** - Empty services file for local extensions
+- **`override.user.yaml`** - For your customizations (services, env vars)
+- **`.env.example`** - Environment configuration template
 - **`Dockerfile.example`** - Shows how to extend the base image
-- **`devcontainer.json`** - VS Code configuration
 
 ### Minimal Setup
 
-For the absolute minimum, you only need `.devcontainer/docker-compose.yaml`:
-```yaml
-include:
-  - path: /usr/local/share/ai-agents-sandbox/docker-compose.base.yaml
+For the absolute minimum, you need these files in `.devcontainer/`:
+
+1. **`devcontainer.json`**:
+```json
+{
+  "name": "${localWorkspaceFolderBasename} - AI Sandbox",
+  "dockerComposeFile": [
+    "local.project.yaml",
+    "/usr/local/share/ai-agents-sandbox/docker-compose.base.yaml",
+    "override.user.yaml"
+  ],
+  "service": "devcontainer",
+  "workspaceFolder": "/workspace",
+  "initializeCommand": "ai-sbx-init-project \"${localWorkspaceFolder}\""
+}
 ```
-That's it! The base template handles everything else.
+
+2. **`local.project.yaml`** (can be empty):
+```yaml
+services: {}
+```
+
+3. **`override.user.yaml`** (minimal):
+```yaml
+services:
+  devcontainer:
+    image: ai-agents-sandbox/devcontainer:latest
+```
 
 ## Network Configuration
 
-### Proxy Filtering
-- **Tinyproxy** enforces whitelist-based filtering (default-deny)
-- Default whitelisted domains in `images/common-settings/default-whitelist.txt`:
-  - GitHub, GitLab, PyPI, npm registry, JetBrains services
-- Add project-specific domains to `.env` file:
-  ```bash
-  USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
-  DIND_WHITELIST_DOMAINS=my.registry.com
+### Proxy Configuration
+
+#### Web Access (Tinyproxy)
+- **Default-deny** with whitelist filtering
+- Pre-configured domains: GitHub, GitLab, PyPI, npm, JetBrains
+- Add project domains in `override.user.yaml`:
+  ```yaml
+  services:
+    tinyproxy-devcontainer:
+      environment:
+        USER_WHITELIST_DOMAINS: api.myproject.com,cdn.myproject.com
   ```
 
+#### Docker Registry Proxy
+- Transparent caching for Docker images
+- Auto-configured for Docker Hub, gcr.io, quay.io, k8s.io, ghcr.io
+- ~9x faster pulls for large images (OpenSearch: 113s → 13s)
+- Shared cache across all projects
+
 ### Upstream Proxy Support
-Configure optional upstream proxy in `.devcontainer/.env`:
+Configure optional upstream proxy in `override.user.yaml`:
 
-```bash
-# Simple format - just specify proxy URL
-UPSTREAM_PROXY=socks5://host.docker.internal:8900
-# or
-UPSTREAM_PROXY=http://host.docker.internal:3128
-
-# Domains that bypass the upstream proxy
-NO_UPSTREAM=github.com,gitlab.com
+```yaml
+services:
+  tinyproxy-devcontainer:
+    environment:
+      # Simple format - just specify proxy URL
+      UPSTREAM_PROXY: socks5://host.docker.internal:8900
+      # or http://host.docker.internal:3128
+      
+      # Domains that bypass the upstream proxy
+      NO_UPSTREAM: github.com,gitlab.com
 ```
 
 For SSH tunnels:
@@ -345,18 +297,29 @@ From within the container:
 /home/claude/claude-defaults/hooks/notify.sh test "Hello from container!"
 ```
 
-## Customize
+## Customization
 
-* **Agents.** Install or swap agents (Claude Code, Codex CLI, Gemini CLI …).
-* **Services.** Edit the *service compose* to add DBs, caches, brokers, vector stores, etc.
-* **Policy.** Adjust the proxy whitelist and egress rules; keep default-deny for safety.
-* **Overrides.** Use compose overrides and env files to tailor paths, volumes, and resources—while the user stays **non-root** with write access limited to **workspace + home**.
+Extend the foundation for your specific needs:
 
----
+* **Add services:** Create `override.user.yaml` to add databases, caches, message brokers, vector stores
+* **Configure domains:** Add allowed domains in `override.user.yaml`:
+  ```yaml
+  services:
+    tinyproxy-devcontainer:
+      environment:
+        USER_WHITELIST_DOMAINS: api.myproject.com,cdn.myproject.com
+  ```
+* **Extend base image:** Configure in `override.user.yaml` and create `Dockerfile`:
+  ```yaml
+  services:
+    devcontainer:
+      build:
+        context: .
+        dockerfile: Dockerfile
+  ```
+* **Environment variables:** Set project-specific vars in `override.user.yaml`
 
-*This repository provides a **secure foundation** for AI-assisted development. It's minimal, portable, secure by default, and easy to extend.*
-
-**For contributors:** See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for working on this repository.
+See `.devcontainer.example/` for complete customization examples.
 
 ## Acknowledgments
 

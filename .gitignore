@@ -191,6 +191,9 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# AI Agents Sandbox runtime data
+.ai_agents_sandbox/
+
 # PyPI configuration file
 .pypirc
 

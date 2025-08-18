@@ -15,8 +15,9 @@ services:
     privileged: true  # Required for DinD
     restart: unless-stopped
     environment:
-      # Docker only needs to access docker-registry-proxy, no other internet access
-      # The proxy is configured via override.docker-proxy.yaml
+      # Docker uses docker-registry-proxy for all image pulls
+      HTTP_PROXY: http://ai-sbx-docker-proxy:3128
+      HTTPS_PROXY: http://ai-sbx-docker-proxy:3128
       NO_PROXY: localhost,127.0.0.1,::1,docker
     volumes:
       # must be added here for successful mounts to interpreter containers inside devcontainer
@@ -24,11 +25,13 @@ services:
       - docker-certs-ca:/certs/ca
       - docker-certs-client:/certs/client
       - docker-data:/var/lib/docker
+      - ai-sbx-proxy-certs:/proxy-ca:ro  # CA certificates from docker-registry-proxy
     tmpfs:
       - /run
       - /tmp
     networks:
-      - claude-internal  # Internal network only - no direct internet access
+      - ai-sbx-internal  # Internal network only - no direct internet access
+      - ai-sbx-proxy-internal # Common docker proxy internal network
 
   # Main proxy for devcontainer - supports upstream proxy
   tinyproxy-devcontainer:
@@ -44,8 +47,8 @@ services:
     extra_hosts:
       - "host.gateway:host-gateway"  # Maps to Docker host for upstream proxy
     networks:
-      - claude-internal
-      - claude-external
+      - ai-sbx-internal
+      - ai-sbx-external
 
   # Development container
   devcontainer:
@@ -88,7 +91,7 @@ services:
       - "${CODEX_PORT:-1455}:1455"
     working_dir: /workspace
     networks:
-      - claude-internal
+      - ai-sbx-internal
     depends_on:
       - docker  # For Docker CLI access
       - tinyproxy-devcontainer  # ONLY its own proxy, NOT tinyproxy-dind
@@ -112,12 +115,19 @@ volumes:
     name: ${PROJECT_NAME:-project}-cache
   jb-cache:
     name: ${PROJECT_NAME:-project}-jb-cache
+  # External volume from docker-registry-proxy for CA certificates
+  ai-sbx-proxy-certs:
+    external: true
 
 networks:
-  claude-internal:
-    name: ${PROJECT_NAME:-project}-claude-internal
+  ai-sbx-internal:
+    name: ${PROJECT_NAME:-project}-ai-sbx-internal
     driver: bridge
     internal: true  # Critical: blocks direct internet access
-  claude-external:
-    name: ${PROJECT_NAME:-project}-claude-external
+  ai-sbx-external:
+    name: ${PROJECT_NAME:-project}-ai-sbx-external
     driver: bridge
+  ai-sbx-proxy-internal:
+    name: ai-sbx-proxy-internal
+    driver: bridge
+    external: true

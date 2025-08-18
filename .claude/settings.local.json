@@ -43,7 +43,8 @@
       "Bash(tree:*)",
       "Bash(./install.sh)",
       "Bash(./tests/test-installation.sh:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(time docker exec:*)"
     ],
     "deny": []
   },

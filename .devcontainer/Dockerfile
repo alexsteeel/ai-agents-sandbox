@@ -1,2 +1,2 @@
-FROM ai-agents-sandbox/devcontainer:1.0.0
+FROM ai-agents-sandbox/devcontainer:latest
 USER claude
