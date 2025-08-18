@@ -86,6 +86,16 @@ check_prerequisites() {
         print_warning "⚠ Git is not installed (optional but recommended)"
     fi
     
+    # Check yq (required for custom registry configuration)
+    if command -v yq >/dev/null 2>&1; then
+        local yq_version=$(yq --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1)
+        print_status "✓ yq installed (version $yq_version)"
+    else
+        print_warning "⚠ yq is not installed (required for custom registry configuration)"
+        print_info "  Install: wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64"
+        print_info "           chmod +x /usr/local/bin/yq"
+    fi
+    
     if [[ $errors -gt 0 ]]; then
         print_error "Prerequisites check failed. Please install missing components."
         exit 1
@@ -119,6 +129,78 @@ build_images() {
         print_info "Check the error messages above and try again"
         exit 1
     fi
+}
+
+# Configure custom registry
+configure_custom_registry() {
+    print_section "Custom Registry Configuration (Optional)"
+    
+    print_info "You can configure custom Docker registries for caching."
+    print_info "This is useful for corporate environments with private registries."
+    echo ""
+    
+    read -p "Do you want to configure custom registries? [y/N]: " configure_registry
+    
+    if [[ "${configure_registry}" =~ ^[Yy]$ ]]; then
+        echo ""
+        read -p "Enter your custom registry URLs (e.g., proget.company.com or registry1.com,registry2.com): " custom_registry
+        
+        if [[ -n "${custom_registry}" ]]; then
+            # Create docker-proxy .env file directly in the installed location
+            DOCKER_PROXY_ENV="/usr/local/share/ai-agents-sandbox/docker-proxy/.env"
+            DOCKER_COMPOSE_FILE="/usr/local/share/ai-agents-sandbox/docker-proxy/docker-compose.yaml"
+            
+            print_status "Configuring custom registry: ${custom_registry}"
+            
+            # Create the .env content
+            ENV_CONTENT="# Custom Docker Registry Configuration
+ADDITIONAL_REGISTRIES=${custom_registry}
+REGISTRY_WHITELIST=${custom_registry}"
+            
+            # Ask about custom docker-registry-proxy image with CA certificates
+            echo ""
+            print_info "If your registry uses self-signed or internal CA certificates,"
+            print_info "you may need a custom docker-registry-proxy image with embedded CA certs."
+            echo ""
+            read -p "Do you have a custom docker-registry-proxy image with CA certificates? [y/N]: " has_custom_image
+            
+            if [[ "${has_custom_image}" =~ ^[Yy]$ ]]; then
+                echo ""
+                read -p "Enter the custom image name (e.g., myregistry/docker-registry-proxy:custom): " custom_image
+                
+                if [[ -n "${custom_image}" ]]; then
+                    print_status "Will use custom image: ${custom_image}"
+                    
+                    # Add to env file for docker-compose to use
+                    ENV_CONTENT="${ENV_CONTENT}
+# Custom docker-registry-proxy image (with CA certificates)
+DOCKER_REGISTRY_PROXY_IMAGE=${custom_image}"
+                    
+                    print_status "✓ Custom proxy image configured: ${custom_image}"
+                fi
+            fi
+            
+            # Create destination directory if needed and write the config
+            if [[ $EUID -ne 0 ]]; then
+                # Need sudo to create directory and write to system location
+                sudo mkdir -p "/usr/local/share/ai-agents-sandbox/docker-proxy"
+                echo "${ENV_CONTENT}" | sudo tee "${DOCKER_PROXY_ENV}" > /dev/null
+            else
+                mkdir -p "/usr/local/share/ai-agents-sandbox/docker-proxy"
+                cat > "${DOCKER_PROXY_ENV}" << EOF
+${ENV_CONTENT}
+EOF
+            fi
+            
+            print_status "✓ Custom registry configured: ${custom_registry}"
+            print_info "Registry will be added to Docker proxy cache configuration"
+        else
+            print_warning "No registry URL provided, skipping configuration"
+        fi
+    else
+        print_info "Skipping custom registry configuration"
+    fi
+    echo ""
 }
 
 # Install host scripts
@@ -310,6 +392,9 @@ EOF
         verify_installation
         exit $?
     fi
+    
+    # Configure custom registry (before building images)
+    configure_custom_registry
     
     # Build Docker images
     if [[ "$SKIP_BUILD" != true ]]; then

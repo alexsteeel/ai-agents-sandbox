@@ -81,24 +81,12 @@
         ]
       }
     ],
-    "UserPromptSubmit": [
+    "Stop": [
       {
-        "matcher": "(?i)(clarification|unclear|help|blocked|error|review|approval)",
         "hooks": [
           {
             "type": "command",
             "command": "bash /home/claude/claude-defaults/hooks/notify.sh clarification 'Claude needs your attention'"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "TodoWrite.*completed",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash /home/claude/claude-defaults/hooks/notify.sh complete 'Todo task completed'"
           }
         ]
       }

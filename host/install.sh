@@ -87,6 +87,12 @@ if [[ -d "$DOCKER_PROXY_DIR" ]]; then
     chmod 644 "$SHARE_DIR/docker-proxy"/*.yaml 2>/dev/null || true
     chmod 644 "$SHARE_DIR/docker-proxy"/*.md 2>/dev/null || true
     
+    # If .env exists (created by main installer), set its permissions
+    if [[ -f "$SHARE_DIR/docker-proxy/.env" ]]; then
+        chmod 644 "$SHARE_DIR/docker-proxy/.env"
+        print_status "✓ Docker proxy .env configuration found"
+    fi
+    
     print_status "✓ Docker proxy configuration installed"
 else
     print_warning "Docker proxy directory not found at $DOCKER_PROXY_DIR"

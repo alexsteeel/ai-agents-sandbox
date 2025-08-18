@@ -27,6 +27,11 @@ detect_ides() {
         ides+=("vscode:VS_Code:code")
     fi
     
+    # Check for devcontainer CLI (VS Code devcontainer)
+    if command -v devcontainer >/dev/null 2>&1; then
+        ides+=("devcontainer:VS_Code_DevContainer:devcontainer")
+    fi
+    
     # Check for PyCharm
     if command -v pycharm >/dev/null 2>&1; then
         ides+=("pycharm:PyCharm:pycharm")
@@ -60,6 +65,75 @@ open_ide() {
     print_status "Opening ${ide_name}..."
     "${ide_command}" "${project_path}" &
     print_status "${ide_name} opened in background"
+}
+
+# Function to read preferred IDE from .user.env or .env
+get_preferred_ide() {
+    local repo_root="$(git rev-parse --show-toplevel)"
+    local user_env_file="${repo_root}/.devcontainer/.user.env"
+    local env_file="${repo_root}/.devcontainer/.env"
+    
+    # Create .user.env if it doesn't exist (silently)
+    if [[ ! -f "${user_env_file}" ]]; then
+        mkdir -p "${repo_root}/.devcontainer" 2>/dev/null || true
+        cat > "${user_env_file}" << 'EOF'
+# User-specific settings (gitignored)
+# This file contains personal preferences and settings
+
+# Preferred IDE for task worktrees (vscode, devcontainer, pycharm, rider, goland)
+# PREFERRED_IDE=pycharm
+
+# Optional: Additional whitelisted domains for your workflow
+# USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
+
+# Optional: Upstream proxy for corporate environments
+# UPSTREAM_PROXY=socks5://host.gateway:1080
+# UPSTREAM_PROXY=http://proxy.example.com:3128
+
+# Optional: Domains that bypass the upstream proxy
+# NO_UPSTREAM=github.com,gitlab.com,bitbucket.org
+EOF
+    fi
+    
+    # Check .user.env first (user-specific settings)
+    if [[ -f "${user_env_file}" ]]; then
+        local pref=$(grep '^PREFERRED_IDE=' "${user_env_file}" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
+        if [[ -n "${pref}" ]]; then
+            echo "${pref}"
+            return
+        fi
+    fi
+    
+    # Fall back to .env
+    if [[ -f "${env_file}" ]]; then
+        grep '^PREFERRED_IDE=' "${env_file}" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'"
+    fi
+}
+
+# Function to save preferred IDE to .user.env
+save_preferred_ide() {
+    local ide_id="$1"
+    local repo_root="$(git rev-parse --show-toplevel)"
+    local user_env_file="${repo_root}/.devcontainer/.user.env"
+    
+    # Create .user.env if it doesn't exist
+    if [[ ! -f "${user_env_file}" ]]; then
+        cat > "${user_env_file}" << 'EOF'
+# User-specific settings (gitignored)
+# This file contains personal preferences and settings
+
+EOF
+    fi
+    
+    # Remove existing PREFERRED_IDE if present
+    if grep -q '^PREFERRED_IDE=' "${user_env_file}" 2>/dev/null; then
+        grep -v '^PREFERRED_IDE=' "${user_env_file}" > "${user_env_file}.tmp" 2>/dev/null || true
+        mv "${user_env_file}.tmp" "${user_env_file}"
+    fi
+    
+    # Add new PREFERRED_IDE
+    echo "PREFERRED_IDE=${ide_id}" >> "${user_env_file}"
+    print_info "Saved IDE preference to .user.env: ${ide_id}"
 }
 
 # Check arguments
@@ -162,6 +236,9 @@ print_status "Initial requirements file created"
 # Detect and open IDE
 mapfile -t available_ides < <(detect_ides)
 
+# Check for preferred IDE
+PREFERRED_IDE=$(get_preferred_ide)
+
 if [[ ${#available_ides[@]} -eq 0 ]]; then
     print_warning "No supported IDEs found in PATH"
     print_info "You can open the project manually from: $WORKTREE_ABS_PATH"
@@ -169,34 +246,100 @@ elif [[ ${#available_ides[@]} -eq 1 ]]; then
     # Only one IDE available, open it directly
     IFS=':' read -r ide_id ide_name ide_command <<< "${available_ides[0]}"
     open_ide "${ide_command}" "${ide_name}" "$WORKTREE_ABS_PATH"
+    save_preferred_ide "${ide_id}"
 else
-    # Multiple IDEs available, show menu
-    echo ""
-    print_status "Multiple IDEs detected. Please select one:"
-    echo ""
+    # Multiple IDEs available
     
-    declare -A ide_map
-    i=1
-    for ide_entry in "${available_ides[@]}"; do
-        IFS=':' read -r ide_id ide_name ide_command <<< "${ide_entry}"
-        ide_name="${ide_name//_/ }"
-        echo "  ${i}. ${ide_name}"
-        ide_map[${i}]="${ide_command}:${ide_name}"
-        ((i++))
-    done
-    echo "  0. Skip (open manually later)"
-    echo ""
+    # Check if preferred IDE is available
+    preferred_found=false
+    preferred_command=""
+    preferred_name=""
     
-    read -p "Enter your choice [0-$((i-1))]: " choice
-    
-    if [[ "${choice}" == "0" ]]; then
-        print_info "Skipping IDE launch. You can open the project manually from: $WORKTREE_ABS_PATH"
-    elif [[ -n "${ide_map[${choice}]}" ]]; then
-        IFS=':' read -r ide_command ide_name <<< "${ide_map[${choice}]}"
-        open_ide "${ide_command}" "${ide_name}" "$WORKTREE_ABS_PATH"
-    else
-        print_warning "Invalid choice. You can open the project manually from: $WORKTREE_ABS_PATH"
+    if [[ -n "${PREFERRED_IDE}" ]]; then
+        for ide_entry in "${available_ides[@]}"; do
+            IFS=':' read -r ide_id ide_name ide_command <<< "${ide_entry}"
+            if [[ "${ide_id}" == "${PREFERRED_IDE}" ]]; then
+                preferred_found=true
+                preferred_command="${ide_command}"
+                preferred_name="${ide_name}"
+                break
+            fi
+        done
     fi
+    
+    # Function to show IDE selection menu
+    show_ide_menu() {
+        echo ""
+        print_status "Multiple IDEs detected. Please select one:"
+        echo ""
+        
+        declare -A ide_map
+        declare -A ide_id_map
+        i=1
+        for ide_entry in "${available_ides[@]}"; do
+            IFS=':' read -r ide_id ide_name ide_command <<< "${ide_entry}"
+            ide_name="${ide_name//_/ }"
+            echo "  ${i}. ${ide_name}"
+            ide_map[${i}]="${ide_command}:${ide_name}"
+            ide_id_map[${i}]="${ide_id}"
+            ((i++))
+        done
+        echo "  0. Skip (open manually later)"
+        echo ""
+        
+        read -p "Enter your choice [0-$((i-1))]: " choice
+        
+        if [[ "${choice}" == "0" ]]; then
+            print_info "Skipping IDE launch. You can open the project manually from: $WORKTREE_ABS_PATH"
+        elif [[ -n "${ide_map[${choice}]:-}" ]]; then
+            IFS=':' read -r ide_command ide_name <<< "${ide_map[${choice}]}"
+            open_ide "${ide_command}" "${ide_name}" "$WORKTREE_ABS_PATH"
+            
+            # Ask if user wants to save this as preference
+            echo ""
+            read -p "Save ${ide_name} as preferred IDE for this project? [y/N]: " save_pref
+            if [[ "${save_pref}" =~ ^[Yy]$ ]]; then
+                save_preferred_ide "${ide_id_map[${choice}]}"
+            fi
+        else
+            print_warning "Invalid choice. You can open the project manually from: $WORKTREE_ABS_PATH"
+        fi
+    }
+    
+    # Check if preferred IDE is set and available
+    if [[ -n "${PREFERRED_IDE}" && "${preferred_found}" == "true" ]]; then
+        # Ask if user wants to use preferred IDE
+        echo ""
+        read -p "Open in ${preferred_name//_/ }? [Y/n]: " use_preferred
+        
+        if [[ ! "${use_preferred}" =~ ^[Nn]$ ]]; then
+            print_status "Opening ${preferred_name//_/ }..."
+            open_ide "${preferred_command}" "${preferred_name}" "$WORKTREE_ABS_PATH"
+        else
+            # User declined preferred IDE, show full menu
+            show_ide_menu
+        fi
+    else
+        # No preferred IDE or preferred IDE not available, show menu
+        show_ide_menu
+    fi
+fi
+
+# Ask if user wants to change directory to the worktree
+echo ""
+read -p "Change directory to the new worktree? [Y/n]: " change_dir
+
+if [[ ! "${change_dir}" =~ ^[Nn]$ ]]; then
+    cd "$WORKTREE_ABS_PATH"
+    print_status "Changed directory to: $WORKTREE_ABS_PATH"
+    
+    # Update shell prompt to show new location
+    echo ""
+    print_info "You are now in the worktree directory:"
+    print_info "$(pwd)"
+else
+    print_info "Staying in current directory. You can change to worktree with:"
+    print_info "cd $WORKTREE_ABS_PATH"
 fi
 
 # Summary

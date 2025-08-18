@@ -23,7 +23,8 @@ Automatically:
 1. Creates worktree: `../feature-123-implement-user-auth`
 2. Creates branch: `feature-123-implement-user-auth`
 3. Creates: `tasks/feature-123-implement-user-auth/initial_requirements.md`
-4. Opens PyCharm (if available)
+4. Detects available IDEs (VS Code, devcontainer CLI, PyCharm, Rider, GoLand)
+5. Opens selected IDE or uses saved preference
 
 ### `ai-sbx-notify-watch`
 Optional notification watcher for desktop alerts.

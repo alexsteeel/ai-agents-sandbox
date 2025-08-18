@@ -1,6 +1,6 @@
 services:
   docker-registry-proxy:
-    image: rpardini/docker-registry-proxy:0.6.5
+    image: ${DOCKER_REGISTRY_PROXY_IMAGE:-rpardini/docker-registry-proxy:0.6.5}
     container_name: ai-sbx-docker-proxy
     restart: unless-stopped
     ports:
@@ -41,7 +41,7 @@ services:
   
   # Tinyproxy for docker-registry-proxy internet access (registry domains only)
   tinyproxy-registry:
-    image: ai-agents-sandbox/tinyproxy-registry:${IMAGE_TAG:-1.0.1}
+    image: ai-agents-sandbox/tinyproxy-registry:${IMAGE_TAG:-latest}
     container_name: ai-sbx-tinyproxy-registry
     restart: unless-stopped
     environment:

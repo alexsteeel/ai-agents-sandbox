@@ -10,8 +10,5 @@
   "containerUser": "claude",
   "updateRemoteUserUID": false,
   "initializeCommand": ".devcontainer/init-project.sh \"${localWorkspaceFolder}\"",
-  "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
-  "remoteEnv": {
-    "PROJECT_NAME": "${localWorkspaceFolderBasename}",
-  }
+  "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh"
 }

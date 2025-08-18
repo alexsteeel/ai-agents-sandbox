@@ -1,5 +1,6 @@
 # Local environment configuration
 .env
+.user.env
 
 # Machine-specific overrides
 override.user.yaml

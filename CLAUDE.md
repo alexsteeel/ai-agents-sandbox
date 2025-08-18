@@ -112,6 +112,8 @@ claude --dangerously-skip-permissions
 # Create isolated git worktree for new tasks (automated)
 ai-sbx-create-task-worktree "feature 123 implement user auth"
 # This creates worktree with repo prefix, task folder, and opens IDE
+# Supports: VS Code, devcontainer CLI, PyCharm, Rider, GoLand
+# Remembers IDE preference in .devcontainer/.user.env (PREFERRED_IDE=pycharm)
 
 # Remove worktree when done
 ai-sbx-remove-task-worktree  # Interactive menu
@@ -231,13 +233,25 @@ docker-registry-proxy (transparent cache)
 ### Proxy Configuration
 
 **Adding whitelisted domains:**
-Edit `.devcontainer/.env` file:
+Edit `.devcontainer/.user.env` file (or create if it doesn't exist):
 ```bash
 # Add domains (comma or space separated)
 USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
+```
 
-# For additional Docker registries (in docker-proxy/.env)
+For Docker registries, edit `host/docker-proxy/.env`:
+```bash
 ADDITIONAL_REGISTRIES=my.registry.com artifactory.company.com
+```
+
+**Using both env files with Docker Compose:**
+```bash
+# Option 1: Specify both files
+docker compose --env-file .env --env-file .user.env up -d
+
+# Option 2: Export .user.env variables to shell
+set -a; source .user.env 2>/dev/null; set +a
+docker compose up -d
 ```
 
 **Default whitelisted domains:**
@@ -252,8 +266,21 @@ The custom tinyproxy image supports automatic upstream proxy configuration:
 - **Bypass Domains**: Set `NO_UPSTREAM` to specify domains that bypass the upstream proxy
 - The proxy configuration is automatically applied on container startup
 
-**Environment Variables (.env):**
+**Environment Variables:**
+
+`.env` (project-specific, auto-generated):
 ```bash
+# Project configuration
+PROJECT_NAME=my-project
+PROJECT_DIR=/path/to/project
+COMPOSE_PROJECT_NAME=my-project
+```
+
+`.user.env` (user preferences, gitignored):
+```bash
+# Preferred IDE for task worktrees (vscode, devcontainer, pycharm, rider, goland)
+PREFERRED_IDE=pycharm
+
 # Simplified upstream proxy configuration
 UPSTREAM_PROXY=socks5://host.gateway:8900
 # or
@@ -261,6 +288,9 @@ UPSTREAM_PROXY=http://proxy.example.com:3128
 
 # Optional: Domains that bypass upstream proxy (space or comma separated)
 NO_UPSTREAM=github.com,gitlab.com,bitbucket.org
+
+# Additional whitelisted domains
+USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
 ```
 
 **Verification commands:**

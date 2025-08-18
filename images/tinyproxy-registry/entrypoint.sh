@@ -7,9 +7,12 @@ cp /usr/local/share/tinyproxy/default-registry-whitelist.txt /etc/tinyproxy/filt
 # Add user-defined registry domains if provided
 if [ -n "$REGISTRY_WHITELIST" ]; then
     echo "Adding user-defined registry domains..."
+    # Ensure we start with a newline if the file doesn't end with one
+    echo "" >> /etc/tinyproxy/filter
     echo "$REGISTRY_WHITELIST" | tr ',' '\n' | tr ' ' '\n' | while read -r domain; do
         if [ -n "$domain" ]; then
             echo "$domain" >> /etc/tinyproxy/filter
+            echo "Added: $domain"
         fi
     done
 fi
