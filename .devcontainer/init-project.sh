@@ -5,7 +5,7 @@ set -euo pipefail
 # This is a simple wrapper that calls the system-installed initializer
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="${1:-$(dirname "$SCRIPT_DIR")}"
 
 # Check if system initializer is installed
 if command -v ai-sbx-init-project >/dev/null 2>&1; then
