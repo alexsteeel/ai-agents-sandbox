@@ -24,6 +24,14 @@ cp .env.example .env
 docker compose up -d
 ```
 
+### Using with DevContainer CLI
+The devcontainer can also be started using the DevContainer CLI:
+```bash
+devcontainer up --workspace-folder .
+```
+
+**Note**: The `init-project.sh` script accepts the project directory as an argument, which is automatically passed by `devcontainer.json` during initialization.
+
 ## Configuration Files
 
 ### `.env` and `.user.env`

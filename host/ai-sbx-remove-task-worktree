@@ -302,14 +302,18 @@ echo ""
 
 # Build array of worktrees
 declare -A worktree_map
+declare -A branch_map
 i=1
+# Get the main worktree (first one in porcelain output)
+main_worktree=$(git worktree list --porcelain | head -1 | cut -d' ' -f2)
 while IFS= read -r worktree; do
     # Skip the main worktree
-    if ! git worktree list | grep -q "$worktree (bare)"; then
+    if [[ "$worktree" != "$main_worktree" ]]; then
         # Get branch name for this worktree
-        branch=$(git worktree list --porcelain | grep -A2 "^worktree $worktree" | grep "^branch " | cut -d' ' -f2- | sed 's|refs/heads/||')
+        branch=$(git worktree list --porcelain | grep -A2 "^worktree $worktree$" | grep "^branch " | head -1 | cut -d' ' -f2- | sed 's|refs/heads/||')
         if [[ -n "$branch" ]]; then
             echo "  ${i}. $worktree (branch: $branch)"
+            branch_map[$i]="$branch"
         else
             echo "  ${i}. $worktree"
         fi
@@ -318,7 +322,8 @@ while IFS= read -r worktree; do
     fi
 done <<< "$worktrees"
 
-if [[ ${#worktree_map[@]} -eq 0 ]]; then
+# Check if we have any worktrees to remove
+if [[ $i -eq 1 ]]; then
     print_error "No removable worktrees found (only main worktree exists)"
     exit 1
 fi

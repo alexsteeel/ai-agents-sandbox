@@ -77,7 +77,7 @@ services:
       # User configuration volumes
       - ${HOME}/.ai_agents_sandbox:/host/.ai_agents_sandbox:ro
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
-      - ${HOME}/.ai_agents_sandbox/projects/:/home/claude/.ai_agents_sandbox/projects
+      - ${HOME}/.claude/projects/:/home/claude/.claude/projects
       - ${HOME}/.ai_agents_sandbox/notifications:/home/claude/.ai_agents_sandbox/notifications
       
       # Persistent state volumes

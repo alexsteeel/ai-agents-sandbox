@@ -28,10 +28,12 @@ ai-sbx-create-task-worktree "bugfix 5678 fix memory leak"
 - Opens IDE in background after worktree creation
 
 ### `ai-sbx-remove-task-worktree`
-Safely removes git worktrees with optional branch cleanup.
+Safely removes git worktrees with optional branch cleanup, now with multiple selection support.
 
 **What it does:**
 - Shows interactive menu of all worktrees when run without arguments
+- **NEW**: Supports multiple worktree selection in a single operation
+- **NEW**: Auto-detects multiple selections from space-separated numbers
 - Accepts worktree path, branch name, or partial match as argument
 - Displays associated branch information before removal
 - Asks for confirmation before removing (warns about uncommitted changes)
@@ -40,8 +42,13 @@ Safely removes git worktrees with optional branch cleanup.
 
 **Usage:**
 ```bash
-# Interactive menu
+# Interactive menu - single selection
 ai-sbx-remove-task-worktree
+# Enter: 5
+
+# Interactive menu - multiple selection (NEW)
+ai-sbx-remove-task-worktree
+# Enter: 5 6 7 8  (removes worktrees 5, 6, 7, and 8)
 
 # Remove by path
 ai-sbx-remove-task-worktree ../ai-agents-sandbox-fix-12-add-tests
@@ -51,10 +58,21 @@ ai-sbx-remove-task-worktree fix-12-add-tests
 
 # Remove by partial match
 ai-sbx-remove-task-worktree fix-12
+# If multiple matches found, offers options:
+#   - Enter numbers separated by spaces to select specific ones
+#   - Enter 'a' to remove all matching worktrees
 ```
 
+**Multiple Selection Features:**
+- **Automatic detection**: Script detects multiple selections when input contains spaces
+- **Batch operations**: Remove multiple worktrees efficiently in one operation
+- **Unified confirmation**: Single confirmation prompt for all selected worktrees
+- **Branch cleanup**: Option to delete all associated branches at once
+- **Progress tracking**: Shows success/failure count for batch removals
+
 **Branch Cleanup:**
-- After removing worktree, prompts to delete the branch
+- After removing worktree(s), prompts to delete the branch(es)
+- For multiple selections, asks once for all branches
 - Prevents "branch already exists" errors when recreating worktrees
 - Shows command to manually delete branch if kept
 
