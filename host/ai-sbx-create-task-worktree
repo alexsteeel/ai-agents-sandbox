@@ -62,9 +62,81 @@ open_ide() {
     local ide_name="$2"
     local project_path="$3"
     
-    print_status "Opening ${ide_name}..."
-    "${ide_command}" "${project_path}" &
-    print_status "${ide_name} opened in background"
+    # Special handling for devcontainer CLI
+    if [[ "${ide_command}" == "devcontainer" ]]; then
+        print_status "Preparing DevContainer environment..."
+        
+        # First, run ai-sbx-init-project to ensure proper setup
+        if command -v ai-sbx-init-project >/dev/null 2>&1; then
+            print_info "Initializing project for AI Sandbox..."
+            ai-sbx-init-project "${project_path}"
+        else
+            print_warning "ai-sbx-init-project not found, skipping initialization"
+        fi
+        
+        cd "${project_path}"
+        
+        # For git worktrees, we need to mount the parent .git directory
+        # Check if this is a git worktree
+        if [[ -f "${project_path}/.git" ]]; then
+            print_info "Detected git worktree, setting up parent git mount..."
+            
+            # Read the gitdir path from .git file
+            GITDIR=$(grep "^gitdir:" "${project_path}/.git" | cut -d' ' -f2)
+            
+            if [[ -n "$GITDIR" ]]; then
+                # Extract the parent git directory
+                PARENT_GIT_DIR=$(echo "$GITDIR" | sed 's|/\.git/worktrees/.*|/.git|')
+                
+                print_info "Parent .git directory: $PARENT_GIT_DIR"
+                
+                # Check if docker-compose.yaml exists
+                COMPOSE_FILE="${project_path}/.devcontainer/docker-compose.yaml"
+                if [[ -f "$COMPOSE_FILE" ]]; then
+                    # Check if yq is available
+                    if command -v yq >/dev/null 2>&1; then
+                        YQ_CMD="yq"
+                    elif [[ -f /usr/local/bin/yq ]]; then
+                        YQ_CMD="/usr/local/bin/yq"
+                    else
+                        print_warning "yq not found, skipping parent git mount setup"
+                        print_info "Install yq to enable automatic git worktree support"
+                    fi
+                    
+                    if [[ -n "${YQ_CMD:-}" ]]; then
+                        # Check if the mount already exists
+                        MOUNT_EXISTS=$($YQ_CMD eval '.services.devcontainer.volumes[] | select(. == "'$PARENT_GIT_DIR':'$PARENT_GIT_DIR'")' "$COMPOSE_FILE" 2>/dev/null || echo "")
+                        
+                        if [[ -z "$MOUNT_EXISTS" ]]; then
+                            # Add the mount to the devcontainer service volumes
+                            $YQ_CMD eval -i '.services.devcontainer.volumes += ["'$PARENT_GIT_DIR':'$PARENT_GIT_DIR'"]' "$COMPOSE_FILE"
+                            print_status "Added parent git directory mount to docker-compose.yaml"
+                        else
+                            print_status "Parent git directory mount already exists"
+                        fi
+                    fi
+                fi
+            fi
+        fi
+        
+        # Start the devcontainer
+        if devcontainer up --workspace-folder .; then
+            print_status "DevContainer started successfully"
+            
+            # Open interactive shell in the devcontainer
+            print_status "Opening shell in DevContainer..."
+            devcontainer exec --workspace-folder . /bin/zsh
+            
+            print_status "DevContainer session ended"
+        else
+            print_error "Failed to start DevContainer"
+            return 1
+        fi
+    else
+        print_status "Opening ${ide_name}..."
+        "${ide_command}" "${project_path}" &
+        print_status "${ide_name} opened in background"
+    fi
 }
 
 # Function to read preferred IDE from .user.env or .env
@@ -247,6 +319,11 @@ elif [[ ${#available_ides[@]} -eq 1 ]]; then
     IFS=':' read -r ide_id ide_name ide_command <<< "${available_ides[0]}"
     open_ide "${ide_command}" "${ide_name}" "$WORKTREE_ABS_PATH"
     save_preferred_ide "${ide_id}"
+    
+    # Skip directory change prompt for devcontainer (it runs interactively)
+    if [[ "${ide_command}" == "devcontainer" ]]; then
+        exit 0
+    fi
 else
     # Multiple IDEs available
     
@@ -295,11 +372,17 @@ else
             IFS=':' read -r ide_command ide_name <<< "${ide_map[${choice}]}"
             open_ide "${ide_command}" "${ide_name}" "$WORKTREE_ABS_PATH"
             
-            # Ask if user wants to save this as preference
-            echo ""
-            read -p "Save ${ide_name} as preferred IDE for this project? [y/N]: " save_pref
-            if [[ "${save_pref}" =~ ^[Yy]$ ]]; then
+            # Ask if user wants to save this as preference (unless it's devcontainer)
+            if [[ "${ide_command}" != "devcontainer" ]]; then
+                echo ""
+                read -p "Save ${ide_name} as preferred IDE for this project? [y/N]: " save_pref
+                if [[ "${save_pref}" =~ ^[Yy]$ ]]; then
+                    save_preferred_ide "${ide_id_map[${choice}]}"
+                fi
+            else
+                # For devcontainer, save preference and exit (it runs interactively)
                 save_preferred_ide "${ide_id_map[${choice}]}"
+                exit 0
             fi
         else
             print_warning "Invalid choice. You can open the project manually from: $WORKTREE_ABS_PATH"
@@ -315,6 +398,11 @@ else
         if [[ ! "${use_preferred}" =~ ^[Nn]$ ]]; then
             print_status "Opening ${preferred_name//_/ }..."
             open_ide "${preferred_command}" "${preferred_name}" "$WORKTREE_ABS_PATH"
+            
+            # Exit if devcontainer (it runs interactively)
+            if [[ "${preferred_command}" == "devcontainer" ]]; then
+                exit 0
+            fi
         else
             # User declined preferred IDE, show full menu
             show_ide_menu
