@@ -119,12 +119,176 @@ if [[ $# -gt 0 ]]; then
         remove_worktree "${matches[0]}"
         exit $?
     elif [[ ${#matches[@]} -gt 1 ]]; then
-        print_error "Multiple worktrees match '$target':"
+        print_warning "Multiple worktrees match '$target':"
+        echo ""
+        # Build selection menu for matches
+        declare -A match_map
+        declare -A branch_map
+        i=1
         for match in "${matches[@]}"; do
-            echo "  - $match"
+            # Get branch name for this worktree
+            branch=$(git worktree list --porcelain | grep -A2 "^worktree $match$" | grep "^branch " | head -1 | cut -d' ' -f2- | sed 's|refs/heads/||')
+            if [[ -n "$branch" ]]; then
+                echo "  ${i}. $match (branch: $branch)"
+                branch_map[$i]="$branch"
+            else
+                echo "  ${i}. $match"
+            fi
+            match_map[$i]="$match"
+            ((i++)) || true || true
         done
-        print_info "Please be more specific"
-        exit 1
+        echo ""
+        echo "  a. Remove all matching worktrees"
+        echo "  0. Cancel"
+        echo ""
+        print_info "Tip: Enter multiple numbers separated by spaces to select multiple worktrees"
+        echo ""
+        
+        read -p "Enter your choice(s): " choice
+        
+        if [[ "$choice" == "0" ]]; then
+            print_info "Removal cancelled"
+            exit 0
+        elif [[ "$choice" == "a" || "$choice" == "A" ]]; then
+            # Remove all matches
+            print_warning "About to remove ${#matches[@]} worktree(s)"
+            echo ""
+            read -p "Are you sure? This will delete all uncommitted changes! [y/N]: " confirm
+            
+            if [[ "${confirm,,}" == "y" ]]; then
+                # Ask about branch deletion once
+                echo ""
+                read -p "Also delete the associated branches? [y/N]: " delete_branches
+                
+                success_count=0
+                fail_count=0
+                for match in "${matches[@]}"; do
+                    echo ""
+                    print_status "Removing worktree: $match"
+                    
+                    if git worktree remove "$match" --force 2>/dev/null; then
+                        ((success_count++)) || true
+                        print_status "✓ Worktree removed: $match"
+                        
+                        # Check if directory still exists
+                        if [[ -d "$match" ]]; then
+                            rm -rf "$match"
+                        fi
+                        
+                        # Delete branch if requested
+                        if [[ "${delete_branches,,}" == "y" ]]; then
+                            branch=$(git worktree list --porcelain | grep -A2 "^worktree $match$" | grep "^branch " | head -1 | cut -d' ' -f2- | sed 's|refs/heads/||')
+                            if [[ -n "$branch" ]] && git branch -D "$branch" 2>/dev/null; then
+                                print_status "✓ Branch deleted: $branch"
+                            fi
+                        fi
+                    else
+                        ((fail_count++)) || true
+                        print_error "Failed to remove worktree: $match"
+                    fi
+                done
+                
+                echo ""
+                echo "─────────────────────────────────"
+                if [[ $fail_count -eq 0 ]]; then
+                    print_status "Successfully removed $success_count worktree(s)"
+                else
+                    print_warning "Removed $success_count worktree(s), failed: $fail_count"
+                fi
+            else
+                print_info "Removal cancelled"
+            fi
+            exit 0
+        elif [[ "$choice" =~ [[:space:]] ]]; then
+            # Multiple selection detected (contains spaces)
+            selections=$choice
+            
+            # Validate selections
+            selected_worktrees=()
+            selected_branches=()
+            for sel in $selections; do
+                if [[ -n "${match_map[$sel]}" ]]; then
+                    selected_worktrees+=("${match_map[$sel]}")
+                    if [[ -n "${branch_map[$sel]}" ]]; then
+                        selected_branches+=("${branch_map[$sel]}")
+                    else
+                        selected_branches+=("")
+                    fi
+                else
+                    print_warning "Invalid selection: $sel (skipping)"
+                fi
+            done
+            
+            if [[ ${#selected_worktrees[@]} -eq 0 ]]; then
+                print_error "No valid selections made"
+                exit 1
+            fi
+            
+            # Show summary
+            echo ""
+            print_warning "About to remove ${#selected_worktrees[@]} worktree(s):"
+            for idx in "${!selected_worktrees[@]}"; do
+                if [[ -n "${selected_branches[$idx]}" ]]; then
+                    echo "  - ${selected_worktrees[$idx]} (branch: ${selected_branches[$idx]})"
+                else
+                    echo "  - ${selected_worktrees[$idx]}"
+                fi
+            done
+            echo ""
+            
+            read -p "Are you sure? This will delete all uncommitted changes! [y/N]: " confirm
+            
+            if [[ "${confirm,,}" == "y" ]]; then
+                echo ""
+                read -p "Also delete the associated branches? [y/N]: " delete_branches
+                
+                success_count=0
+                fail_count=0
+                for idx in "${!selected_worktrees[@]}"; do
+                    worktree="${selected_worktrees[$idx]}"
+                    branch="${selected_branches[$idx]}"
+                    
+                    echo ""
+                    print_status "Removing worktree: $worktree"
+                    
+                    if git worktree remove "$worktree" --force 2>/dev/null; then
+                        ((success_count++)) || true
+                        print_status "✓ Worktree removed: $worktree"
+                        
+                        if [[ -d "$worktree" ]]; then
+                            rm -rf "$worktree"
+                        fi
+                        
+                        if [[ "${delete_branches,,}" == "y" && -n "$branch" ]]; then
+                            if git branch -D "$branch" 2>/dev/null; then
+                                print_status "✓ Branch deleted: $branch"
+                            fi
+                        fi
+                    else
+                        ((fail_count++)) || true
+                        print_error "Failed to remove worktree: $worktree"
+                    fi
+                done
+                
+                echo ""
+                echo "─────────────────────────────────"
+                if [[ $fail_count -eq 0 ]]; then
+                    print_status "Successfully removed $success_count worktree(s)"
+                else
+                    print_warning "Removed $success_count worktree(s), failed: $fail_count"
+                fi
+            else
+                print_info "Removal cancelled"
+            fi
+            exit 0
+        elif [[ -n "${match_map[$choice]}" ]]; then
+            # Single selection from the list
+            remove_worktree "${match_map[$choice]}"
+            exit $?
+        else
+            print_error "Invalid choice"
+            exit 1
+        fi
     else
         print_error "No worktree found matching: $target"
         exit 1
@@ -150,7 +314,7 @@ while IFS= read -r worktree; do
             echo "  ${i}. $worktree"
         fi
         worktree_map[$i]="$worktree"
-        ((i++))
+        ((i++)) || true
     fi
 done <<< "$worktrees"
 
@@ -161,13 +325,116 @@ fi
 
 echo "  0. Cancel"
 echo ""
+print_info "Tip: Enter multiple numbers separated by spaces to select multiple worktrees"
+echo ""
 
-read -p "Enter your choice [0-$((i-1))]: " choice
+read -p "Enter your choice(s) [0-$((i-1))]: " choice
 
 if [[ "$choice" == "0" ]]; then
     print_info "Removal cancelled"
     exit 0
+fi
+
+# Check if multiple selections (contains spaces)
+if [[ "$choice" =~ [[:space:]] ]]; then
+    # Multiple selection detected
+    selections=$choice
+    
+    # Build branch map for selected items
+    declare -A branch_map
+    
+    # Validate selections
+    selected_worktrees=()
+    selected_branches=()
+    for sel in $selections; do
+        if [[ -n "${worktree_map[$sel]}" ]]; then
+            selected_worktrees+=("${worktree_map[$sel]}")
+            # Get branch for this selection
+            branch=$(git worktree list --porcelain | grep -A2 "^worktree ${worktree_map[$sel]}$" | grep "^branch " | head -1 | cut -d' ' -f2- | sed 's|refs/heads/||')
+            if [[ -n "$branch" ]]; then
+                selected_branches+=("$branch")
+            else
+                selected_branches+=("")
+            fi
+        else
+            print_warning "Invalid selection: $sel (skipping)"
+        fi
+    done
+    
+    if [[ ${#selected_worktrees[@]} -eq 0 ]]; then
+        print_error "No valid selections made"
+        exit 1
+    fi
+    
+    # Show summary
+    echo ""
+    print_warning "About to remove ${#selected_worktrees[@]} worktree(s):"
+    for idx in "${!selected_worktrees[@]}"; do
+        if [[ -n "${selected_branches[$idx]}" ]]; then
+            echo "  - ${selected_worktrees[$idx]} (branch: ${selected_branches[$idx]})"
+        else
+            echo "  - ${selected_worktrees[$idx]}"
+        fi
+    done
+    echo ""
+    
+    read -p "Are you sure? This will delete all uncommitted changes! [y/N]: " confirm
+    
+    if [[ "${confirm,,}" == "y" ]]; then
+        # Ask about branch deletion once for all
+        delete_branches="n"
+        if [[ ${#selected_branches[@]} -gt 0 ]]; then
+            echo ""
+            read -p "Also delete the associated branches? [y/N]: " delete_branches
+        fi
+        
+        # Remove each worktree
+        success_count=0
+        fail_count=0
+        for idx in "${!selected_worktrees[@]}"; do
+            worktree="${selected_worktrees[$idx]}"
+            branch="${selected_branches[$idx]}"
+            
+            echo ""
+            print_status "Removing worktree: $worktree"
+            
+            if git worktree remove "$worktree" --force 2>/dev/null; then
+                ((success_count++)) || true
+                print_status "✓ Worktree removed: $worktree"
+                
+                # Check if directory still exists
+                if [[ -d "$worktree" ]]; then
+                    rm -rf "$worktree"
+                fi
+                
+                # Delete branch if requested
+                if [[ "${delete_branches,,}" == "y" && -n "$branch" ]]; then
+                    if git branch -D "$branch" 2>/dev/null; then
+                        print_status "✓ Branch deleted: $branch"
+                    else
+                        print_warning "Could not delete branch: $branch"
+                    fi
+                fi
+            else
+                ((fail_count++)) || true
+                print_error "Failed to remove worktree: $worktree"
+            fi
+        done
+        
+        # Summary
+        echo ""
+        echo "─────────────────────────────────"
+        if [[ $fail_count -eq 0 ]]; then
+            print_status "Successfully removed $success_count worktree(s)"
+        else
+            print_warning "Removed $success_count worktree(s), failed: $fail_count"
+        fi
+    else
+        print_info "Removal cancelled"
+    fi
+    exit 0
 elif [[ -n "${worktree_map[$choice]}" ]]; then
+    # Single selection
     remove_worktree "${worktree_map[$choice]}"
 else
     print_error "Invalid choice"
