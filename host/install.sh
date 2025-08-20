@@ -37,6 +37,7 @@ mkdir -p "$SHARE_DIR"
 SCRIPTS=(
     "ai-sbx-create-task-worktree"
     "ai-sbx-remove-task-worktree"
+    "ai-sbx-connect-task-worktree"
     "ai-sbx-notify-watch"
     "ai-sbx-init-project"
 )

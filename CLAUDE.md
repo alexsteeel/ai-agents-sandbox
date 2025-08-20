@@ -41,6 +41,7 @@ The foundation enforces strict network isolation with proxy-based egress control
 # This installs system-wide commands:
 # - ai-sbx-create-task-worktree: Create git worktree for new tasks
 # - ai-sbx-remove-task-worktree: Remove git worktree and optionally its branch
+# - ai-sbx-connect-task-worktree: Connect to existing task worktree
 # - ai-sbx-notify-watch: Host notification watcher (optional)
 ```
 
@@ -114,6 +115,9 @@ ai-sbx-create-task-worktree "feature 123 implement user auth"
 # This creates worktree with repo prefix, task folder, and opens IDE
 # Supports: VS Code, devcontainer CLI, PyCharm, Rider, GoLand
 # Remembers IDE preference in .devcontainer/.user.env (PREFERRED_IDE=pycharm)
+
+# Connect to existing worktree
+ai-sbx-connect-task-worktree  # Interactive menu to select and connect
 
 # Remove worktree when done
 ai-sbx-remove-task-worktree  # Interactive menu

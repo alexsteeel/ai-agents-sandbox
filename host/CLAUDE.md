@@ -27,6 +27,39 @@ ai-sbx-create-task-worktree "bugfix 5678 fix memory leak"
 - Shows selection menu when multiple IDEs are available
 - Opens IDE in background after worktree creation
 
+### `ai-sbx-connect-task-worktree`
+Connect to an existing task worktree with automatic DevContainer detection.
+
+**What it does:**
+- Lists all available task worktrees with their status
+- Shows task description, branch name, and last modified date
+- Detects if DevContainer is running for the selected worktree
+- Offers options to connect to DevContainer shell or just change directory
+- Handles missing worktrees gracefully
+
+**Usage:**
+```bash
+# Interactive menu to select and connect to a worktree
+ai-sbx-connect-task-worktree
+
+# Select from numbered list:
+# 1. workflow-1 [cac6b0c]
+# 2. workflow-2 [cac6b0c]
+# 3. workflow-3 [4dfd8ba]
+# Enter: 2
+```
+
+**Connection Options:**
+- **DevContainer running**: Choose to open shell in container or change directory
+- **DevContainer not running**: Changes to worktree directory and provides startup instructions
+- **Missing worktrees**: Marked clearly in the list
+
+**Features:**
+- Shows task description from initial_requirements.md
+- Displays last modified date for each worktree
+- Auto-detects container name based on worktree
+- Provides clear instructions for starting stopped containers
+
 ### `ai-sbx-remove-task-worktree`
 Safely removes git worktrees with optional branch cleanup, now with multiple selection support.
 

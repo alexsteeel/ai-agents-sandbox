@@ -1,0 +1,210 @@
+#!/bin/bash
+set -euo pipefail
+
+# Connect to an existing task worktree
+# Lists all worktrees and lets user select one to connect to
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m'
+
+print_status() { printf "${GREEN}➜${NC} %s\n" "$1"; }
+print_error() { printf "${RED}✗${NC} %s\n" "$1" >&2; }
+print_warning() { printf "${YELLOW}⚠${NC} %s\n" "$1"; }
+print_info() { printf "${BLUE}ℹ${NC} %s\n" "$1"; }
+
+# Check if we're in a git repository
+if ! git rev-parse --git-dir > /dev/null 2>&1; then
+    print_error "Not in a git repository"
+    exit 1
+fi
+
+# Get the repository name for filtering
+REPO_NAME=$(basename "$(git rev-parse --show-toplevel)")
+
+# Get all worktrees
+echo ""
+echo "================================================================"
+echo -e "${BOLD}${BLUE}Task Worktrees for: ${REPO_NAME}${NC}"
+echo "================================================================"
+echo ""
+
+# Get worktree list
+worktrees_output=$(git worktree list --porcelain)
+
+# Parse worktrees
+declare -a worktree_paths=()
+declare -a worktree_branches=()
+declare -a worktree_commits=()
+
+current_path=""
+current_branch=""
+current_commit=""
+
+while IFS= read -r line; do
+    if [[ "$line" =~ ^worktree[[:space:]](.+)$ ]]; then
+        current_path="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^HEAD[[:space:]](.+)$ ]]; then
+        current_commit="${BASH_REMATCH[1]}"
+    elif [[ "$line" =~ ^branch[[:space:]]refs/heads/(.+)$ ]]; then
+        current_branch="${BASH_REMATCH[1]}"
+    elif [[ -z "$line" ]]; then
+        # End of worktree entry
+        if [[ -n "$current_path" && -n "$current_branch" ]]; then
+            # Filter for task worktrees (exclude main worktree)
+            if [[ "$current_path" != "$(git rev-parse --show-toplevel)" ]]; then
+                # Check if it's a task worktree (contains repo name in path)
+                if [[ "$current_path" =~ ${REPO_NAME}- ]]; then
+                    worktree_paths+=("$current_path")
+                    worktree_branches+=("$current_branch")
+                    worktree_commits+=("$current_commit")
+                fi
+            fi
+        fi
+        current_path=""
+        current_branch=""
+        current_commit=""
+    fi
+done <<< "$worktrees_output"
+
+# Handle last entry if no trailing blank line
+if [[ -n "$current_path" && -n "$current_branch" ]]; then
+    if [[ "$current_path" != "$(git rev-parse --show-toplevel)" ]]; then
+        if [[ "$current_path" =~ ${REPO_NAME}- ]]; then
+            worktree_paths+=("$current_path")
+            worktree_branches+=("$current_branch")
+            worktree_commits+=("$current_commit")
+        fi
+    fi
+fi
+
+# Check if any task worktrees exist
+if [[ ${#worktree_paths[@]} -eq 0 ]]; then
+    print_warning "No task worktrees found"
+    echo ""
+    echo "To create a new task worktree, use:"
+    echo "  ai-sbx-create-task-worktree \"task description\""
+    echo ""
+    exit 0
+fi
+
+# Display worktrees
+echo "Available task worktrees:"
+echo ""
+
+for i in "${!worktree_paths[@]}"; do
+    idx=$((i + 1))
+    path="${worktree_paths[$i]}"
+    branch="${worktree_branches[$i]}"
+    commit="${worktree_commits[$i]:0:7}"
+    
+    # Check if worktree directory exists
+    if [[ -d "$path" ]]; then
+        # Get last modified time
+        if [[ -f "$path/.git" ]]; then
+            last_modified=$(stat -c %y "$path" 2>/dev/null | cut -d' ' -f1 || echo "unknown")
+        else
+            last_modified="unknown"
+        fi
+        
+        # Check for task description file
+        task_file="$path/tasks/${branch}/initial_requirements.md"
+        if [[ -f "$task_file" ]]; then
+            task_desc=$(grep "^# Task:" "$task_file" 2>/dev/null | sed 's/^# Task: //' || echo "")
+        else
+            task_desc=""
+        fi
+        
+        printf "  ${BOLD}%2d.${NC} ${GREEN}%-30s${NC} ${BLUE}[%s]${NC}\n" "$idx" "$branch" "$commit"
+        printf "      Path: %s\n" "$path"
+        if [[ -n "$task_desc" ]]; then
+            printf "      Task: %s\n" "$task_desc"
+        fi
+        printf "      Modified: %s\n" "$last_modified"
+        echo ""
+    else
+        printf "  ${BOLD}%2d.${NC} ${YELLOW}%-30s${NC} ${BLUE}[%s]${NC} ${RED}(missing)${NC}\n" "$idx" "$branch" "$commit"
+        printf "      Path: %s\n" "$path"
+        echo ""
+    fi
+done
+
+# Function to connect to worktree
+connect_to_worktree() {
+    local worktree_path="$1"
+    
+    if [[ ! -d "$worktree_path" ]]; then
+        print_error "Worktree directory not found: $worktree_path"
+        return 1
+    fi
+    
+    print_status "Connecting to worktree: $worktree_path"
+    
+    # Check if devcontainer is running
+    local project_name=$(basename "$worktree_path")
+    local container_name="${project_name}-devcontainer-1"
+    
+    if docker ps --format "{{.Names}}" | grep -q "^${container_name}$"; then
+        print_status "DevContainer is running: ${container_name}"
+        echo ""
+        echo "Options:"
+        echo "  1. Open shell in DevContainer"
+        echo "  2. Just change directory to worktree"
+        echo "  0. Cancel"
+        echo ""
+        
+        read -p "Enter your choice [0-2]: " choice
+        
+        case "$choice" in
+            1)
+                print_status "Opening shell in DevContainer..."
+                docker exec -it "${container_name}" /bin/zsh || docker exec -it "${container_name}" /bin/bash
+                ;;
+            2)
+                cd "$worktree_path"
+                print_status "Changed directory to: $worktree_path"
+                exec $SHELL
+                ;;
+            0|*)
+                print_info "Cancelled"
+                ;;
+        esac
+    else
+        # DevContainer not running, just change directory
+        cd "$worktree_path"
+        print_status "Changed directory to: $worktree_path"
+        echo ""
+        print_info "DevContainer not running. To start it:"
+        print_info "  cd .devcontainer && docker compose up -d"
+        print_info "Or open in your IDE"
+        exec $SHELL
+    fi
+}
+
+# Ask user to select a worktree
+echo "================================================================"
+read -p "Select worktree to connect to [1-${#worktree_paths[@]}] (0 to cancel): " selection
+
+if [[ "$selection" == "0" ]]; then
+    print_info "Cancelled"
+    exit 0
+fi
+
+# Validate selection
+if [[ ! "$selection" =~ ^[0-9]+$ ]] || [[ "$selection" -lt 1 ]] || [[ "$selection" -gt ${#worktree_paths[@]} ]]; then
+    print_error "Invalid selection: $selection"
+    exit 1
+fi
+
+# Get selected worktree
+selected_idx=$((selection - 1))
+selected_path="${worktree_paths[$selected_idx]}"
+selected_branch="${worktree_branches[$selected_idx]}"
+
+echo ""
+print_status "Selected: ${selected_branch}"
+connect_to_worktree "$selected_path"
