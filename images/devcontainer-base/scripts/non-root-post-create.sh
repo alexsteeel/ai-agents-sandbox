@@ -62,6 +62,17 @@ main() {
     echo ">>> Configuring git safe directory..."
     git config --global --add safe.directory /workspace || echo -e "${YELLOW}⚠${NC} Failed to configure git safe directory"
     
+    # Check for and run secure.init.sh if it exists
+    echo ""
+    echo ">>> Checking for secure.init.sh..."
+    SECURE_INIT_SCRIPT="/workspace/.devcontainer/secure.init.sh"
+    if [[ -x "$SECURE_INIT_SCRIPT" ]]; then
+        echo "Found secure.init.sh, running security initialization..."
+        "$SECURE_INIT_SCRIPT"
+    else
+        echo "No $SECURE_INIT_SCRIPT found or not executable"
+    fi
+    
     # Testing phase
     echo ""
     echo "========================================"
