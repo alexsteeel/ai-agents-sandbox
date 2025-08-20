@@ -91,7 +91,7 @@ open_ide() {
                 print_info "Parent .git directory: $PARENT_GIT_DIR"
                 
                 # Check if docker-compose.yaml exists
-                COMPOSE_FILE="${project_path}/.devcontainer/docker-compose.yaml"
+                COMPOSE_FILE="${project_path}/.devcontainer/override.user.yaml"
                 if [[ -f "$COMPOSE_FILE" ]]; then
                     # Check if yq is available
                     if command -v yq >/dev/null 2>&1; then
@@ -267,6 +267,30 @@ fi
 # Get absolute path to worktree
 WORKTREE_ABS_PATH=$(realpath "$WORKTREE_DIR")
 print_status "Worktree created at: $WORKTREE_ABS_PATH"
+
+# Check for and copy user.init.sh if it exists
+REPO_ROOT=$(git rev-parse --show-toplevel)
+USER_INIT_SRC="${REPO_ROOT}/.devcontainer/user.init.sh"
+USER_INIT_DEST="${WORKTREE_ABS_PATH}/.devcontainer/user.init.sh"
+
+if [[ -f "${USER_INIT_SRC}" ]]; then
+    print_status "Found user.init.sh, copying to worktree..."
+    
+    # Ensure .devcontainer directory exists in worktree
+    mkdir -p "${WORKTREE_ABS_PATH}/.devcontainer"
+    
+    # Copy user.init.sh to worktree
+    cp "${USER_INIT_SRC}" "${USER_INIT_DEST}"
+    
+    # Preserve executable permissions if they exist
+    if [[ -x "${USER_INIT_SRC}" ]]; then
+        chmod +x "${USER_INIT_DEST}"
+    fi
+    
+    print_status "Copied user.init.sh to worktree"
+else
+    print_info "No user.init.sh found in source repository"
+fi
 
 # Create task folder structure
 TASK_DIR="$WORKTREE_ABS_PATH/tasks/${BRANCH_NAME}"
