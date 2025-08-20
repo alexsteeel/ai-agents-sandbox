@@ -293,6 +293,41 @@ EOF
             PARENT_GIT_DIR=$(echo "$GITDIR" | sed 's|/\.git/worktrees/.*|/.git|')
             
             print_info "Parent .git directory: $PARENT_GIT_DIR"
+            
+            # Add the parent git mount to override.user.yaml for all IDEs
+            OVERRIDE_FILE="$DEVCONTAINER_DIR/override.user.yaml"
+            
+            if [[ "$YQ_AVAILABLE" == "true" ]]; then
+                # Create override.user.yaml if it doesn't exist
+                if [[ ! -f "$OVERRIDE_FILE" ]]; then
+                    print_info "Creating override.user.yaml for git worktree support..."
+                    cat > "$OVERRIDE_FILE" << EOF
+services:
+  devcontainer:
+    volumes:
+      - "$PARENT_GIT_DIR:$PARENT_GIT_DIR"
+EOF
+                    print_status "✓ Created override.user.yaml with parent git mount"
+                else
+                    # Check if the mount already exists
+                    MOUNT_EXISTS=$(yq eval '.services.devcontainer.volumes[] | select(. == "'$PARENT_GIT_DIR':'$PARENT_GIT_DIR'")' "$OVERRIDE_FILE" 2>/dev/null || echo "")
+                    
+                    if [[ -z "$MOUNT_EXISTS" ]]; then
+                        # Add the mount to the devcontainer service volumes
+                        print_info "Adding parent git mount to override.user.yaml..."
+                        yq eval -i '.services.devcontainer.volumes += ["'$PARENT_GIT_DIR':'$PARENT_GIT_DIR'"]' "$OVERRIDE_FILE"
+                        print_status "✓ Added parent git directory mount for worktree support"
+                    else
+                        print_status "✓ Parent git directory mount already configured"
+                    fi
+                fi
+            else
+                print_warning "yq not available - cannot configure automatic git worktree mount"
+                print_info "Install yq to enable automatic git worktree support"
+                print_info "Manual mount needed in override.user.yaml:"
+                print_info "  volumes:"
+                print_info "    - \"$PARENT_GIT_DIR:$PARENT_GIT_DIR\""
+            fi
         fi
     elif [[ -d "$PROJECT_DIR/.git" ]]; then
         print_info "Regular git repository detected (not a worktree)"

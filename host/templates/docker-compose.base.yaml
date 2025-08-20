@@ -79,10 +79,10 @@ services:
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
       - ${HOME}/.claude/projects/:/home/claude/.claude/projects
       - ${HOME}/.ai_agents_sandbox/notifications:/home/claude/.ai_agents_sandbox/notifications
-      - ${HOME}/.codex:/home/claude/.codex
 
       # Persistent state volumes
       - cache:/home/claude/.cache
+      - codex:/home/claude/.codex
       
       # IDE cache for JetBrains
       - jb-cache:/.jbdevcontainer
@@ -109,6 +109,8 @@ volumes:
     name: ${PROJECT_NAME:-project}-proxy-devcontainer-logs
   claude-code-config:
     name: ${PROJECT_NAME:-project}-claude-code-config
+  codex:
+    name: ${PROJECT_NAME:-project}-codex
   cache:
     name: ${PROJECT_NAME:-project}-cache
   jb-cache:

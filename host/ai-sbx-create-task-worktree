@@ -62,62 +62,19 @@ open_ide() {
     local ide_name="$2"
     local project_path="$3"
     
+    # Always run ai-sbx-init-project to ensure proper setup (including git worktree mounts)
+    if command -v ai-sbx-init-project >/dev/null 2>&1; then
+        print_info "Initializing project for AI Sandbox..."
+        ai-sbx-init-project "${project_path}"
+    else
+        print_warning "ai-sbx-init-project not found, skipping initialization"
+    fi
+    
     # Special handling for devcontainer CLI
     if [[ "${ide_command}" == "devcontainer" ]]; then
         print_status "Preparing DevContainer environment..."
         
-        # First, run ai-sbx-init-project to ensure proper setup
-        if command -v ai-sbx-init-project >/dev/null 2>&1; then
-            print_info "Initializing project for AI Sandbox..."
-            ai-sbx-init-project "${project_path}"
-        else
-            print_warning "ai-sbx-init-project not found, skipping initialization"
-        fi
-        
         cd "${project_path}"
-        
-        # For git worktrees, we need to mount the parent .git directory
-        # Check if this is a git worktree
-        if [[ -f "${project_path}/.git" ]]; then
-            print_info "Detected git worktree, setting up parent git mount..."
-            
-            # Read the gitdir path from .git file
-            GITDIR=$(grep "^gitdir:" "${project_path}/.git" | cut -d' ' -f2)
-            
-            if [[ -n "$GITDIR" ]]; then
-                # Extract the parent git directory
-                PARENT_GIT_DIR=$(echo "$GITDIR" | sed 's|/\.git/worktrees/.*|/.git|')
-                
-                print_info "Parent .git directory: $PARENT_GIT_DIR"
-                
-                # Check if docker-compose.yaml exists
-                COMPOSE_FILE="${project_path}/.devcontainer/override.user.yaml"
-                if [[ -f "$COMPOSE_FILE" ]]; then
-                    # Check if yq is available
-                    if command -v yq >/dev/null 2>&1; then
-                        YQ_CMD="yq"
-                    elif [[ -f /usr/local/bin/yq ]]; then
-                        YQ_CMD="/usr/local/bin/yq"
-                    else
-                        print_warning "yq not found, skipping parent git mount setup"
-                        print_info "Install yq to enable automatic git worktree support"
-                    fi
-                    
-                    if [[ -n "${YQ_CMD:-}" ]]; then
-                        # Check if the mount already exists
-                        MOUNT_EXISTS=$($YQ_CMD eval '.services.devcontainer.volumes[] | select(. == "'$PARENT_GIT_DIR':'$PARENT_GIT_DIR'")' "$COMPOSE_FILE" 2>/dev/null || echo "")
-                        
-                        if [[ -z "$MOUNT_EXISTS" ]]; then
-                            # Add the mount to the devcontainer service volumes
-                            $YQ_CMD eval -i '.services.devcontainer.volumes += ["'$PARENT_GIT_DIR':'$PARENT_GIT_DIR'"]' "$COMPOSE_FILE"
-                            print_status "Added parent git directory mount to docker-compose.yaml"
-                        else
-                            print_status "Parent git directory mount already exists"
-                        fi
-                    fi
-                fi
-            fi
-        fi
         
         # Start the devcontainer
         if devcontainer up --workspace-folder .; then
@@ -268,28 +225,28 @@ fi
 WORKTREE_ABS_PATH=$(realpath "$WORKTREE_DIR")
 print_status "Worktree created at: $WORKTREE_ABS_PATH"
 
-# Check for and copy user.init.sh if it exists
+# Check for and copy secure.init.sh if it exists (contains credentials, not in git)
 REPO_ROOT=$(git rev-parse --show-toplevel)
-USER_INIT_SRC="${REPO_ROOT}/.devcontainer/user.init.sh"
-USER_INIT_DEST="${WORKTREE_ABS_PATH}/.devcontainer/user.init.sh"
+SECURE_INIT_SRC="${REPO_ROOT}/.devcontainer/secure.init.sh"
+SECURE_INIT_DEST="${WORKTREE_ABS_PATH}/.devcontainer/secure.init.sh"
 
-if [[ -f "${USER_INIT_SRC}" ]]; then
-    print_status "Found user.init.sh, copying to worktree..."
+if [[ -f "${SECURE_INIT_SRC}" ]]; then
+    print_status "Found secure.init.sh, copying to worktree..."
     
     # Ensure .devcontainer directory exists in worktree
     mkdir -p "${WORKTREE_ABS_PATH}/.devcontainer"
     
-    # Copy user.init.sh to worktree
-    cp "${USER_INIT_SRC}" "${USER_INIT_DEST}"
+    # Copy secure.init.sh to worktree
+    cp "${SECURE_INIT_SRC}" "${SECURE_INIT_DEST}"
     
     # Preserve executable permissions if they exist
-    if [[ -x "${USER_INIT_SRC}" ]]; then
-        chmod +x "${USER_INIT_DEST}"
+    if [[ -x "${SECURE_INIT_SRC}" ]]; then
+        chmod +x "${SECURE_INIT_DEST}"
     fi
     
-    print_status "Copied user.init.sh to worktree"
+    print_status "Copied secure.init.sh to worktree (contains credentials)"
 else
-    print_info "No user.init.sh found in source repository"
+    print_info "No secure.init.sh found (create one for credentials that shouldn't be in git)"
 fi
 
 # Create task folder structure

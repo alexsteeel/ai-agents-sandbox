@@ -31,12 +31,56 @@ if [[ -z "$worktrees" ]]; then
     exit 1
 fi
 
+# Function to check for running Docker Compose containers
+check_docker_compose() {
+    local worktree_path="$1"
+    
+    # Get the project name from .env file
+    local env_file="$worktree_path/.devcontainer/.env"
+    local project_name=""
+    
+    if [[ -f "$env_file" ]]; then
+        # Extract only COMPOSE_PROJECT_NAME from .env file
+        project_name=$(grep -E '^COMPOSE_PROJECT_NAME=' "$env_file" 2>/dev/null | cut -d'=' -f2- | tr -d '"' || true)
+    fi
+    
+    # If no COMPOSE_PROJECT_NAME found, skip Docker check
+    if [[ -z "$project_name" ]]; then
+        return 0
+    fi
+    
+    # Check if any containers are running for this project
+    local running_containers=$(docker ps --filter "label=com.docker.compose.project=$project_name" --format "{{.Names}}" 2>/dev/null || true)
+    
+    if [[ -n "$running_containers" ]]; then
+        print_warning "Found running Docker Compose containers for worktree $project_name:"
+        echo "$running_containers" | sed 's/^/  - /'
+        echo ""
+        read -p "Stop and remove these containers and related volumes? [Y/n]: " stop_containers
+        
+        if [[ "${stop_containers,,}" != "n" ]]; then
+            print_status "Stopping Docker Compose containers and removing volumes..."
+            if docker compose --project-name "$project_name" down --volumes 2>/dev/null; then
+                print_status "Containers and volumes removed successfully"
+            else
+                print_warning "Could not stop containers automatically"
+                print_info "You may need to stop them manually with: docker compose -p $project_name down -v"
+            fi
+        else
+            print_warning "Containers will remain running after worktree removal"
+        fi
+    fi
+}
+
 # Function to remove worktree
 remove_worktree() {
     local worktree_path="$1"
     
     # Get branch name for this worktree
     local branch=$(git worktree list --porcelain | grep -A2 "^worktree $worktree_path" | grep "^branch " | cut -d' ' -f2- | sed 's|refs/heads/||')
+    
+    # Check for running Docker Compose containers
+    check_docker_compose "$worktree_path"
     
     print_warning "About to remove worktree: $worktree_path"
     if [[ -n "$branch" ]]; then
@@ -156,6 +200,13 @@ if [[ $# -gt 0 ]]; then
             read -p "Are you sure? This will delete all uncommitted changes! [y/N]: " confirm
             
             if [[ "${confirm,,}" == "y" ]]; then
+                # Check for Docker Compose containers for all matches
+                echo ""
+                print_info "Checking for running Docker Compose containers..."
+                for match in "${matches[@]}"; do
+                    check_docker_compose "$match"
+                done
+                
                 # Ask about branch deletion once
                 echo ""
                 read -p "Also delete the associated branches? [y/N]: " delete_branches
@@ -239,6 +290,13 @@ if [[ $# -gt 0 ]]; then
             read -p "Are you sure? This will delete all uncommitted changes! [y/N]: " confirm
             
             if [[ "${confirm,,}" == "y" ]]; then
+                # Check for Docker Compose containers for selected worktrees
+                echo ""
+                print_info "Checking for running Docker Compose containers..."
+                for worktree in "${selected_worktrees[@]}"; do
+                    check_docker_compose "$worktree"
+                done
+                
                 echo ""
                 read -p "Also delete the associated branches? [y/N]: " delete_branches
                 
@@ -386,6 +444,13 @@ if [[ "$choice" =~ [[:space:]] ]]; then
     read -p "Are you sure? This will delete all uncommitted changes! [y/N]: " confirm
     
     if [[ "${confirm,,}" == "y" ]]; then
+        # Check for Docker Compose containers for selected worktrees
+        echo ""
+        print_info "Checking for running Docker Compose containers..."
+        for worktree in "${selected_worktrees[@]}"; do
+            check_docker_compose "$worktree"
+        done
+        
         # Ask about branch deletion once for all
         delete_branches="n"
         if [[ ${#selected_branches[@]} -gt 0 ]]; then
