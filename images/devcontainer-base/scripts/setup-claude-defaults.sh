@@ -1,5 +1,5 @@
 #!/bin/bash
-set -euo pipefail
+# Don't use set -e in setup scripts since we handle errors explicitly
 IFS=$'\n\t'
 
 # Setup script for Claude defaults and configuration
@@ -201,7 +201,6 @@ check_claude_settings() {
     # Check for settings files
     local settings_files=(
         "settings.json"
-        "settings.local.json"
     )
     
     for settings_file in "${settings_files[@]}"; do
@@ -232,7 +231,7 @@ set_hook_permissions() {
     for hook_file in "${HOOKS_DIR}"/*.py; do
         if [[ -f "${hook_file}" ]]; then
             chmod +x "${hook_file}"
-            ((hook_count++))
+            hook_count=$((hook_count + 1))
         fi
     done
     

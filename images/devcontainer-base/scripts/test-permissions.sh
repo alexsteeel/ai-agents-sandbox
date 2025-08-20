@@ -1,7 +1,4 @@
 #!/bin/bash
-set -euo pipefail
-IFS=$'\n\t'
-
 # File and directory permission tests for devcontainer
 # Verifies proper ownership and permissions
 

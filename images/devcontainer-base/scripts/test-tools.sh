@@ -1,7 +1,4 @@
 #!/bin/bash
-set -euo pipefail
-IFS=$'\n\t'
-
 # Tool availability tests for devcontainer
 # Verifies that all required development tools are installed and functional
 
