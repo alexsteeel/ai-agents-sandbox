@@ -10,5 +10,9 @@
   "containerUser": "claude",
   "updateRemoteUserUID": false,
   "initializeCommand": ".devcontainer/init-project.sh \"${localWorkspaceFolder}\"",
-  "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh"
+  "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
+  "containerEnv": {
+    "TERM": "xterm-256color",
+    "COLORTERM": "truecolor"
+  }
 }
