@@ -189,7 +189,7 @@ fi
 
 # Create notification directory for this user
 NOTIFICATION_DIR="$HOME/.ai_agents_sandbox/notifications"
-PROJECTS_DIR="$HOME/.ai_agents_sandbox/projects"
+CLAUDE_PROJECTS_DIR="$HOME/.claude/projects"
 
 if [[ ! -d "$NOTIFICATION_DIR" ]]; then
     print_info "Creating notification directory..."
@@ -199,12 +199,30 @@ else
     print_status "✓ Notification directory exists"
 fi
 
-if [[ ! -d "$PROJECTS_DIR" ]]; then
-    print_info "Creating projects directory..."
-    mkdir -p "$PROJECTS_DIR"
-    print_status "✓ Projects directory created"
+# Create Claude projects directory with proper group ownership
+if [[ ! -d "$CLAUDE_PROJECTS_DIR" ]]; then
+    print_info "Creating Claude projects directory..."
+    mkdir -p "$CLAUDE_PROJECTS_DIR"
+    # Set group ownership and permissions
+    if chgrp -R local-ai-team "$CLAUDE_PROJECTS_DIR" 2>/dev/null; then
+        chmod -R g+rw "$CLAUDE_PROJECTS_DIR"
+        print_status "✓ Claude projects directory created with local-ai-team group"
+    else
+        print_warning "Could not set group ownership on Claude projects directory"
+    fi
 else
-    print_status "✓ Projects directory exists"
+    # Check and fix group ownership if needed
+    CURRENT_GROUP=$(stat -c '%G' "$CLAUDE_PROJECTS_DIR" 2>/dev/null || stat -f '%Sg' "$CLAUDE_PROJECTS_DIR" 2>/dev/null)
+    if [[ "$CURRENT_GROUP" != "local-ai-team" ]]; then
+        if chgrp -R local-ai-team "$CLAUDE_PROJECTS_DIR" 2>/dev/null; then
+            chmod -R g+rw "$CLAUDE_PROJECTS_DIR"
+            print_status "✓ Fixed Claude projects directory group ownership"
+        else
+            print_warning "Claude projects directory not owned by local-ai-team group"
+        fi
+    else
+        print_status "✓ Claude projects directory has correct group ownership"
+    fi
 fi
 
 # Tools are already checked at the beginning, just set the flags

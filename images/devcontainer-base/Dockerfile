@@ -72,8 +72,10 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 ENV DEVCONTAINER=true
 
 # Create workspace and config directories and set permissions
-RUN mkdir -p /workspace /home/$USERNAME/.ai_agents_sandbox /home/$USERNAME/.codex /home/$USERNAME/.cache && \
-  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.ai_agents_sandbox /home/$USERNAME/.codex /home/$USERNAME/.cache
+# Pre-create config.json to prevent it being created as root later
+RUN mkdir -p /workspace /home/$USERNAME/.ai_agents_sandbox /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker && \
+  echo '{}' > /home/$USERNAME/.docker/config.json && \
+  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.ai_agents_sandbox /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker
 
 WORKDIR /workspace
 
@@ -144,6 +146,9 @@ ENV UMASK=0002
 # Set the default editor and visual
 ENV EDITOR=vim
 ENV VISUAL=vim
+
+# Set DOCKER_CONFIG to ensure Docker config files are created with correct ownership
+ENV DOCKER_CONFIG=/home/claude/.docker
 
 # Install Oh My Zsh and plugins
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended && \

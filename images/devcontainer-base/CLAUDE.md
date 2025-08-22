@@ -54,7 +54,7 @@ Security and setup scripts installed in the image:
   - Confirms non-root user enforcement
   - Checks file ownership and permissions
   - Validates security constraints
-  - Verifies `/workspace/projects` directory has group `local-ai-team` for shared access
+  - Verifies `/home/claude/.claude/projects` directory has group `local-ai-team` for shared access
 
 - **`test-tools.sh`**: Development tools verification
   - Tests all installed tools and versions

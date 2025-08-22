@@ -217,7 +217,7 @@ install_host_scripts() {
     print_info "Additional setup:"
     print_info "  • Creates 'local-ai-team' group (GID 3000) for file sharing"
     print_info "  • Creates ~/.ai_agents_sandbox/notifications for alerts"
-    print_info "  • Creates ~/.ai_agents_sandbox/projects for statistics"
+    print_info "  • Creates ~/.claude/projects for statistics"
     print_info "  • Installs base Docker Compose template"
     print_info "  • Sets up Docker proxy for transparent image caching"
     echo ""

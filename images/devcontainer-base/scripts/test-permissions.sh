@@ -91,7 +91,7 @@ check_workspace_permissions() {
     fi
     
     # Check projects directory permissions
-    local projects_dir="/workspace/projects"
+    local projects_dir="/home/claude/.claude/projects"
     if [[ -d "$projects_dir" ]]; then
         echo ""
         echo "Projects directory: $projects_dir"
