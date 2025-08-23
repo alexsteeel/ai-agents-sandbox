@@ -107,29 +107,6 @@ flowchart TD
 
 ## Quick start
 
-### Prerequisites
-
-⚠️ **IMPORTANT: You must build Docker images first!**
-
-```bash
-# Build all required Docker images (one-time setup)
-cd /path/to/ai-agents-sandbox
-./images/build.sh all
-
-# Or build specific images:
-./images/build.sh devcontainer   # Base devcontainer image
-./images/build.sh tinyproxy      # Proxy for network filtering
-./images/build.sh docker-dind    # Docker-in-Docker service
-
-# Force rebuild with specific version tag:
-IMAGE_TAG=1.0.3 ./images/build.sh --force all
-
-# Force rebuild specific image:
-./images/build.sh --force devcontainer
-```
-
-**Note:** The `./install.sh` script will automatically build images if not present, but building them separately gives you more control and visibility into the process.
-
 ### One-Time Setup
 
 ```bash
@@ -152,7 +129,7 @@ IMAGE_TAG=1.0.3 ./images/build.sh --force all
 
 ### Rebuilding Images
 
-You can rebuild images at any time using the build script:
+You can rebuild images at any time with custom tag using the build script:
 
 ```bash
 # Rebuild all images (useful after updates)
