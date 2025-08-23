@@ -114,6 +114,7 @@ flowchart TD
 ./install.sh
 
 # This installs the following commands:
+# - ai-sbx: Main CLI wrapper for all commands
 # - ai-sbx-create-task-worktree: Create git worktree for new tasks
 # - ai-sbx-remove-task-worktree: Remove git worktree and optionally its branch
 # - ai-sbx-connect-task-worktree: Connect to existing task worktree
@@ -160,13 +161,35 @@ flowchart TD
    
 5. **For parallel tasks** (optional):
    ```bash
-   # Automated: creates worktree + task folder + opens PyCharm
+   # Using new unified CLI:
+   ai-sbx worktree create "feature 123 implement user auth"
+   
+   # Or using direct command:
    ai-sbx-create-task-worktree "feature 123 implement user auth"
    ```
 
 
 ### Available Commands
 
+#### Unified CLI (Recommended):
+```bash
+# Main wrapper command
+ai-sbx <command> [arguments]
+
+# Worktree management
+ai-sbx worktree create "task description"  # Create new task worktree
+ai-sbx worktree connect                    # Connect to existing worktree
+ai-sbx worktree remove [name]              # Remove worktree
+ai-sbx worktree list                       # List all worktrees
+
+# Project initialization
+ai-sbx init [/path/to/project]             # Initialize project
+
+# Notifications
+ai-sbx notify                               # Start notification watcher
+```
+
+#### Direct Commands (Alternative):
 ```bash
 # Project initialization:
 ai-sbx-init-project [/path/to/project]  # Initialize project with proper permissions

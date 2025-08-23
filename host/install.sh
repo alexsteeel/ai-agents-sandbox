@@ -35,6 +35,7 @@ mkdir -p "$SHARE_DIR"
 
 # Install executable scripts to /usr/local/bin
 SCRIPTS=(
+    "ai-sbx"  # Main wrapper script
     "ai-sbx-create-task-worktree"
     "ai-sbx-remove-task-worktree"
     "ai-sbx-connect-task-worktree"

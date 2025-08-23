@@ -44,7 +44,9 @@
       "Bash(./install.sh)",
       "Bash(./tests/test-installation.sh:*)",
       "WebSearch",
-      "Bash(time docker exec:*)"
+      "Bash(time docker exec:*)",
+      "Bash(/media/bas/repo/github/ai-agents-sandbox/host/ai-sbx worktree list)",
+      "Bash(/media/bas/repo/github/ai-agents-sandbox/host/ai-sbx --help)"
     ],
     "deny": []
   },

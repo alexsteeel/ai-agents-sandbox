@@ -39,6 +39,7 @@ The foundation enforces strict network isolation with proxy-based egress control
 ./install.sh
 
 # This installs system-wide commands:
+# - ai-sbx: Main CLI wrapper for all commands (NEW)
 # - ai-sbx-create-task-worktree: Create git worktree for new tasks
 # - ai-sbx-remove-task-worktree: Remove git worktree and optionally its branch
 # - ai-sbx-connect-task-worktree: Connect to existing task worktree
@@ -110,16 +111,17 @@ claude --dangerously-skip-permissions
 # Start Claude Code with local permissions
 claude --dangerously-skip-permissions
 
-# Create isolated git worktree for new tasks (automated)
+# NEW: Unified CLI wrapper
+ai-sbx worktree create "feature 123 implement user auth"  # Create task worktree
+ai-sbx worktree connect                                    # Connect to existing
+ai-sbx worktree remove [name]                              # Remove worktree
+ai-sbx worktree list                                       # List all worktrees
+ai-sbx init [path]                                         # Initialize project
+ai-sbx notify                                              # Start notifications
+
+# Or use direct commands:
 ai-sbx-create-task-worktree "feature 123 implement user auth"
-# This creates worktree with repo prefix, task folder, and opens IDE
-# Supports: VS Code, devcontainer CLI, PyCharm, Rider, GoLand
-# Remembers IDE preference in .devcontainer/.user.env (PREFERRED_IDE=pycharm)
-
-# Connect to existing worktree
 ai-sbx-connect-task-worktree  # Interactive menu to select and connect
-
-# Remove worktree when done
 ai-sbx-remove-task-worktree  # Interactive menu
 ai-sbx-remove-task-worktree fix-123  # By branch or partial name
 
@@ -324,8 +326,8 @@ Pre-configured agents built into the base image:
 2. **Open project in IDE**:
    - **PyCharm**: Add Docker Compose interpreter
    - **VS Code**: Reopen in Container
-3. **Create tasks** (optional): `ai-sbx-create-task-worktree "task description"`
-4. **Remove tasks** (when done): `ai-sbx-remove-task-worktree [worktree/branch]`
+3. **Create tasks** (optional): `ai-sbx worktree create "task description"`
+4. **Remove tasks** (when done): `ai-sbx worktree remove [name]`
 5. **IDE manages containers**: No manual start/stop needed
 6. **Security is automatic**: Internal network + proxy filtering
 
