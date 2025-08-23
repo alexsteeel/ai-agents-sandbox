@@ -96,73 +96,38 @@ open_ide() {
     fi
 }
 
-# Function to read preferred IDE from .user.env or .env
+# Function to read preferred IDE from .env
 get_preferred_ide() {
     local repo_root="$(git rev-parse --show-toplevel)"
-    local user_env_file="${repo_root}/.devcontainer/.user.env"
     local env_file="${repo_root}/.devcontainer/.env"
     
-    # Create .user.env if it doesn't exist (silently)
-    if [[ ! -f "${user_env_file}" ]]; then
-        mkdir -p "${repo_root}/.devcontainer" 2>/dev/null || true
-        cat > "${user_env_file}" << 'EOF'
-# User-specific settings (gitignored)
-# This file contains personal preferences and settings
-
-# Preferred IDE for task worktrees (vscode, devcontainer, pycharm, rider, goland)
-# PREFERRED_IDE=pycharm
-
-# Optional: Additional whitelisted domains for your workflow
-# USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
-
-# Optional: Upstream proxy for corporate environments
-# UPSTREAM_PROXY=socks5://host.gateway:1080
-# UPSTREAM_PROXY=http://proxy.example.com:3128
-
-# Optional: Domains that bypass the upstream proxy
-# NO_UPSTREAM=github.com,gitlab.com,bitbucket.org
-EOF
-    fi
-    
-    # Check .user.env first (user-specific settings)
-    if [[ -f "${user_env_file}" ]]; then
-        local pref=$(grep '^PREFERRED_IDE=' "${user_env_file}" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'")
-        if [[ -n "${pref}" ]]; then
-            echo "${pref}"
-            return
-        fi
-    fi
-    
-    # Fall back to .env
+    # Read from .env
     if [[ -f "${env_file}" ]]; then
         grep '^PREFERRED_IDE=' "${env_file}" 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'"
     fi
 }
 
-# Function to save preferred IDE to .user.env
+# Function to save preferred IDE to .env
 save_preferred_ide() {
     local ide_id="$1"
     local repo_root="$(git rev-parse --show-toplevel)"
-    local user_env_file="${repo_root}/.devcontainer/.user.env"
+    local env_file="${repo_root}/.devcontainer/.env"
     
-    # Create .user.env if it doesn't exist
-    if [[ ! -f "${user_env_file}" ]]; then
-        cat > "${user_env_file}" << 'EOF'
-# User-specific settings (gitignored)
-# This file contains personal preferences and settings
-
-EOF
+    # Ensure .env exists
+    if [[ ! -f "${env_file}" ]]; then
+        mkdir -p "${repo_root}/.devcontainer" 2>/dev/null || true
+        touch "${env_file}"
     fi
     
     # Remove existing PREFERRED_IDE if present
-    if grep -q '^PREFERRED_IDE=' "${user_env_file}" 2>/dev/null; then
-        grep -v '^PREFERRED_IDE=' "${user_env_file}" > "${user_env_file}.tmp" 2>/dev/null || true
-        mv "${user_env_file}.tmp" "${user_env_file}"
+    if grep -q '^PREFERRED_IDE=' "${env_file}" 2>/dev/null; then
+        grep -v '^PREFERRED_IDE=' "${env_file}" > "${env_file}.tmp" 2>/dev/null || true
+        mv "${env_file}.tmp" "${env_file}"
     fi
     
     # Add new PREFERRED_IDE
-    echo "PREFERRED_IDE=${ide_id}" >> "${user_env_file}"
-    print_info "Saved IDE preference to .user.env: ${ide_id}"
+    echo "PREFERRED_IDE=${ide_id}" >> "${env_file}"
+    print_info "Saved IDE preference to .env: ${ide_id}"
 }
 
 # Check arguments

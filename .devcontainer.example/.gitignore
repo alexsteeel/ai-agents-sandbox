@@ -1,9 +1,5 @@
-# Local environment configuration
+# Local environment configuration (auto-generated)
 .env
-.user.env
-
-# Machine-specific overrides
-override.user.yaml
 
 # Secure initialization script (contains credentials)
 secure.init.sh

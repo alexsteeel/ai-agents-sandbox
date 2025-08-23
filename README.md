@@ -1,5 +1,18 @@
 # Isolated AI Development Environments
 
+## System Requirements
+
+> 📋 **OS Compatibility:** This solution is designed for **Linux-based systems** (Ubuntu, Debian, etc.)
+> 
+> **Required tools:**
+> - **bash** shell (for scripts and automation)
+> - **Docker** and **Docker Compose** (container runtime)
+> - **git** with worktree support (version 2.5+)
+> - **yq** and **jq** (YAML/JSON processing - installed automatically if missing)
+> - **notify-send** (desktop notifications - optional, for host alerts)
+> 
+> **Note:** macOS and Windows users may need additional setup or use WSL2/Linux VMs.
+
 > ⚠️ **This system is under active development** - expect frequent updates and improvements.
 > 
 > 💡 **We welcome your ideas!** Feel free to share suggestions, use cases, or feedback in the [Discussions](https://github.com/alexsteeel/ai-agents-sandbox/discussions) section.
@@ -186,22 +199,9 @@ IMAGE_TAG=1.0.3 ./images/build.sh --force all
    - VS Code manages the container lifecycle
    
    **PyCharm (DevContainer setup):**
-   - Open project folder in PyCharm
-   - Install **Dev Containers** plugin from JetBrains Marketplace
-   - Go to **Tools** → **Dev Containers** → **Create Dev Container**
-   - Select the `.devcontainer` folder in your project
-   - Click **Create and Open**
-   - PyCharm will build and start the DevContainer
-   
-   **Alternative PyCharm setup (Docker Compose Interpreter):**
-   - Go to **Settings** → **Build, Execution, Deployment** → **Docker**
-   - Configure Docker connection if needed
-   - Go to **Project** → **Python Interpreter**
-   - Click gear icon → **Add** → **Docker Compose**
-   - Configuration files: Point to `.devcontainer/local.project.yaml`
-   - Service: `devcontainer`
-   - Python interpreter: `/usr/local/bin/python`
-   - PyCharm manages the container lifecycle
+   When you open the project, it should automatically suggest loading in devcontainer. Alternative method:
+   - Right-click on .devcontainer.json file > Dev Containers > Create Devcontainer and mount sources > PyCharm
+   For other JetBrains IDEs, the process is similar
    
 5. **For parallel tasks** (optional):
    ```bash
@@ -241,12 +241,9 @@ A ready-to-use template for new projects:
 - **`devcontainer.json`** - IDE configuration (VS Code/PyCharm compatible)
 - **`local.project.yaml`** - Project-specific services (empty by default)
 - **`override.user.yaml`** - User customizations and overrides
-- **`.env.example`** - Environment configuration template
 - **`Dockerfile`** - Shows how to extend the base image
 - **`init-project.sh`** - Wrapper script for project initialization
 - **`secure.init.sh.template`** - Template for sensitive configuration
-- **`CLAUDE.md`** - Detailed technical documentation
-- **`README.md`** - User documentation for the template
 - **`.gitignore`** - Ignores sensitive files (.env, secure.init.sh)
 
 ### Minimal Setup
@@ -263,7 +260,7 @@ For the absolute minimum, you need these files in `.devcontainer/`:
   ],
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
-  "initializeCommand": ".devcontainer/init-project.sh \"${localWorkspaceFolder}\""
+  "initializeCommand": "ai-sbx init \"${localWorkspaceFolder}\""
 }
 ```
 

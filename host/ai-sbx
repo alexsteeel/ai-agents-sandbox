@@ -139,7 +139,7 @@ show_worktree_help() {
     printf "${BOLD}Notes:${NC}\n"
     printf "  • Worktrees are created in parent directory of current repo\n"
     printf "  • Each worktree gets its own DevContainer environment\n"
-    printf "  • IDE preference is saved in .devcontainer/.user.env\n"
+    printf "  • IDE preference is saved in .devcontainer/.env\n"
     printf "  • Use 'git worktree list' for raw git output\n\n"
 }
 
