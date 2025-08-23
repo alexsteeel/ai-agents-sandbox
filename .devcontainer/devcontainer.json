@@ -17,7 +17,7 @@
   },
   "remoteEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
-    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "CLAUDE_CONFIG_DIR": "/home/claude/.claude",
     "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
   }
 }

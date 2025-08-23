@@ -107,13 +107,36 @@ flowchart TD
 
 ## Quick start
 
+### Prerequisites
+
+⚠️ **IMPORTANT: You must build Docker images first!**
+
+```bash
+# Build all required Docker images (one-time setup)
+cd /path/to/ai-agents-sandbox
+./images/build.sh all
+
+# Or build specific images:
+./images/build.sh devcontainer   # Base devcontainer image
+./images/build.sh tinyproxy      # Proxy for network filtering
+./images/build.sh docker-dind    # Docker-in-Docker service
+```
+
+**Note:** The `./install.sh` script will automatically build images if not present, but building them separately gives you more control and visibility into the process.
+
 ### One-Time Setup
 
 ```bash
 # System-wide installation (requires sudo)
 ./install.sh
+# This automatically:
+# - Builds all Docker images (if not already built)
+# - Installs management commands
+# - Sets up templates and configurations
+# - Creates local-ai-team group
+# - Installs shell completions
 
-# This installs the following commands:
+# The following commands are installed:
 # - ai-sbx: Main CLI wrapper for all commands
 # - ai-sbx-create-task-worktree: Create git worktree for new tasks
 # - ai-sbx-remove-task-worktree: Remove git worktree and optionally its branch
@@ -148,16 +171,23 @@ flowchart TD
    - Click "Reopen in Container" when prompted
    - VS Code manages the container lifecycle
    
-   **PyCharm:**
+   **PyCharm (DevContainer setup):**
    - Open project folder in PyCharm
-   - Go to **Settings** → **Project** → **Python Interpreter**
-   - Click the gear icon → **Add**
-   - Select **Docker Compose**
-   - Configuration file: `.devcontainer/docker-compose.yaml`
+   - Install **Dev Containers** plugin from JetBrains Marketplace
+   - Go to **Tools** → **Dev Containers** → **Create Dev Container**
+   - Select the `.devcontainer` folder in your project
+   - Click **Create and Open**
+   - PyCharm will build and start the DevContainer
+   
+   **Alternative PyCharm setup (Docker Compose Interpreter):**
+   - Go to **Settings** → **Build, Execution, Deployment** → **Docker**
+   - Configure Docker connection if needed
+   - Go to **Project** → **Python Interpreter**
+   - Click gear icon → **Add** → **Docker Compose**
+   - Configuration files: Point to `.devcontainer/local.project.yaml`
    - Service: `devcontainer`
-   - Python interpreter path: `/usr/local/bin/python`
-   - Click **OK** - PyCharm will start the containers automatically
-   - PyCharm manages the entire container lifecycle (start/stop/restart)
+   - Python interpreter: `/usr/local/bin/python`
+   - PyCharm manages the container lifecycle
    
 5. **For parallel tasks** (optional):
    ```bash
@@ -167,7 +197,6 @@ flowchart TD
    # Or using direct command:
    ai-sbx-create-task-worktree "feature 123 implement user auth"
    ```
-
 
 ### Available Commands
 
@@ -329,6 +358,64 @@ The environment includes a host notification system for alerts from Claude Code:
 From within the container:
 ```bash
 /home/claude/claude-defaults/hooks/notify.sh test "Hello from container!"
+```
+
+## Building Docker Images
+
+The system requires several Docker images to function. You can build them using the provided build script:
+
+### Build All Images (Recommended)
+```bash
+cd /path/to/ai-agents-sandbox
+./images/build.sh all
+```
+
+This builds:
+- `ai-agents-sandbox/devcontainer:latest` - Base development container
+- `ai-agents-sandbox/tinyproxy:latest` - HTTP/HTTPS proxy with filtering
+- `ai-agents-sandbox/tinyproxy-base:latest` - Base proxy image
+- `ai-agents-sandbox/tinyproxy-registry:latest` - Registry-specific proxy
+- `ai-agents-sandbox/docker-dind:latest` - Docker-in-Docker service
+- `ai-agents-sandbox/devcontainer-dotnet:latest` - .NET development variant
+- `ai-agents-sandbox/devcontainer-golang:latest` - Go development variant
+
+### Build Specific Images
+```bash
+# Build only the base devcontainer
+./images/build.sh devcontainer
+
+# Build only the proxy
+./images/build.sh tinyproxy
+
+# Build Docker-in-Docker
+./images/build.sh docker-dind
+
+# Build language-specific variants
+./images/build.sh devcontainer-dotnet
+./images/build.sh devcontainer-golang
+```
+
+### Verify Images
+```bash
+# List all ai-agents-sandbox images
+docker images | grep ai-agents-sandbox
+
+# Expected output:
+# ai-agents-sandbox/devcontainer      latest    ...
+# ai-agents-sandbox/tinyproxy         latest    ...
+# ai-agents-sandbox/docker-dind       latest    ...
+```
+
+### Image Versioning
+All images are tagged with version `1.0.0` by default. To use specific versions:
+```bash
+# Build with custom tag
+IMAGE_TAG=1.1.0 ./images/build.sh all
+
+# Use in your override.user.yaml:
+services:
+  devcontainer:
+    image: ai-agents-sandbox/devcontainer:1.1.0
 ```
 
 ## Customization

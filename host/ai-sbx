@@ -25,7 +25,6 @@ print_header() { printf "${BOLD}%s${NC}\n" "$1"; }
 # Show version
 show_version() {
     echo "AI Agents Sandbox CLI v${VERSION}"
-    echo "Copyright (c) 2024 AI Agents Sandbox Project"
 }
 
 # Show main help
