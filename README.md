@@ -120,6 +120,12 @@ cd /path/to/ai-agents-sandbox
 ./images/build.sh devcontainer   # Base devcontainer image
 ./images/build.sh tinyproxy      # Proxy for network filtering
 ./images/build.sh docker-dind    # Docker-in-Docker service
+
+# Force rebuild with specific version tag:
+IMAGE_TAG=1.0.3 ./images/build.sh --force all
+
+# Force rebuild specific image:
+./images/build.sh --force devcontainer
 ```
 
 **Note:** The `./install.sh` script will automatically build images if not present, but building them separately gives you more control and visibility into the process.
@@ -136,14 +142,45 @@ cd /path/to/ai-agents-sandbox
 # - Creates local-ai-team group
 # - Installs shell completions
 
-# The following commands are installed:
-# - ai-sbx: Main CLI wrapper for all commands
-# - ai-sbx-create-task-worktree: Create git worktree for new tasks
-# - ai-sbx-remove-task-worktree: Remove git worktree and optionally its branch
-# - ai-sbx-connect-task-worktree: Connect to existing task worktree
-# - ai-sbx-notify-watch: Host notification watcher (optional)
-# - ai-sbx-init-project: Initialize project with proper permissions
+# The ai-sbx command is installed with subcommands:
+# - ai-sbx worktree create: Create git worktree for new tasks
+# - ai-sbx worktree connect: Connect to existing task worktree  
+# - ai-sbx worktree remove: Remove git worktree and optionally its branch
+# - ai-sbx init: Initialize project with proper permissions
+# - ai-sbx notify: Start notification watcher for container alerts
 ```
+
+### Rebuilding Images
+
+You can rebuild images at any time using the build script:
+
+```bash
+# Rebuild all images (useful after updates)
+./images/build.sh all
+
+# Force rebuild (ignores cache)
+./images/build.sh --force all
+
+# Rebuild with custom version tag
+IMAGE_TAG=1.0.3 ./images/build.sh all
+
+# Combine force and custom tag
+IMAGE_TAG=1.0.3 ./images/build.sh --force all
+
+# Rebuild specific image only
+./images/build.sh --force devcontainer
+```
+
+**When to rebuild:**
+- After pulling updates from the repository
+- When changing Dockerfile configurations
+- To apply security updates to base images
+- When switching between versions
+
+**Version management:**
+- Default tag is `latest`
+- Set `IMAGE_TAG` environment variable for versioning
+- Update your `override.user.yaml` to use specific versions
 
 ### Using in Your Project
 
@@ -154,7 +191,7 @@ cd /path/to/ai-agents-sandbox
 
 2. **Initialize project:**
    ```bash
-   ai-sbx-init-project /path/to/your-project
+   ai-sbx init /path/to/your-project
    # This sets up permissions, creates .env, configures mounts
    ```
 
@@ -191,18 +228,14 @@ cd /path/to/ai-agents-sandbox
    
 5. **For parallel tasks** (optional):
    ```bash
-   # Using new unified CLI:
+   # Create worktree for new task:
    ai-sbx worktree create "feature 123 implement user auth"
-   
-   # Or using direct command:
-   ai-sbx-create-task-worktree "feature 123 implement user auth"
    ```
 
 ### Available Commands
 
-#### Unified CLI (Recommended):
 ```bash
-# Main wrapper command
+# Main command
 ai-sbx <command> [arguments]
 
 # Worktree management
@@ -216,20 +249,10 @@ ai-sbx init [/path/to/project]             # Initialize project
 
 # Notifications
 ai-sbx notify                               # Start notification watcher
-```
 
-#### Direct Commands (Alternative):
-```bash
-# Project initialization:
-ai-sbx-init-project [/path/to/project]  # Initialize project with proper permissions
-
-# Task management:
-ai-sbx-create-task-worktree "task description"  # Create task worktree
-ai-sbx-connect-task-worktree                    # Connect to existing task worktree
-ai-sbx-remove-task-worktree [branch/worktree]   # Remove task worktree
-
-# Optional notifications:
-ai-sbx-notify-watch            # Watch for container notifications
+# Help
+ai-sbx --help                              # Show general help
+ai-sbx worktree --help                     # Show worktree help
 ```
 
 **Note:** Your IDE (VS Code/PyCharm) handles starting, stopping, and managing containers automatically. No manual Docker commands needed!

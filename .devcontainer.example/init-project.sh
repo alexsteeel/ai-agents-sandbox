@@ -9,9 +9,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${1:-$(dirname "$SCRIPT_DIR")}"
 echo "Project dir is: $PROJECT_DIR"
 
-# Check if system initializer is installed
-if command -v ai-sbx-init-project >/dev/null 2>&1; then
-    # Call the system-installed initializer
+# Check if new unified command is available first
+if command -v ai-sbx >/dev/null 2>&1; then
+    # Use the new unified command
+    ai-sbx init "$PROJECT_DIR"
+elif command -v ai-sbx-init-project >/dev/null 2>&1; then
+    # Fall back to old command for backward compatibility
     ai-sbx-init-project "$PROJECT_DIR"
 else
     echo "Error: AI Sandbox system tools not installed."
