@@ -3,9 +3,11 @@ set -euo pipefail
 
 # DevContainer initialization wrapper
 # This is a simple wrapper that calls the system-installed initializer
+# NOTE: This runs on the HOST, not in the container
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="${1:-$(dirname "$SCRIPT_DIR")}"
+echo "Project dir is: $PROJECT_DIR"
 
 # Check if system initializer is installed
 if command -v ai-sbx-init-project >/dev/null 2>&1; then

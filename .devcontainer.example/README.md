@@ -1,96 +1,128 @@
-# DevContainer Example Template
+# DevContainer Template
 
-This directory contains a complete example of a devcontainer setup using the AI Agents Sandbox foundation.
+This is a template for creating secure, isolated development environments using AI Agents Sandbox.
 
 ## Quick Start
 
 1. **Copy this directory to your project:**
    ```bash
-   cp -r .devcontainer.example /path/to/your-project/.devcontainer
+   cp -r /path/to/ai-agents-sandbox/.devcontainer.example /path/to/your-project/.devcontainer
    ```
 
 2. **Initialize the project:**
    ```bash
-   cd /path/to/your-project
-   ai-sbx-init-project .
+   cd /path/to/your-project/.devcontainer
+   ./init-project.sh
    ```
-   This will:
-   - Set up proper permissions
-   - Generate `.env` with project paths
-   - Configure Docker registry for cache sharing
 
-3. **Open in your IDE:**
-   - **VS Code**: Open folder, select "Reopen in Container"
-   - **PyCharm**: Configure Docker Compose interpreter
-   - **Claude Code**: Run `claude --dangerously-skip-permissions`
+3. **Configure environment (optional):**
+   ```bash
+   # Copy and edit environment file
+   cp .env.example .env
+   
+   # Copy and configure secure initialization (optional)
+   cp secure.init.sh.template secure.init.sh
+   # Add your API keys and credentials to secure.init.sh
+   ```
+
+4. **Open in your IDE:**
+   - **VS Code:** Open project folder, click "Reopen in Container"
+   - **PyCharm:** Settings → Python Interpreter → Docker Compose → devcontainer
 
 ## Files
 
-### Required Files
+### Core Configuration
+- `devcontainer.json` - IDE configuration (VS Code/PyCharm)
+- `local.project.yaml` - Project-specific services (empty by default)
+- `override.user.yaml` - User customizations and overrides
+- `init-project.sh` - Initialization script
 
-- **`docker-compose.yaml`** - Includes base template and overrides
-- **`.gitignore`** - Excludes local configuration files
+### Templates
+- `.env.example` - Environment variables template
+- `secure.init.sh.template` - Template for sensitive configuration
+- `Dockerfile` - Example for extending the base image
 
-### Optional Files
+### Documentation
+- `README.md` - This file
+- `CLAUDE.md` - Detailed technical documentation
 
-- **`override.yaml`** - Project-wide customizations (committed to git)
-- **`override.user.yaml`** - Machine-specific settings (gitignored, user-created)
-- **`Dockerfile`** - Only if extending the base image
-- **`devcontainer.json`** - VS Code configuration
-- **`.env`** - Local environment variables (gitignored, auto-generated)
+### Git Ignored
+- `.env` - Local environment (auto-generated)
+- `.user.env` - User preferences
+- `secure.init.sh` - Sensitive configuration (if created)
 
-## Configuration
+## Customization
 
-### Whitelist Domains
+### Add Services
+Edit `local.project.yaml`:
+```yaml
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: dev
+    networks:
+      - claude-internal
+```
 
-Edit `override.yaml` to add project-specific domains:
-
+### Add Whitelisted Domains
+Edit `override.user.yaml`:
 ```yaml
 services:
   tinyproxy-devcontainer:
     environment:
-      USER_WHITELIST_DOMAINS: api.myproject.com,cdn.myproject.com
-  
-  tinyproxy-dind:
-    environment:
-      USER_WHITELIST_DOMAINS: private.registry.com
+      USER_WHITELIST_DOMAINS: api.myservice.com,cdn.myservice.com
 ```
 
-### Corporate Proxy
+### Extend Base Image
+1. Edit `override.user.yaml`:
+   ```yaml
+   services:
+     devcontainer:
+       build:
+         context: .
+         dockerfile: Dockerfile
+   ```
 
-Set in `.env` file:
-```bash
-UPSTREAM_PROXY=http://proxy.company.com:3128
-NO_UPSTREAM=internal.company.com,*.local
-```
+2. Edit `Dockerfile`:
+   ```dockerfile
+   FROM ai-agents-sandbox/devcontainer:latest
+   USER claude
+   # Add your tools
+   RUN pip install --user poetry
+   ```
 
-### Custom Tools
+## Security
 
-Extend the base image in `Dockerfile`:
-```dockerfile
-FROM ai-agents-sandbox/devcontainer:latest
-USER claude
-RUN pip install --user mypackage
-```
-
-## Security Notes
-
-- **Never** change `internal: true` networks
-- **Never** add sudo or root access
-- **Never** commit `.env` or `override.user.yaml`
-- Keep sensitive data in `.env` file
-- Use read-only mounts for configs
+⚠️ **Important Security Rules:**
+- Keep services on `claude-internal` network
+- Never add sudo or root access
+- Use proxy for all internet access
+- Store secrets in `.env` or `secure.init.sh`
+- Never commit sensitive files
 
 ## Troubleshooting
 
-### Permission Denied
-Run `ai-sbx-init-project` to fix permissions
+### Permission Issues
+```bash
+./init-project.sh
+```
 
-### Proxy Issues
-Check `USER_WHITELIST_DOMAINS` in override.yaml
+### Network Issues
+```bash
+docker exec devcontainer /home/claude/scripts/test-network.sh
+```
 
-### Docker Cache Not Working
-Run `ai-sbx-init-project` to configure the local registry
+### Container Won't Start
+```bash
+docker compose logs devcontainer
+docker compose logs tinyproxy-devcontainer
+```
 
-### Can't Connect to Container
-Ensure Docker service is running: `docker ps`
+## Support
+
+See the main [AI Agents Sandbox README](https://github.com/alexsteeel/ai-agents-sandbox) for:
+- Full documentation
+- Architecture details
+- Advanced configuration
+- Troubleshooting guides

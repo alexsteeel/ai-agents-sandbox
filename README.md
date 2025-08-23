@@ -27,7 +27,7 @@ It lets you run several tasks **in parallel**, each in its **own isolated enviro
 
 * **Isolated Docker.** Docker-in-Docker is **network-isolated** and constrained; it cannot access host Docker or host files.
   * Uses **docker-registry-proxy** for all image pulls with transparent caching.
-  * Registry domains automatically whitelisted (Docker Hub, gcr.io, quay.io, k8s.io, ghcr.io).
+  * Registry domains automatically whitelisted (Docker Hub, gcr.io, quay.io, registry.k8s.io, ghcr.io).
 
 * **Constrained devcontainer.** Minimal capabilities and internal networking only.
 
@@ -110,16 +110,13 @@ flowchart TD
 ### One-Time Setup
 
 ```bash
-# Option 1: System-wide installation (recommended, requires sudo)
+# System-wide installation (requires sudo)
 ./install.sh
 
-# Option 2: User-local installation (no sudo required)
-./install.sh --user
-# Note: With --user, add ~/.local/bin to your PATH:
-# export PATH="$HOME/.local/bin:$PATH"
-
-# Both options install these commands:
+# This installs the following commands:
 # - ai-sbx-create-task-worktree: Create git worktree for new tasks
+# - ai-sbx-remove-task-worktree: Remove git worktree and optionally its branch
+# - ai-sbx-connect-task-worktree: Connect to existing task worktree
 # - ai-sbx-notify-watch: Host notification watcher (optional)
 # - ai-sbx-init-project: Initialize project with proper permissions
 ```
@@ -176,6 +173,8 @@ ai-sbx-init-project [/path/to/project]  # Initialize project with proper permiss
 
 # Task management:
 ai-sbx-create-task-worktree "task description"  # Create task worktree
+ai-sbx-connect-task-worktree                    # Connect to existing task worktree
+ai-sbx-remove-task-worktree [branch/worktree]   # Remove task worktree
 
 # Optional notifications:
 ai-sbx-notify-watch            # Watch for container notifications
@@ -188,10 +187,15 @@ ai-sbx-notify-watch            # Watch for container notifications
 A ready-to-use template for new projects:
 
 - **`devcontainer.json`** - IDE configuration (VS Code/PyCharm compatible)
-- **`local.project.yaml`** - Empty services file for local extensions
-- **`override.user.yaml`** - For your customizations (services, env vars)
+- **`local.project.yaml`** - Project-specific services (empty by default)
+- **`override.user.yaml`** - User customizations and overrides
 - **`.env.example`** - Environment configuration template
-- **`Dockerfile.example`** - Shows how to extend the base image
+- **`Dockerfile`** - Shows how to extend the base image
+- **`init-project.sh`** - Wrapper script for project initialization
+- **`secure.init.sh.template`** - Template for sensitive configuration
+- **`CLAUDE.md`** - Detailed technical documentation
+- **`README.md`** - User documentation for the template
+- **`.gitignore`** - Ignores sensitive files (.env, secure.init.sh)
 
 ### Minimal Setup
 
@@ -201,18 +205,17 @@ For the absolute minimum, you need these files in `.devcontainer/`:
 ```json
 {
   "name": "${localWorkspaceFolderBasename} - AI Sandbox",
-  "dockerComposeFile": [
-    "local.project.yaml",
+  "dockerComposeFile": ["local.project.yaml",
     "/usr/local/share/ai-agents-sandbox/docker-compose.base.yaml",
     "override.user.yaml"
   ],
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
-  "initializeCommand": "ai-sbx-init-project \"${localWorkspaceFolder}\""
+  "initializeCommand": ".devcontainer/init-project.sh \"${localWorkspaceFolder}\""
 }
 ```
 
-2. **`local.project.yaml`** (can be empty):
+2. **`local.project.yaml`** (empty):
 ```yaml
 services: {}
 ```
@@ -222,6 +225,14 @@ services: {}
 services:
   devcontainer:
     image: ai-agents-sandbox/devcontainer:latest
+```
+
+4. **`init-project.sh`** (wrapper):
+```bash
+#!/bin/bash
+if command -v ai-sbx-init-project >/dev/null 2>&1; then
+    ai-sbx-init-project "${1:-$(dirname $(dirname $0))}"
+fi
 ```
 
 ## Network Configuration
@@ -241,7 +252,7 @@ services:
 
 #### Docker Registry Proxy
 - Transparent caching for Docker images
-- Auto-configured for Docker Hub, gcr.io, quay.io, k8s.io, ghcr.io
+- Auto-configured for Docker Hub, gcr.io, quay.io, registry.k8s.io, ghcr.io
 - ~9x faster pulls for large images (OpenSearch: 113s → 13s)
 - Shared cache across all projects
 
@@ -301,7 +312,7 @@ From within the container:
 
 Extend the foundation for your specific needs:
 
-* **Add services:** Create `override.user.yaml` to add databases, caches, message brokers, vector stores
+* **Add services:** Edit `local.project.yaml` to add databases, caches, message brokers, vector stores
 * **Configure domains:** Add allowed domains in `override.user.yaml`:
   ```yaml
   services:

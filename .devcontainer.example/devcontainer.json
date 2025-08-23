@@ -1,14 +1,23 @@
 {
   "name": "${localWorkspaceFolderBasename} - Claude Code Sandbox",
-  "dockerComposeFile": "docker-compose.yaml",
+  "dockerComposeFile": ["local.project.yaml",
+    "/usr/local/share/ai-agents-sandbox/docker-compose.base.yaml",
+    "override.user.yaml"
+  ],
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",
   "containerUser": "claude",
   "updateRemoteUserUID": false,
-  "initializeCommand": "bash -c 'if [[ -f ./init-project.sh ]]; then ./init-project.sh; elif command -v ai-sbx-init-project >/dev/null 2>&1; then ai-sbx-init-project \"${localWorkspaceFolder}\"; fi'",
+  "initializeCommand": ".devcontainer/init-project.sh \"${localWorkspaceFolder}\"",
   "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
+  "containerEnv": {
+    "TERM": "xterm-256color",
+    "COLORTERM": "truecolor"
+  },
   "remoteEnv": {
-    "PROJECT_NAME": "${localWorkspaceFolderBasename}"
+    "NODE_OPTIONS": "--max-old-space-size=4096",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude",
+    "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
   }
 }

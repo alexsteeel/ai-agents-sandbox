@@ -4,3 +4,6 @@
 
 # Machine-specific overrides
 override.user.yaml
+
+# Secure initialization script (contains credentials)
+secure.init.sh
