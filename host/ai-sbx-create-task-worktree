@@ -1,6 +1,4 @@
 #!/bin/bash
-set -euo pipefail
-
 # Create a git worktree for a new task with proper structure
 # Usage: ai-sbx-create-task-worktree "task description"
 # Example: ai-sbx-create-task-worktree "bugfix 5678 fix memory leak"

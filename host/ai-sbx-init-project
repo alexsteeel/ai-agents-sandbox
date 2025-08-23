@@ -1,6 +1,4 @@
 #!/bin/bash
-set -euo pipefail
-
 # AI Sandbox Project Initializer
 # Sets up proper permissions and group ownership for a project directory
 # This is installed system-wide and called by project-specific wrappers

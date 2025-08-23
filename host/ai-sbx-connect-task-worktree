@@ -1,6 +1,4 @@
 #!/bin/bash
-set -euo pipefail
-
 # Connect to an existing task worktree
 # Lists all worktrees and lets user select one to connect to
 
