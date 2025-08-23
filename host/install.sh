@@ -140,6 +140,71 @@ if [[ -n "${SUDO_USER:-}" ]]; then
     print_status "✓ Notification directories created with proper ownership"
 fi
 
+# Install shell completions
+COMPLETIONS_INSTALLED=""
+
+# Install Zsh completions if Zsh is available
+if [[ -d /usr/share/zsh/vendor-completions ]]; then
+    COMPLETION_FILE="$SCRIPT_DIR/completions/_ai-sbx"
+    if [[ -f "$COMPLETION_FILE" ]]; then
+        print_status "Installing Zsh completions..."
+        install -m 644 "$COMPLETION_FILE" /usr/share/zsh/vendor-completions/_ai-sbx
+        print_status "✓ Zsh completions installed"
+        COMPLETIONS_INSTALLED="zsh"
+    else
+        print_warning "Zsh completion file not found at $COMPLETION_FILE"
+    fi
+elif [[ -d /usr/local/share/zsh/site-functions ]]; then
+    # macOS location
+    COMPLETION_FILE="$SCRIPT_DIR/completions/_ai-sbx"
+    if [[ -f "$COMPLETION_FILE" ]]; then
+        print_status "Installing Zsh completions (macOS)..."
+        install -m 644 "$COMPLETION_FILE" /usr/local/share/zsh/site-functions/_ai-sbx
+        print_status "✓ Zsh completions installed"
+        COMPLETIONS_INSTALLED="zsh"
+    fi
+else
+    print_warning "Zsh completions directory not found, skipping Zsh completion"
+fi
+
+# Install Bash completions if available
+if [[ -d /etc/bash_completion.d ]]; then
+    BASH_COMPLETION_FILE="$SCRIPT_DIR/completions/ai-sbx.bash"
+    if [[ -f "$BASH_COMPLETION_FILE" ]]; then
+        print_status "Installing Bash completions..."
+        install -m 644 "$BASH_COMPLETION_FILE" /etc/bash_completion.d/ai-sbx
+        print_status "✓ Bash completions installed"
+        if [[ -n "$COMPLETIONS_INSTALLED" ]]; then
+            COMPLETIONS_INSTALLED="${COMPLETIONS_INSTALLED}, bash"
+        else
+            COMPLETIONS_INSTALLED="bash"
+        fi
+    else
+        print_warning "Bash completion file not found at $BASH_COMPLETION_FILE"
+    fi
+elif [[ -d /usr/local/etc/bash_completion.d ]]; then
+    # macOS with Homebrew location
+    BASH_COMPLETION_FILE="$SCRIPT_DIR/completions/ai-sbx.bash"
+    if [[ -f "$BASH_COMPLETION_FILE" ]]; then
+        print_status "Installing Bash completions (macOS)..."
+        install -m 644 "$BASH_COMPLETION_FILE" /usr/local/etc/bash_completion.d/ai-sbx
+        print_status "✓ Bash completions installed"
+        if [[ -n "$COMPLETIONS_INSTALLED" ]]; then
+            COMPLETIONS_INSTALLED="${COMPLETIONS_INSTALLED}, bash"
+        else
+            COMPLETIONS_INSTALLED="bash"
+        fi
+    fi
+else
+    print_warning "Bash completions directory not found, skipping Bash completion"
+fi
+
+if [[ -z "$COMPLETIONS_INSTALLED" ]]; then
+    print_info "To install completions manually:"
+    print_info "  Zsh: Copy host/completions/_ai-sbx to your fpath"
+    print_info "  Bash: Source host/completions/ai-sbx.bash in your ~/.bashrc"
+fi
+
 # Summary
 echo ""
 print_status "Installation complete!"
@@ -150,11 +215,17 @@ for script in "${SCRIPTS[@]}"; do
 done
 echo ""
 echo "Templates installed to: $SHARE_DIR"
+if [[ -n "$COMPLETIONS_INSTALLED" ]]; then
+    echo "Shell completions: $COMPLETIONS_INSTALLED"
+fi
 echo ""
 echo "Next steps:"
 echo "1. Log out and back in for group membership to take effect"
 echo "2. Copy .devcontainer.example to your project"
-echo "3. (Optional) Run 'ai-sbx-notify-watch' to enable desktop notifications"
+echo "3. (Optional) Run 'ai-sbx notify' to enable desktop notifications"
+if [[ -n "$COMPLETIONS_INSTALLED" ]]; then
+    echo "4. (Optional) Restart your shell to enable tab completion for ai-sbx"
+fi
 echo ""
 
 exit 0
