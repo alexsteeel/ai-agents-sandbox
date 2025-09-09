@@ -1,0 +1,228 @@
+"""Tests for configuration module."""
+
+import tempfile
+from pathlib import Path
+
+import pytest
+import yaml
+
+from ai_sbx.config import (
+    GlobalConfig,
+    ProjectConfig,
+    ProxyConfig,
+    DockerConfig,
+    IDE,
+    ImageVariant,
+    get_default_whitelist_domains,
+    load_project_config,
+    save_project_config,
+)
+
+
+class TestGlobalConfig:
+    """Test global configuration."""
+    
+    def test_default_config(self):
+        """Test default configuration values."""
+        config = GlobalConfig()
+        
+        assert config.version == "2.0.0"
+        assert config.group_name == "local-ai-team"
+        assert config.group_gid == 3000
+        assert config.user_uid == 1001
+        assert config.default_ide == IDE.VSCODE
+        assert config.default_variant == ImageVariant.BASE
+    
+    def test_save_and_load(self):
+        """Test saving and loading configuration."""
+        with tempfile.NamedTemporaryFile(suffix=".yaml", delete=False) as f:
+            config_path = Path(f.name)
+        
+        try:
+            # Create and save config
+            config = GlobalConfig(
+                default_ide=IDE.PYCHARM,
+                default_variant=ImageVariant.PYTHON,
+            )
+            config.save(config_path)
+            
+            # Load config
+            loaded = GlobalConfig.load(config_path)
+            
+            assert loaded.default_ide == IDE.PYCHARM
+            assert loaded.default_variant == ImageVariant.PYTHON
+            assert loaded.group_gid == 3000
+            
+        finally:
+            config_path.unlink(missing_ok=True)
+
+
+class TestProjectConfig:
+    """Test project configuration."""
+    
+    def test_project_config(self):
+        """Test project configuration creation."""
+        config = ProjectConfig(
+            name="test-project",
+            path=Path("/test/project"),
+            preferred_ide=IDE.VSCODE,
+            variant=ImageVariant.PYTHON,
+        )
+        
+        assert config.name == "test-project"
+        assert config.path == Path("/test/project")
+        assert config.preferred_ide == IDE.VSCODE
+        assert config.variant == ImageVariant.PYTHON
+    
+    def test_path_validation(self):
+        """Test path is made absolute."""
+        config = ProjectConfig(
+            name="test",
+            path=Path("relative/path"),
+        )
+        
+        assert config.path.is_absolute()
+    
+    def test_proxy_config(self):
+        """Test proxy configuration."""
+        config = ProjectConfig(
+            name="test",
+            path=Path("/test"),
+            proxy=ProxyConfig(
+                enabled=True,
+                upstream="http://proxy:3128",
+                whitelist_domains=["example.com"],
+            ),
+        )
+        
+        assert config.proxy.enabled
+        assert config.proxy.upstream == "http://proxy:3128"
+        assert "example.com" in config.proxy.whitelist_domains
+    
+    def test_invalid_proxy_upstream(self):
+        """Test invalid proxy upstream validation."""
+        with pytest.raises(ValueError, match="must start with"):
+            ProxyConfig(upstream="invalid://proxy")
+
+
+class TestDockerConfig:
+    """Test Docker configuration."""
+    
+    def test_docker_config(self):
+        """Test Docker configuration."""
+        config = DockerConfig(
+            registry_proxy=True,
+            custom_registries=["registry.example.com"],
+            image_prefix="custom",
+            image_tag="v1.0.0",
+        )
+        
+        assert config.registry_proxy
+        assert "registry.example.com" in config.custom_registries
+        assert config.image_prefix == "custom"
+        assert config.image_tag == "v1.0.0"
+
+
+class TestProjectConfigIO:
+    """Test project configuration I/O."""
+    
+    def test_save_and_load_project_config(self):
+        """Test saving and loading project configuration."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_dir = Path(temp_dir)
+            devcontainer_dir = project_dir / ".devcontainer"
+            devcontainer_dir.mkdir()
+            
+            # Create config
+            config = ProjectConfig(
+                name="test-project",
+                path=project_dir,
+                preferred_ide=IDE.PYCHARM,
+                variant=ImageVariant.DOTNET,
+                proxy=ProxyConfig(
+                    upstream="socks5://localhost:1080",
+                    whitelist_domains=["api.example.com"],
+                ),
+            )
+            
+            # Save config
+            save_project_config(config)
+            
+            # Load config
+            loaded = load_project_config(project_dir)
+            
+            assert loaded is not None
+            assert loaded.name == "test-project"
+            assert loaded.preferred_ide == IDE.PYCHARM
+            assert loaded.variant == ImageVariant.DOTNET
+            assert loaded.proxy.upstream == "socks5://localhost:1080"
+            assert "api.example.com" in loaded.proxy.whitelist_domains
+    
+    def test_load_legacy_env(self):
+        """Test loading configuration from legacy .env file."""
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_dir = Path(temp_dir)
+            devcontainer_dir = project_dir / ".devcontainer"
+            devcontainer_dir.mkdir()
+            
+            # Create legacy .env file
+            env_file = devcontainer_dir / ".env"
+            env_file.write_text("""
+PROJECT_NAME=legacy-project
+PREFERRED_IDE=pycharm
+UPSTREAM_PROXY=http://proxy:8080
+USER_WHITELIST_DOMAINS=api.legacy.com,cdn.legacy.com
+""")
+            
+            # Load config
+            config = load_project_config(project_dir)
+            
+            assert config is not None
+            assert config.name == "legacy-project"
+            assert config.preferred_ide == IDE.PYCHARM
+            assert config.proxy.upstream == "http://proxy:8080"
+            assert "api.legacy.com" in config.proxy.whitelist_domains
+            assert "cdn.legacy.com" in config.proxy.whitelist_domains
+
+
+class TestWhitelist:
+    """Test whitelist domains."""
+    
+    def test_default_whitelist(self):
+        """Test default whitelist domains."""
+        domains = get_default_whitelist_domains()
+        
+        # Check essential domains are included
+        assert "github.com" in domains
+        assert "pypi.org" in domains
+        assert "registry.npmjs.org" in domains
+        assert "docker.io" in domains
+        
+        # Check count is reasonable
+        assert len(domains) > 20
+        assert len(domains) < 100
+
+
+class TestEnums:
+    """Test enum values."""
+    
+    def test_ide_enum(self):
+        """Test IDE enum values."""
+        assert IDE.VSCODE.value == "vscode"
+        assert IDE.PYCHARM.value == "pycharm"
+        assert IDE.CLAUDE.value == "claude"
+        
+        # Test from string
+        assert IDE("vscode") == IDE.VSCODE
+        assert IDE("pycharm") == IDE.PYCHARM
+    
+    def test_image_variant_enum(self):
+        """Test ImageVariant enum values."""
+        assert ImageVariant.BASE.value == "base"
+        assert ImageVariant.PYTHON.value == "python"
+        assert ImageVariant.DOTNET.value == "dotnet"
+        assert ImageVariant.GOLANG.value == "golang"
+        
+        # Test from string
+        assert ImageVariant("python") == ImageVariant.PYTHON
+        assert ImageVariant("nodejs") == ImageVariant.NODEJS

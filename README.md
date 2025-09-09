@@ -1,31 +1,88 @@
-# Isolated AI Development Environments
+# AI Agents Sandbox 🤖🔒
 
-## System Requirements
+[![Tests](https://github.com/alexsteeel/ai-agents-sandbox/actions/workflows/test.yml/badge.svg)](https://github.com/alexsteeel/ai-agents-sandbox/actions/workflows/test.yml)
+[![Docker Images](https://github.com/alexsteeel/ai-agents-sandbox/actions/workflows/docker.yml/badge.svg)](https://github.com/alexsteeel/ai-agents-sandbox/actions/workflows/docker.yml)
+[![PyPI version](https://badge.fury.io/py/ai-sbx.svg)](https://badge.fury.io/py/ai-sbx)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
-> 📋 **OS Compatibility:** This solution is designed for **Linux-based systems** (Ubuntu, Debian, etc.)
-> 
-> **Required tools:**
-> - **bash** shell (for scripts and automation)
-> - **Docker** and **Docker Compose** (container runtime)
-> - **git** with worktree support (version 2.5+)
-> - **yq** and **jq** (YAML/JSON processing - installed automatically if missing)
-> - **notify-send** (desktop notifications - optional, for host alerts)
-> 
-> **Note:** macOS and Windows users may need additional setup or use WSL2/Linux VMs.
+**Secure, isolated development environments for AI-assisted coding** - Work with AI assistants like Claude, GitHub Copilot, and others in containerized environments with strict network controls and security boundaries.
 
-> ⚠️ **This system is under active development** - expect frequent updates and improvements.
-> 
-> 💡 **We welcome your ideas!** Feel free to share suggestions, use cases, or feedback in the [Discussions](https://github.com/alexsteeel/ai-agents-sandbox/discussions) section.
+This repository provides a **foundation** for per-task, **agent-centric** development, letting you run several tasks **in parallel**, each in its **own isolated environment**.
 
-This repository is a **foundation** (with a **full working example**) for per-task, **agent-centric** development.
-It lets you run several tasks **in parallel**, each in its **own isolated environment**.
-
-## What it does
+## ✨ Features
 
 * **Per-task isolation.** Each task lives in its own Git **worktree** with its own containers and network.
 * **Agent-centric workflow.** The **AI agents** run **together** in the same sandbox (Claude Code, Codex CLI, Gemini CLI …).
 * **Pluggable services.** Start the services you need (DBs, object storage, caches, brokers, vector stores, …).
 * **Highly customizable.** Swap agents, services, env vars, and compose files.
+* **Simple installation.** One-command setup with `pip` or `uv` - no manual script copying.
+* **Interactive wizard.** Guided setup for new users with automatic configuration.
+* **Modular Docker images.** Choose only what you need - minimal, Python, Node.js, .NET, Go variants.
+
+## 📦 Quick Installation
+
+### Using uv (Recommended - Fastest)
+
+```bash
+# Install uv if you haven't already
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Install AI Agents Sandbox
+uv pip install ai-sbx
+
+# Initialize (one-time setup)
+ai-sbx init --global --wizard
+```
+
+### Using pip
+
+```bash
+# Install AI Agents Sandbox
+pip install ai-sbx
+
+# Initialize (one-time setup)
+ai-sbx init --global --wizard
+```
+
+The wizard will guide you through:
+- Creating the `local-ai-team` group (only needs sudo for this specific step)
+- Setting up your preferred IDE (VS Code, PyCharm, etc.)
+- Choosing default image variants
+- Configuring proxy settings if needed
+
+## 🚀 Getting Started
+
+### 1. Initialize Your Project
+
+```bash
+cd /path/to/your/project
+
+# Run interactive setup wizard
+ai-sbx init --wizard
+
+# Or quick setup with defaults
+ai-sbx init
+```
+
+### 2. Build Docker Images
+
+```bash
+# Build only what you need (auto-detected from project)
+ai-sbx docker build
+
+# Or build specific variant
+ai-sbx docker build --variant python
+```
+
+### 3. Start Development
+
+```bash
+# Start containers
+ai-sbx docker up -d
+
+# Open shell in container
+ai-sbx docker exec
+```
 
 ## Security model
 
@@ -118,26 +175,53 @@ flowchart TD
 
 ---
 
-## Quick start
+## 🎯 Common Workflows
 
-### One-Time Setup
+### Working on Multiple Features
+
+Use git worktrees to work on multiple features simultaneously:
 
 ```bash
-# System-wide installation (requires sudo)
-./install.sh
-# This automatically:
-# - Builds all Docker images (if not already built)
-# - Installs management commands
-# - Sets up templates and configurations
-# - Creates local-ai-team group
-# - Installs shell completions
+# Create a new worktree for a feature
+ai-sbx worktree create "implement user authentication"
 
-# The ai-sbx command is installed with subcommands:
-# - ai-sbx worktree create: Create git worktree for new tasks
-# - ai-sbx worktree connect: Connect to existing task worktree  
-# - ai-sbx worktree remove: Remove git worktree and optionally its branch
-# - ai-sbx init: Initialize project with proper permissions
-# - ai-sbx notify: Start notification watcher for container alerts
+# List all worktrees
+ai-sbx worktree list
+
+# Connect to a worktree
+ai-sbx worktree connect
+
+# Remove worktree when done
+ai-sbx worktree remove
+```
+
+### Managing Docker Resources
+
+```bash
+# Check container status
+ai-sbx docker ps
+
+# View logs
+ai-sbx docker logs -f
+
+# Stop containers
+ai-sbx docker down
+
+# Clean up unused resources
+ai-sbx docker clean
+```
+
+### System Diagnostics
+
+```bash
+# Check system health
+ai-sbx doctor
+
+# Auto-fix common issues
+ai-sbx doctor --fix
+
+# Upgrade to latest version
+ai-sbx upgrade
 ```
 
 ### Rebuilding Images
@@ -226,10 +310,12 @@ ai-sbx init [/path/to/project]             # Initialize project
 
 # Notifications
 ai-sbx notify                               # Start notification watcher
+ai-sbx notify stop                          # Stop notification watcher
 
 # Help
 ai-sbx --help                              # Show general help
 ai-sbx worktree --help                     # Show worktree help
+ai-sbx doctor --help                       # Diagnostic options (supports --verbose)
 ```
 
 **Note:** Your IDE (VS Code/PyCharm) handles starting, stopping, and managing containers automatically. No manual Docker commands needed!
@@ -438,6 +524,78 @@ Extend the foundation for your specific needs:
 * **Environment variables:** Set project-specific vars in `override.user.yaml`
 
 See `.devcontainer.example/` for complete customization examples.
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Docker not running:**
+```bash
+# Start Docker
+sudo systemctl start docker
+# or on Mac
+open -a Docker
+```
+
+**Permission denied errors:**
+```bash
+# The new Python package only needs sudo for creating the group
+# It will prompt when needed:
+ai-sbx init --global
+
+# If you still have issues, check group membership:
+groups $USER
+# Should include 'local-ai-team'
+
+# If not, log out and back in, or run:
+newgrp local-ai-team
+```
+
+**Containers can't access internet:**
+```bash
+# Check proxy settings
+ai-sbx doctor --check
+
+# Verify whitelist includes required domains
+cat .devcontainer/whitelist.txt
+
+# Add missing domains to .devcontainer/ai-sbx.yaml:
+proxy:
+  whitelist_domains:
+    - api.example.com
+    - cdn.example.com
+```
+
+**Package installation fails:**
+```bash
+# If uv isn't working, try pip:
+pip install ai-sbx
+
+# Or install uv first:
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+**Old version conflicts:**
+If you have the old shell-script version installed:
+```bash
+# Remove old scripts
+sudo rm -f /usr/local/bin/ai-sbx-*
+
+# Install new Python package
+uv pip install ai-sbx
+```
+
+## 📚 Documentation
+
+For more detailed documentation, see:
+- [IDE Integration Guide](docs/IDE_INTEGRATION.md)
+- [Security Model](docs/SECURITY.md)
+- [Custom Images](docs/CUSTOM_IMAGES.md)
+- [Migration from v1.x](docs/MIGRATION.md)
+
+## 🤝 Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Acknowledgments
 

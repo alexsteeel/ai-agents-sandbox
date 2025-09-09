@@ -7,3 +7,4 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    # user-level overrides can mount additional volumes locally if desired

@@ -209,3 +209,15 @@ __marimo__/
 .devcontainer/.env
 .devcontainer/secure.init.sh
 .devcontainer/.user.env
+.devcontainer/override.user.yaml
+.devcontainer/ai-sbx.yaml
+
+# Task worktrees
+tasks/
+worktrees/
+
+# Test artifacts
+test-results/
+test-reports/
+*.tmp
+*.bak
