@@ -151,10 +151,39 @@ The migration significantly improves maintainability, UX, and modularity. The CL
 
 ## Post-Fix Verification
 
-- Tests: 50 passed; coverage unchanged (~45%).
-- Docker detection: `is_docker_running()` now correctly returns False in restricted environments (treats `ServerErrors`/missing `ServerVersion` as not running).
-- CLI:
-  - `ai-sbx doctor --verbose` works (subcommand-level flag added; also inherited from root `-v`).
-  - `ai-sbx docker ps` uses JSON lines format and error-handles properly.
-  - `ai-sbx notify stop` is exposed and documented.
-  - Templates drop the obsolete top-level `version:` and pick correct image repos for dotnet/golang.
+### Final Implementation Status
+
+✅ **All critical issues have been addressed:**
+
+- **Tests**: 52 passed (2 new tests added); coverage ~45%
+- **Legacy code removed**: No backward compatibility for .env files
+- **Simplified ImageVariant enum**: Only includes available variants (base, minimal, python, nodejs)
+- **Docker detection**: `is_docker_running()` correctly handles restricted environments
+- **Container name resolution**: Consistently uses ProjectConfig.name across all commands
+
+### Fixed Issues (Complete)
+
+1. ✅ **Docker PS JSON format** - Uses `--format '{{json .}}'` with inline documentation
+2. ✅ **Image variant alignment** - Removed unsupported variants from enum
+3. ✅ **Container name consistency** - All commands use ProjectConfig for naming
+4. ✅ **notify stop exposed** - Available as `ai-sbx notify stop`
+5. ✅ **Cross-platform guards** - Windows check for os.fork() in notify --daemon
+6. ✅ **Shell injection safety** - subprocess.run with lists instead of os.system
+7. ✅ **Shell fallback** - zsh → bash → sh for better compatibility
+8. ✅ **Notification permissions** - Directory created with 0o775 and group ownership
+9. ✅ **Lint issues resolved** - Ruff auto-fixed 30 issues, manually fixed remaining
+10. ✅ **Type checking** - Fixed mypy errors, proper type annotations
+
+### Documentation Updates
+
+- ✅ **README**: Added image variant availability table
+- ✅ **Code**: Documented Docker JSON format in ps command docstring
+- ✅ **Tests**: Added specific tests for JSON parsing and container name resolution
+
+### Code Quality Improvements
+
+- **No legacy code paths** - Clean, simple implementation
+- **Type-safe configuration** - Pydantic models throughout
+- **Safer subprocess execution** - No shell injection risks
+- **Better error handling** - Graceful failures with helpful messages
+- **Consistent patterns** - ProjectConfig used uniformly

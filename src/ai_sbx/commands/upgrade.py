@@ -1,6 +1,5 @@
 """Upgrade command for AI Agents Sandbox."""
 
-import subprocess
 import sys
 from typing import Optional
 
@@ -8,7 +7,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from ai_sbx import __version__
-from ai_sbx.utils import logger, run_command, check_command_exists
+from ai_sbx.utils import check_command_exists, logger, run_command
 
 
 def run_upgrade(console: Console, verbose: bool = False) -> None:

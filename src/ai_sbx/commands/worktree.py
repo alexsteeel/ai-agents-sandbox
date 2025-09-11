@@ -1,30 +1,28 @@
 """Worktree management commands for AI Agents Sandbox."""
 
-import os
 import re
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Optional
 
 import click
 import inquirer
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 from ai_sbx.config import IDE, load_project_config
 from ai_sbx.utils import (
+    check_command_exists,
+    detect_ide,
+    find_project_root,
     logger,
     run_command,
-    find_project_root,
-    detect_ide,
-    check_command_exists,
 )
 
 
 @click.group()
-def worktree():
+def worktree() -> None:
     """Manage git worktrees for isolated development tasks.
 
     Worktrees allow you to work on multiple branches simultaneously
@@ -190,7 +188,7 @@ def remove(
             # Multiple matches - let user choose
             console.print(f"Multiple worktrees match '{name}':")
             choices = []
-            for i, w in enumerate(matches, 1):
+            for _i, w in enumerate(matches, 1):
                 path = Path(w["path"])
                 branch = w.get("branch", "detached")
                 choices.append((f"{path.name} [{branch}]", w))
@@ -349,7 +347,7 @@ def connect(ctx: click.Context) -> None:
     for w in worktrees:
         path = Path(w["path"])
         branch = w.get("branch", "detached")
-        commit = w.get("commit", "")[:7]
+        w.get("commit", "")[:7]
         desc = _get_task_description(path)
 
         # Check if path exists
@@ -422,17 +420,23 @@ def connect(ctx: click.Context) -> None:
             console.print(f"Connecting to container: [cyan]{container_name}[/cyan]")
             console.print("[dim]Type 'exit' to disconnect[/dim]\n")
 
-            os.system(f"docker exec -it {container_name} /bin/zsh")
+            # Use subprocess for safer execution with shell fallback
+            subprocess.run([
+                "docker", "exec", "-it", container_name,
+                "sh", "-lc",
+                "if [ -x /bin/zsh ]; then exec /bin/zsh; "
+                "elif [ -x /bin/bash ]; then exec /bin/bash; else exec /bin/sh; fi"
+            ])
         else:
             # Just show cd command
-            console.print(f"\nTo navigate to worktree, run:")
+            console.print("\nTo navigate to worktree, run:")
             console.print(f"[cyan]cd {path}[/cyan]")
     else:
         # Container not running
         console.print(f"[yellow]Container '{container_name}' is not running[/yellow]")
-        console.print(f"\nTo start the container:")
+        console.print("\nTo start the container:")
         console.print(f"1. Navigate to worktree: [cyan]cd {path}[/cyan]")
-        console.print(f"2. Start containers: [cyan]ai-sbx docker up[/cyan]")
+        console.print("2. Start containers: [cyan]ai-sbx docker up[/cyan]")
 
 
 @worktree.command(name="list")
@@ -525,13 +529,13 @@ def _create_task_structure(worktree_path: Path, description: str, console: Conso
 {description}
 
 ## Objectives
-- [ ] 
+- [ ]
 
 ## Technical Requirements
-- 
+-
 
 ## Acceptance Criteria
-- 
+-
 
 ## Notes
 Created: {datetime.now().strftime('%Y-%m-%d %H:%M')}
@@ -621,7 +625,7 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console) -> None:
         logger.warning(f"Could not open IDE: {e}")
 
 
-def _list_worktrees() -> List[dict]:
+def _list_worktrees() -> list[dict]:
     """Get list of git worktrees."""
     try:
         result = run_command(
@@ -702,7 +706,7 @@ def _is_container_running(container_name: str) -> bool:
 def _confirm_removal(console: Console) -> bool:
     """Confirm worktree removal."""
     console.print(
-        "\n[yellow]Warning: This will remove the worktree directory and all uncommitted changes.[/yellow]"
+        "\n[yellow]Warning: This will remove the worktree and all uncommitted changes.[/yellow]"
     )
 
     questions = [

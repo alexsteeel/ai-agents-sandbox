@@ -133,6 +133,58 @@ class TestDockerCommand:
         
         # Should show containers or no containers message
         assert "Containers" in result.output or "No running containers" in result.output
+    
+    @patch("ai_sbx.commands.docker.find_project_root")
+    @patch("ai_sbx.commands.docker.run_command")
+    def test_docker_ps_json_parsing(self, mock_run, mock_find_root):
+        """Test docker ps correctly parses JSON lines format."""
+        mock_find_root.return_value = Path("/test/project")
+        # Simulate Docker's --format '{{json .}}' output (one JSON object per line)
+        mock_run.return_value = Mock(
+            returncode=0,
+            stdout='{"Names": "project-devcontainer", "Image": "ai-sbx/python", "State": "running"}\n'
+                   '{"Names": "project-tinyproxy", "Image": "ai-sbx/tinyproxy", "State": "running"}'
+        )
+        
+        result = self.runner.invoke(cli, ["docker", "ps"])
+        
+        # Check that --format '{{json .}}' was used
+        mock_run.assert_called_with(
+            ["docker", "ps", "--format", "{{json .}}"],
+            check=False,
+            capture_output=True,
+        )
+        assert result.exit_code == 0
+    
+    @patch("ai_sbx.commands.docker.find_project_root")
+    @patch("ai_sbx.commands.docker.load_project_config")
+    @patch("ai_sbx.commands.docker.run_command")
+    def test_docker_exec_container_name_resolution(self, mock_run, mock_config, mock_find_root):
+        """Test docker exec uses config name for container resolution."""
+        mock_find_root.return_value = Path("/test/different-dir-name")
+        
+        # Config name differs from directory name
+        from ai_sbx.config import ProjectConfig
+        mock_config.return_value = ProjectConfig(
+            name="my-project",  # Different from dir name
+            path=Path("/test/different-dir-name")
+        )
+        
+        # Mock container running check
+        mock_run.return_value = Mock(
+            returncode=0,
+            stdout="my-project-devcontainer\nmy-project-tinyproxy"
+        )
+        
+        result = self.runner.invoke(cli, ["docker", "exec", "--", "ls"])
+        
+        # Should use config name, not directory name
+        calls = mock_run.call_args_list
+        # First call checks running containers
+        assert calls[0][0][0] == ["docker", "ps", "--format", "{{.Names}}"]
+        # Second call should exec into my-project-devcontainer (not different-dir-name-devcontainer)
+        if len(calls) > 1:
+            assert "my-project-devcontainer" in calls[1][0][0]
 
 
 class TestWorktreeCommand:

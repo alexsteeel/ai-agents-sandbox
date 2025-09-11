@@ -1,10 +1,9 @@
 """Docker management commands for AI Agents Sandbox."""
 
-import os
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 import click
 from rich.console import Console
@@ -13,10 +12,10 @@ from rich.table import Table
 
 from ai_sbx.config import ImageVariant, load_project_config
 from ai_sbx.utils import (
+    find_project_root,
+    is_docker_running,
     logger,
     run_command,
-    is_docker_running,
-    find_project_root,
 )
 
 
@@ -376,16 +375,13 @@ def exec(ctx: click.Context, service: str, command: tuple[str, ...]) -> None:
         console.print("[red]Not in a project directory[/red]")
         sys.exit(1)
 
-    # Get container base name from project config if available
-    base_name = project_root.name
-    try:
-        cfg = load_project_config(project_root)
-        if cfg:
-            base_name = cfg.name
-    except Exception:
-        pass
+    # Get container base name from project config
+    cfg = load_project_config(project_root)
+    if not cfg:
+        console.print("[red]Project not initialized. Run 'ai-sbx init' first[/red]")
+        sys.exit(1)
 
-    container_name = f"{base_name}-{service}"
+    container_name = f"{cfg.name}-{service}"
 
     # Check if container is running
     try:
@@ -429,7 +425,12 @@ def exec(ctx: click.Context, service: str, command: tuple[str, ...]) -> None:
 @docker.command()
 @click.pass_context
 def ps(ctx: click.Context) -> None:
-    """List running containers for the current project."""
+    """List running containers for the current project.
+    
+    Uses Docker's Go template format '{{json .}}' to output JSON lines,
+    where each line is a separate JSON object representing a container.
+    This format is more reliable than the plain 'json' format option.
+    """
     console: Console = ctx.obj["console"]
 
     project_root = find_project_root()
@@ -519,7 +520,7 @@ def clean(ctx: click.Context) -> None:
         # Remove stopped containers
         task = progress.add_task("Removing stopped containers...", total=None)
         try:
-            result = run_command(
+            run_command(
                 ["docker", "container", "prune", "-f"],
                 capture_output=True,
                 verbose=verbose,
@@ -531,7 +532,7 @@ def clean(ctx: click.Context) -> None:
         # Remove unused networks
         task = progress.add_task("Removing unused networks...", total=None)
         try:
-            result = run_command(
+            run_command(
                 ["docker", "network", "prune", "-f"],
                 capture_output=True,
                 verbose=verbose,
@@ -543,7 +544,7 @@ def clean(ctx: click.Context) -> None:
         # Remove dangling images
         task = progress.add_task("Removing dangling images...", total=None)
         try:
-            result = run_command(
+            run_command(
                 ["docker", "image", "prune", "-f"],
                 capture_output=True,
                 verbose=verbose,
@@ -555,7 +556,7 @@ def clean(ctx: click.Context) -> None:
         # Clean build cache
         task = progress.add_task("Cleaning build cache...", total=None)
         try:
-            result = run_command(
+            run_command(
                 ["docker", "builder", "prune", "-f"],
                 capture_output=True,
                 verbose=verbose,
@@ -646,7 +647,7 @@ def _push_images(variants: list[ImageVariant], tag: str, console: Console, verbo
             console.print(f"[red]Failed to push {image_name}: {e}[/red]")
 
 
-def _get_variant_image_spec(variant: ImageVariant) -> Optional[Tuple[str, str]]:
+def _get_variant_image_spec(variant: ImageVariant) -> Optional[tuple[str, str]]:
     """Map variant to (image_repo, dockerfile_dir).
 
     Returns None if variant is not supported by this repository layout.
@@ -656,8 +657,14 @@ def _get_variant_image_spec(variant: ImageVariant) -> Optional[Tuple[str, str]]:
         ImageVariant.MINIMAL: ("ai-agents-sandbox/minimal", "images/minimal"),
         ImageVariant.PYTHON: ("ai-agents-sandbox/python", "images/python"),
         ImageVariant.NODEJS: ("ai-agents-sandbox/nodejs", "images/nodejs"),
-        # Repository uses devcontainer-* directories for these variants
-        ImageVariant.DOTNET: ("ai-agents-sandbox/devcontainer-dotnet", "images/devcontainer-dotnet"),
-        ImageVariant.GOLANG: ("ai-agents-sandbox/devcontainer-golang", "images/devcontainer-golang"),
+        # Future variants (commented out in enum)
+        # ImageVariant.DOTNET: (
+        #     "ai-agents-sandbox/devcontainer-dotnet",
+        #     "images/devcontainer-dotnet"
+        # ),
+        # ImageVariant.GOLANG: (
+        #     "ai-agents-sandbox/devcontainer-golang",
+        #     "images/devcontainer-golang"
+        # ),
     }
     return mapping.get(variant)

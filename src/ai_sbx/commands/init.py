@@ -1,6 +1,5 @@
 """Initialize command for setting up AI Agents Sandbox."""
 
-import os
 import sys
 from pathlib import Path
 from typing import Optional
@@ -8,32 +7,31 @@ from typing import Optional
 import click
 import inquirer
 from rich.console import Console
-from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from ai_sbx.config import (
-    GlobalConfig,
-    ProjectConfig,
-    ImageVariant,
     IDE,
+    GlobalConfig,
+    ImageVariant,
+    ProjectConfig,
     get_global_config_path,
-    save_project_config,
     load_project_config,
-)
-from ai_sbx.utils import (
-    logger,
-    ensure_group_exists,
-    add_user_to_group,
-    get_current_user,
-    get_user_home,
-    create_directory,
-    find_project_root,
-    detect_ide,
-    is_docker_running,
-    prompt_yes_no,
+    save_project_config,
 )
 from ai_sbx.templates import TemplateManager
+from ai_sbx.utils import (
+    add_user_to_group,
+    create_directory,
+    detect_ide,
+    ensure_group_exists,
+    find_project_root,
+    get_current_user,
+    get_user_home,
+    is_docker_running,
+    prompt_yes_no,
+    run_command,
+)
 
 
 @click.command()
@@ -171,23 +169,36 @@ def init_global(
         if username:
             task = progress.add_task(f"Adding {username} to group...", total=None)
             if add_user_to_group(username, config.group_name, verbose=verbose):
-                progress.update(task, description=f"[green]✓[/green] User added to group")
+                progress.update(task, description="[green]✓[/green] User added to group")
             else:
-                progress.update(task, description=f"[yellow]⚠[/yellow] Could not add user to group")
+                progress.update(task, description="[yellow]⚠[/yellow] Could not add user to group")
 
         # Create directories
         task = progress.add_task("Creating directories...", total=None)
         home = get_user_home()
         dirs_created = True
 
-        for dir_path in [
-            home / ".ai_agents_sandbox" / "notifications",
-            home / ".ai_agents_sandbox" / "projects",
-            config_path.parent,
+        # Create directories with appropriate permissions
+        for dir_path, mode in [
+            (home / ".ai_agents_sandbox" / "notifications", 0o775),  # Group writable
+            (home / ".ai_agents_sandbox" / "projects", 0o755),
+            (config_path.parent, 0o755),
         ]:
-            if not create_directory(dir_path):
+            if not create_directory(dir_path, mode=mode):
                 dirs_created = False
                 break
+
+        # Set group ownership for notifications directory if group exists
+        notifications_dir = home / ".ai_agents_sandbox" / "notifications"
+        if notifications_dir.exists():
+            try:
+                run_command(
+                    ["chgrp", config.group_name, str(notifications_dir)],
+                    check=False,
+                    verbose=verbose,
+                )
+            except Exception:
+                pass  # Group may not exist yet
 
         if dirs_created:
             progress.update(task, description="[green]✓[/green] Directories created")
@@ -216,7 +227,7 @@ def init_global(
 
     if username:
         console.print(
-            "\n[yellow]⚠ Important:[/yellow] Log out and back in for group membership to take effect."
+            "\n[yellow]⚠ Important:[/yellow] Log out and back in for group changes to take effect."
         )
 
 
@@ -417,13 +428,13 @@ def init_project(
 
     # Next steps
     console.print("\n[bold]Next steps:[/bold]")
-    console.print(f"1. Build images: [cyan]ai-sbx docker build[/cyan]")
-    console.print(f"2. Start container: [cyan]ai-sbx docker up[/cyan]")
+    console.print("1. Build images: [cyan]ai-sbx docker build[/cyan]")
+    console.print("2. Start container: [cyan]ai-sbx docker up[/cyan]")
 
     if config.preferred_ide == IDE.VSCODE:
         console.print(f"3. Open in VS Code: [cyan]code {project_path}[/cyan]")
         console.print("   Then click 'Reopen in Container' when prompted")
     elif config.preferred_ide == IDE.PYCHARM:
-        console.print(f"3. Open in PyCharm: Settings → Python Interpreter → Docker Compose")
+        console.print("3. Open in PyCharm: Settings → Python Interpreter → Docker Compose")
     elif config.preferred_ide == IDE.CLAUDE:
-        console.print(f"3. Open in Claude: [cyan]claude --dangerously-skip-permissions[/cyan]")
+        console.print("3. Open in Claude: [cyan]claude --dangerously-skip-permissions[/cyan]")

@@ -1,7 +1,7 @@
 """Template management for AI Agents Sandbox."""
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -82,7 +82,7 @@ class TemplateManager:
     def _generate_docker_compose(self, config: ProjectConfig) -> str:
         """Generate docker-compose.yaml content."""
         template = """
-{% set image_repo = 'ai-agents-sandbox/' + ( 'devcontainer-dotnet' if config.variant.value == 'dotnet' else ('devcontainer-golang' if config.variant.value == 'golang' else config.variant.value) ) %}
+{% set image_repo = 'ai-agents-sandbox/' + config.variant.value %}
 
 services:
   devcontainer:
@@ -118,7 +118,7 @@ services:
       - docker
     working_dir: /workspace
     command: sleep infinity
-    
+
 {% if config.proxy.enabled %}
   tinyproxy:
     image: ai-agents-sandbox/tinyproxy:latest
@@ -171,7 +171,11 @@ services:
     volumes:
       - registry-cache:/docker_mirror_cache
     environment:
-      - REGISTRIES={{ ' '.join(config.docker.custom_registries) if config.docker.custom_registries else 'docker.io gcr.io ghcr.io k8s.gcr.io quay.io' }}
+{% if config.docker.custom_registries %}
+      - REGISTRIES={{ ' '.join(config.docker.custom_registries) }}
+{% else %}
+      - REGISTRIES=docker.io gcr.io ghcr.io k8s.gcr.io quay.io
+{% endif %}
       - ENABLE_MANIFEST_CACHE=true
       - MANIFEST_CACHE_PRIMARY_REGEX=.*
 {% if config.proxy.enabled and config.proxy.upstream %}
@@ -206,9 +210,9 @@ volumes:
     "service": "devcontainer",
     "workspaceFolder": "/workspace",
     "remoteUser": "claude",
-    
+
     "features": {},
-    
+
     "customizations": {
         "vscode": {
             "extensions": [
@@ -231,15 +235,15 @@ volumes:
             }
         }
     },
-    
+
     "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
     "postStartCommand": "",
     "postAttachCommand": "",
-    
+
     "forwardPorts": [],
-    
+
     "mounts": [],
-    
+
     "runArgs": []
 }
 """

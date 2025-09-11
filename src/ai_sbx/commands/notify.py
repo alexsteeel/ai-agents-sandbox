@@ -4,12 +4,11 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Optional
 
 import click
 from rich.console import Console
 
-from ai_sbx.utils import logger, get_user_home, check_command_exists, run_command
+from ai_sbx.utils import check_command_exists, get_user_home, run_command
 
 
 @click.group(invoke_without_command=True)
@@ -41,12 +40,17 @@ def notify(ctx: click.Context, test: bool, daemon: bool) -> None:
         return
 
     if daemon:
-        # Fork to background
+        # Fork to background (Unix-only)
+        if not hasattr(os, 'fork'):
+            console.print("[red]Daemon mode not supported on Windows[/red]")
+            console.print("Run without -d flag: [cyan]ai-sbx notify[/cyan]")
+            sys.exit(1)
+
         try:
             pid = os.fork()
             if pid > 0:
                 console.print(f"[green]Notification watcher started (PID: {pid})[/green]")
-                console.print("To stop: [cyan]pkill -f 'ai-sbx notify'[/cyan]")
+                console.print("To stop: [cyan]ai-sbx notify stop[/cyan]")
                 sys.exit(0)
         except OSError as e:
             console.print(f"[red]Failed to fork process: {e}[/red]")
@@ -63,7 +67,7 @@ def send_test_notification(console: Console) -> None:
 
     if not notifications_dir.exists():
         console.print("[red]Notifications directory does not exist[/red]")
-        console.print(f"Run [cyan]ai-sbx init --global[/cyan] to set up notifications")
+        console.print("Run [cyan]ai-sbx init --global[/cyan] to set up notifications")
         return
 
     # Create test notification
@@ -86,7 +90,7 @@ def start_notification_watcher(console: Console, verbose: bool) -> None:
 
     if not notifications_dir.exists():
         console.print("[red]Notifications directory does not exist[/red]")
-        console.print(f"Run [cyan]ai-sbx init --global[/cyan] to set up notifications")
+        console.print("Run [cyan]ai-sbx init --global[/cyan] to set up notifications")
         sys.exit(1)
 
     # Check for notification tools

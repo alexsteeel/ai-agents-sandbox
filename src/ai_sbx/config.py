@@ -1,14 +1,13 @@
 """Configuration management for AI Agents Sandbox."""
 
-import os
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
+import yaml
 from platformdirs import user_config_dir, user_data_dir
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-import yaml
 
 
 class IDE(str, Enum):
@@ -28,11 +27,12 @@ class ImageVariant(str, Enum):
     BASE = "base"
     MINIMAL = "minimal"
     PYTHON = "python"
-    DOTNET = "dotnet"
-    GOLANG = "golang"
     NODEJS = "nodejs"
-    RUST = "rust"
-    JAVA = "java"
+    # These will be future additions
+    # DOTNET = "dotnet"
+    # GOLANG = "golang"
+    # RUST = "rust"
+    # JAVA = "java"
 
 
 class ProxyConfig(BaseModel):
@@ -40,8 +40,8 @@ class ProxyConfig(BaseModel):
 
     enabled: bool = True
     upstream: Optional[str] = None
-    no_proxy: List[str] = Field(default_factory=list)
-    whitelist_domains: List[str] = Field(default_factory=list)
+    no_proxy: list[str] = Field(default_factory=list)
+    whitelist_domains: list[str] = Field(default_factory=list)
 
     @field_validator("upstream")
     @classmethod
@@ -56,10 +56,10 @@ class DockerConfig(BaseModel):
     """Docker configuration."""
 
     registry_proxy: bool = True
-    custom_registries: List[str] = Field(default_factory=list)
+    custom_registries: list[str] = Field(default_factory=list)
     image_prefix: str = "ai-agents-sandbox"
     image_tag: str = "latest"
-    build_args: Dict[str, str] = Field(default_factory=dict)
+    build_args: dict[str, str] = Field(default_factory=dict)
 
 
 class ProjectConfig(BaseModel):
@@ -71,7 +71,7 @@ class ProjectConfig(BaseModel):
     variant: ImageVariant = ImageVariant.BASE
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
     docker: DockerConfig = Field(default_factory=DockerConfig)
-    environment: Dict[str, str] = Field(default_factory=dict)
+    environment: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("path")
     @classmethod
@@ -177,10 +177,6 @@ def load_project_config(project_dir: Path) -> Optional[ProjectConfig]:
     config_path = get_project_config_path(project_dir)
 
     if not config_path.exists():
-        # Try legacy .env file
-        env_path = project_dir / ".devcontainer" / ".env"
-        if env_path.exists():
-            return _load_legacy_env(env_path, project_dir)
         return None
 
     with open(config_path) as f:
@@ -193,42 +189,6 @@ def load_project_config(project_dir: Path) -> Optional[ProjectConfig]:
     return ProjectConfig(**data)
 
 
-def _load_legacy_env(env_path: Path, project_dir: Path) -> ProjectConfig:
-    """Load configuration from legacy .env file."""
-    import re
-
-    env_vars = {}
-    with open(env_path) as f:
-        for line in f:
-            line = line.strip()
-            if line and not line.startswith("#"):
-                match = re.match(r"^([^=]+)=(.*)$", line)
-                if match:
-                    key, value = match.groups()
-                    env_vars[key] = value.strip("\"'")
-
-    # Map legacy variables
-    config = ProjectConfig(
-        name=env_vars.get("PROJECT_NAME", project_dir.name),
-        path=project_dir,
-    )
-
-    if "PREFERRED_IDE" in env_vars:
-        try:
-            config.preferred_ide = IDE(env_vars["PREFERRED_IDE"].lower())
-        except ValueError:
-            pass
-
-    if "UPSTREAM_PROXY" in env_vars:
-        config.proxy.upstream = env_vars["UPSTREAM_PROXY"]
-
-    if "USER_WHITELIST_DOMAINS" in env_vars:
-        domains = env_vars["USER_WHITELIST_DOMAINS"].replace(",", " ").split()
-        config.proxy.whitelist_domains = domains
-
-    return config
-
-
 def save_project_config(config: ProjectConfig) -> None:
     """Save project configuration."""
     config_path = get_project_config_path(config.path)
@@ -238,7 +198,7 @@ def save_project_config(config: ProjectConfig) -> None:
         yaml.dump(config.model_dump(mode="json"), f, default_flow_style=False)
 
 
-def get_default_whitelist_domains() -> List[str]:
+def get_default_whitelist_domains() -> list[str]:
     """Get the default whitelist domains."""
     return [
         # Package registries

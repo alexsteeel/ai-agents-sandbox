@@ -1,16 +1,15 @@
 """Utility functions for AI Agents Sandbox."""
 
+import logging
 import os
 import platform
 import shutil
 import subprocess
-import sys
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from rich.console import Console
 from rich.logging import RichHandler
-import logging
 
 
 class Logger:
@@ -73,7 +72,7 @@ def run_command(
     check: bool = True,
     capture_output: bool = True,
     cwd: Optional[Path] = None,
-    env: Optional[Dict[str, str]] = None,
+    env: Optional[dict[str, str]] = None,
     sudo: bool = False,
     verbose: bool = False,
 ) -> subprocess.CompletedProcess[str]:
@@ -140,7 +139,7 @@ def check_command_exists(command: str) -> bool:
     return shutil.which(command) is not None
 
 
-def get_platform_info() -> Dict[str, str]:
+def get_platform_info() -> dict[str, str]:
     """Get platform information."""
     return {
         "system": platform.system(),
@@ -221,7 +220,7 @@ def add_user_to_group(username: str, group_name: str, verbose: bool = False) -> 
             sudo=True,
             verbose=verbose,
         )
-        logger.success(f"User added to group")
+        logger.success("User added to group")
         logger.warning("Log out and back in for group membership to take effect")
         return True
 
@@ -285,7 +284,7 @@ def create_directory(
 def copy_template(
     source: Path,
     destination: Path,
-    context: Optional[Dict[str, Any]] = None,
+    context: Optional[dict[str, Any]] = None,
     overwrite: bool = False,
 ) -> bool:
     """Copy a template file with optional variable substitution.
@@ -376,7 +375,7 @@ def detect_ide() -> list[str]:
     return ides
 
 
-def format_size(size: int | float) -> str:
+def format_size(size: float) -> str:
     """Format byte size as human-readable string.
 
     Args:
@@ -415,7 +414,7 @@ def prompt_yes_no(question: str, default: bool = False) -> bool:
         print("Please answer 'yes' or 'no'")
 
 
-def get_docker_info() -> Optional[Dict[str, Any]]:
+def get_docker_info() -> Optional[dict[str, Any]]:
     """Get Docker daemon information.
 
     Returns:

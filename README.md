@@ -74,6 +74,17 @@ ai-sbx docker build
 ai-sbx docker build --variant python
 ```
 
+#### Available Image Variants
+
+| Variant | Description | Use Case | Image Name |
+|---------|-------------|----------|------------|
+| `base` | Essential tools only | General development, minimal footprint | `ai-agents-sandbox/base:latest` |
+| `minimal` | Ultra-lightweight | Testing, CI/CD | `ai-agents-sandbox/minimal:latest` |
+| `python` | Python development | Data science, web apps, automation | `ai-agents-sandbox/python:latest` |
+| `nodejs` | Node.js development | Frontend, backend, full-stack JS | `ai-agents-sandbox/nodejs:latest` |
+
+**Note:** Future variants (`dotnet`, `golang`, `rust`, `java`) are planned but not yet available in this release.
+
 ### 3. Start Development
 
 ```bash

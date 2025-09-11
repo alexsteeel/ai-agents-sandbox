@@ -2,5 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tmp_sbx_project" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/tmp_sbx_project-implement-user-login" vcs="Git" />
   </component>
 </project>

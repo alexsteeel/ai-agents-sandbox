@@ -138,7 +138,7 @@ class TestProjectConfigIO:
                 name="test-project",
                 path=project_dir,
                 preferred_ide=IDE.PYCHARM,
-                variant=ImageVariant.DOTNET,
+                variant=ImageVariant.PYTHON,
                 proxy=ProxyConfig(
                     upstream="socks5://localhost:1080",
                     whitelist_domains=["api.example.com"],
@@ -154,18 +154,18 @@ class TestProjectConfigIO:
             assert loaded is not None
             assert loaded.name == "test-project"
             assert loaded.preferred_ide == IDE.PYCHARM
-            assert loaded.variant == ImageVariant.DOTNET
+            assert loaded.variant == ImageVariant.PYTHON
             assert loaded.proxy.upstream == "socks5://localhost:1080"
             assert "api.example.com" in loaded.proxy.whitelist_domains
     
-    def test_load_legacy_env(self):
-        """Test loading configuration from legacy .env file."""
+    def test_no_legacy_env_support(self):
+        """Test that legacy .env files are not loaded."""
         with tempfile.TemporaryDirectory() as temp_dir:
             project_dir = Path(temp_dir)
             devcontainer_dir = project_dir / ".devcontainer"
             devcontainer_dir.mkdir()
             
-            # Create legacy .env file
+            # Create legacy .env file (should be ignored)
             env_file = devcontainer_dir / ".env"
             env_file.write_text("""
 PROJECT_NAME=legacy-project
@@ -174,15 +174,11 @@ UPSTREAM_PROXY=http://proxy:8080
 USER_WHITELIST_DOMAINS=api.legacy.com,cdn.legacy.com
 """)
             
-            # Load config
+            # Load config - should return None since no ai-sbx.yaml exists
             config = load_project_config(project_dir)
             
-            assert config is not None
-            assert config.name == "legacy-project"
-            assert config.preferred_ide == IDE.PYCHARM
-            assert config.proxy.upstream == "http://proxy:8080"
-            assert "api.legacy.com" in config.proxy.whitelist_domains
-            assert "cdn.legacy.com" in config.proxy.whitelist_domains
+            # Legacy .env files are no longer supported
+            assert config is None
 
 
 class TestWhitelist:
@@ -220,8 +216,7 @@ class TestEnums:
         """Test ImageVariant enum values."""
         assert ImageVariant.BASE.value == "base"
         assert ImageVariant.PYTHON.value == "python"
-        assert ImageVariant.DOTNET.value == "dotnet"
-        assert ImageVariant.GOLANG.value == "golang"
+        assert ImageVariant.NODEJS.value == "nodejs"
         
         # Test from string
         assert ImageVariant("python") == ImageVariant.PYTHON

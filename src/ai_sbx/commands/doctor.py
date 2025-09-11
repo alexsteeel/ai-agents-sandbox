@@ -1,18 +1,15 @@
 """Doctor command for diagnosing and fixing AI Agents Sandbox issues."""
 
-from typing import Tuple
-
 from rich.console import Console
 from rich.table import Table
 
 from ai_sbx.config import GlobalConfig, get_global_config_path
 from ai_sbx.utils import (
-    logger,
     check_command_exists,
-    get_docker_info,
-    is_docker_running,
     get_current_user,
+    get_docker_info,
     get_user_home,
+    is_docker_running,
     run_command,
 )
 
@@ -75,7 +72,7 @@ def run_doctor(
         console.print("\n[yellow]Run with --fix to attempt automatic fixes[/yellow]")
 
 
-def check_docker(console: Console, verbose: bool) -> Tuple[str, str, str]:
+def check_docker(console: Console, verbose: bool) -> tuple[str, str, str]:
     """Check Docker installation and status."""
     if not check_command_exists("docker"):
         return ("error", "Docker", "Docker is not installed")
@@ -202,7 +199,7 @@ def check_permissions(console: Console, verbose: bool) -> list[tuple[str, str, s
     for dir_path in dirs_to_check:
         if dir_path.exists():
             # Check ownership and permissions
-            stat_info = dir_path.stat()
+            dir_path.stat()  # Check if we can access it
             if verbose:
                 results.append(
                     ("ok", str(dir_path.name), "Directory exists with proper permissions")
@@ -259,17 +256,17 @@ def display_results(
     table.add_column("Details")
 
     # Add issues
-    for status, component, details in issues:
+    for _status, component, details in issues:
         table.add_row(
-            f"[red]✗ ERROR[/red]",
+            "[red]✗ ERROR[/red]",
             component,
             details,
         )
 
     # Add warnings
-    for status, component, details in warnings:
+    for _status, component, details in warnings:
         table.add_row(
-            f"[yellow]⚠ WARNING[/yellow]",
+            "[yellow]⚠ WARNING[/yellow]",
             component,
             details,
         )
@@ -277,7 +274,7 @@ def display_results(
     console.print(table)
 
     # Summary
-    console.print(f"\n[bold]Summary:[/bold]")
+    console.print("\n[bold]Summary:[/bold]")
     if issues:
         console.print(f"  [red]Errors: {len(issues)}[/red]")
     if warnings:
@@ -294,7 +291,7 @@ def fix_detected_issues(
     fixed_count = 0
 
     # Fix Docker issues
-    for status, component, details in issues:
+    for _status, component, details in issues:
         if component == "Docker" and "not running" in details:
             console.print("Starting Docker daemon...")
             try:
@@ -307,7 +304,7 @@ def fix_detected_issues(
                 console.print("Please start Docker manually")
 
     # Fix group issues
-    for status, component, details in warnings:
+    for _status, component, details in warnings:
         if component == "Group" and "not created" in details:
             console.print("Creating local-ai-team group...")
             console.print("[yellow]This requires sudo access[/yellow]")
@@ -339,7 +336,7 @@ def fix_detected_issues(
 
     # Fix missing directories
     home = get_user_home()
-    for status, component, details in warnings:
+    for _status, component, details in warnings:
         if "Directory does not exist" in details:
             dir_name = component
             dir_path = (
@@ -357,7 +354,7 @@ def fix_detected_issues(
                 console.print(f"[red]Could not create directory: {e}[/red]")
 
     # Fix missing configuration
-    for status, component, details in warnings:
+    for _status, component, details in warnings:
         if component == "Configuration" and "not initialized" in details:
             console.print("Initializing global configuration...")
             try:
