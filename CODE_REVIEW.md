@@ -1,6 +1,6 @@
 # Code Review: Migration from Shell Scripts to Python CLI
 
-Scope: Review and validation of the new Python implementation replacing host shell scripts. No code changes made — this document records test results, potential issues, and recommendations.
+Scope: Review and validation of the new Python implementation replacing host shell scripts. This document records test results, identified issues, and the fixes that were applied as part of this review.
 
 ## Summary
 
@@ -33,6 +33,7 @@ Scope: Review and validation of the new Python implementation replacing host she
 - Reality: Docker’s `--format` expects a Go template; to emit JSON lines use `--format '{{json .}}'`.
 - Impact: `ai-sbx docker ps` will fail to parse real output unless mocked; tests bypass with stubs.
 - Recommendation: Use `--format '{{json .}}'` and parse each line as JSON.
+- Status: Fixed. `ai-sbx docker ps` now uses `--format '{{json .}}'` and parses JSON lines.
 
 ### 2) Image variant naming mismatches
 
@@ -42,6 +43,10 @@ Scope: Review and validation of the new Python implementation replacing host she
 - Build code uses `images/{variant}` and compose uses `ai-agents-sandbox/{variant}:latest`.
 - Impact: Building/using these variants will fail or pull non-existent images.
 - Recommendation: Align variant names and paths (either rename dirs/images or map enum→path/tag).
+- Status: Fixed (partial). Added explicit mapping in build logic and templates:
+  - dotnet → `images/devcontainer-dotnet` / `ai-agents-sandbox/devcontainer-dotnet`
+  - golang → `images/devcontainer-golang` / `ai-agents-sandbox/devcontainer-golang`
+  - rust/java currently unsupported in this repo (skipped with warning).
 
 ### 3) Container name computation mismatch
 
@@ -49,12 +54,14 @@ Scope: Review and validation of the new Python implementation replacing host she
 - Compose sets `container_name: {config.name}-devcontainer`.
 - Impact: If `config.name` ≠ project directory name, `exec` can’t find the container.
 - Recommendation: Load `ProjectConfig` and derive names from config consistently across commands.
+- Status: Fixed. `ai-sbx docker exec` now reads `ProjectConfig` and uses `{config.name}-{service}`.
 
 ### 4) `notify stop` command not exposed
 
 - `commands/notify.py` defines a `@click.command()` `stop`, but it’s not registered to the CLI.
 - Impact: Users can’t call `ai-sbx notify stop` or `ai-sbx stop` from the current CLI wiring.
 - Recommendation: Make `notify` a group and add `notify stop`, or register `stop` on the root group.
+- Status: Fixed. `notify` is now a Click group; `ai-sbx notify stop` is available. README updated.
 
 ### 5) Hardcoded host path in devcontainer override
 
@@ -62,6 +69,7 @@ Scope: Review and validation of the new Python implementation replacing host she
   - `/media/bas/repo/github/ai-agents-sandbox/.git:...`
 - Impact: Breaks portability and leaks a developer’s local path into the repo.
 - Recommendation: Remove this from versioned config; prefer relative paths or documented local-only overrides.
+- Status: Fixed. Removed developer-specific absolute mount; replaced with a comment.
 
 ### 6) Cross-platform and privilege edge-cases
 
@@ -69,22 +77,26 @@ Scope: Review and validation of the new Python implementation replacing host she
 - Group/user management (`groupadd`, `usermod`) assumes Linux; fail gracefully with guidance on non-Linux.
 - `get_user_home()` builds `/home/{username}` for non-root; doesn’t handle macOS/custom home dirs.
 - Recommendation: Platform guards and more portable home resolution (use `pwd` db on Unix; `Path.home()` fallback).
+- Status: Partially fixed. `get_user_home()` now uses the system user database (`pwd`) when available, with fallback. `notify --daemon` still uses `os.fork()` (POSIX-only) — document/guard as future work.
 
 ### 7) Shell calls and injection safety
 
 - `init.py` uses `os.system("chgrp -R {group} ...")` and `chmod` string commands.
 - Recommendation: Use `subprocess` with argv lists to avoid shell injection and to capture errors.
+- Status: Fixed. Replaced `os.system` in `init.py` with safe `run_command([...])` calls for `chgrp`/`chmod`.
 
 ### 8) Default shell assumptions
 
 - `docker exec`/worktree connect default to `/bin/zsh`.
 - Impact: Fails on images without zsh or when using minimal variants.
 - Recommendation: Fallback to `/bin/bash` or `/bin/sh` if zsh is missing.
+- Status: Fixed. `docker exec` now falls back: zsh → bash → sh.
 
 ### 9) Notify permissions: observed failure
 
 - `ai-sbx notify --test` failed here due to notifications dir owned by a different user/group.
 - Recommendation: In `init --global`, ensure ownership and group perms for `$HOME/.ai_agents_sandbox/notifications`.
+- Status: Open. Current behavior warns gracefully; future improvement could fix ownership during global init.
 
 ## Lint & Type-Check Improvements
 
@@ -97,12 +109,18 @@ Scope: Review and validation of the new Python implementation replacing host she
   - Use `CompletedProcess[str]` for `run_command` return type; fix `format_size` int/float variable type.
   - Install stubs: `types-PyYAML`; consider `# type: ignore[...]/py.typed` strategy for `inquirer`.
 
+Status: Partially fixed.
+- Typing: `run_command` now returns `CompletedProcess[str]`; `format_size` handles floats; click types improved; several list/tuple types moved to PEP 585 built-ins.
+- Lint: Removed unused imports/vars in CLI; many Ruff warnings remain (89 issues), mostly auto-fixable import/order/formatting.
+
 ## Documentation Gaps
 
 - README mixes legacy shell scripts (e.g., `images/build.sh`) and new Python CLI (`ai-sbx docker build`).
   - Action: Clarify authoritative path (Python CLI), keep script references as optional/advanced.
 - Document variant availability vs. repo images; note any variants not yet provided.
 - Document Docker JSON formatting expectations for `docker ps`.
+
+Status: Partially fixed. README updated to document `notify stop` and `doctor --verbose`. Template now selects correct image repo for dotnet/golang. Additional doc updates still recommended for variant availability and Docker ps formatting rationale.
 
 ## Test Coverage Recommendations
 
@@ -124,12 +142,19 @@ The migration significantly improves maintainability, UX, and modularity. The CL
 
 ## Actionable Next Steps
 
-1) Fix `docker ps` formatter to `--format '{{json .}}'` and add tests.
-2) Align `ImageVariant` mapping to actual image directories/tags (dotnet/golang/rust/java).
-3) Unify container name derivation via `ProjectConfig` across commands.
-4) Expose `notify stop` as a subcommand (`notify stop`) and document it.
-5) Replace `os.system` usages with `run_command([...])` for chgrp/chmod.
-6) Improve cross-platform behavior (`os.fork` guard, `get_user_home` using `pwd`).
-7) Resolve Ruff/Mypy findings; add `types-PyYAML` as dev dep and annotate functions.
-8) Remove developer-specific path from `.devcontainer/override.user.yaml`.
+1) Add tests for real `docker ps` JSON-line parsing and image mapping logic.
+2) Decide on support or clear documentation for rust/java variants; currently skipped during build.
+3) Add platform guards for `notify --daemon` (Windows), and optionally a PID file for robust stop.
+4) Implement ownership/perms fix for notifications dir in `init --global` (best-effort).
+5) Run `ruff --fix` and resolve remaining lint; add `types-PyYAML` and annotate modules to reduce mypy warnings.
+6) Expand README docs for variant availability and Docker JSON formatting.
 
+## Post-Fix Verification
+
+- Tests: 50 passed; coverage unchanged (~45%).
+- Docker detection: `is_docker_running()` now correctly returns False in restricted environments (treats `ServerErrors`/missing `ServerVersion` as not running).
+- CLI:
+  - `ai-sbx doctor --verbose` works (subcommand-level flag added; also inherited from root `-v`).
+  - `ai-sbx docker ps` uses JSON lines format and error-handles properly.
+  - `ai-sbx notify stop` is exposed and documented.
+  - Templates drop the obsolete top-level `version:` and pick correct image repos for dotnet/golang.
