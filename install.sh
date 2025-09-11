@@ -152,6 +152,9 @@ configure_custom_registry() {
             
             print_status "Configuring custom registry: ${custom_registry}"
             
+            # Create docker-proxy directory if it doesn't exist
+            mkdir -p "resources/docker-proxy"
+            
             # Create the .env content
             ENV_CONTENT="# Custom Docker Registry Configuration
 ADDITIONAL_REGISTRIES=${custom_registry}
@@ -181,16 +184,10 @@ DOCKER_REGISTRY_PROXY_IMAGE=${custom_image}"
             fi
             
             # Create destination directory if needed and write the config
-            if [[ $EUID -ne 0 ]]; then
-                # Need sudo to create directory and write to system location
-                sudo mkdir -p "/usr/local/share/ai-agents-sandbox/docker-proxy"
-                echo "${ENV_CONTENT}" | sudo tee "${DOCKER_PROXY_ENV}" > /dev/null
-            else
-                mkdir -p "/usr/local/share/ai-agents-sandbox/docker-proxy"
-                cat > "${DOCKER_PROXY_ENV}" << EOF
+            mkdir -p "resources/docker-proxy"
+            cat > "resources/docker-proxy/.env" << EOF
 ${ENV_CONTENT}
 EOF
-            fi
             
             print_status "✓ Custom registry configured: ${custom_registry}"
             print_info "Registry will be added to Docker proxy cache configuration"
@@ -203,50 +200,116 @@ EOF
     echo ""
 }
 
-# Install host scripts
-install_host_scripts() {
-    print_section "Installing Host Scripts"
+# Install Python CLI
+install_python_cli() {
+    print_section "Installing Python CLI"
     
-    print_info "The following scripts will be installed to /usr/local/bin:"
-    print_info "  • ai-sbx-create-task-worktree    - Create git worktree for new tasks"
-    print_info "  • ai-sbx-remove-task-worktree    - Remove task worktrees"
-    print_info "  • ai-sbx-connect-task-worktree   - Connect to existing task worktrees"
-    print_info "  • ai-sbx-notify-watch            - Desktop notification watcher (optional)"
-    print_info "  • ai-sbx-init-project            - Initialize project with Docker proxy"
-    echo ""
-    print_info "Additional setup:"
-    print_info "  • Creates 'local-ai-team' group (GID 3000) for file sharing"
-    print_info "  • Creates ~/.ai_agents_sandbox/notifications for alerts"
-    print_info "  • Creates ~/.claude/projects for statistics"
-    print_info "  • Installs base Docker Compose template"
-    print_info "  • Sets up Docker proxy for transparent image caching"
+    print_info "The ai-sbx Python CLI will be installed with the following commands:"
+    print_info "  • ai-sbx init          - Initialize project with devcontainer"
+    print_info "  • ai-sbx worktree      - Manage git worktrees for tasks"
+    print_info "  • ai-sbx docker        - Manage Docker containers and images"
+    print_info "  • ai-sbx notify        - Start notification watcher"
+    print_info "  • ai-sbx doctor        - Diagnose and fix setup issues"
+    print_info "  • ai-sbx upgrade       - Upgrade to latest version"
     echo ""
     
-    if [[ ! -f "host/install.sh" ]]; then
-        print_error "Host install script not found at host/install.sh"
+    # Check for Python
+    if ! command -v python3 &> /dev/null; then
+        print_error "Python 3 is not installed"
+        print_info "Please install Python 3.9 or later"
         exit 1
     fi
     
-    # Make install script executable
-    chmod +x host/install.sh
+    # Install Python package
+    print_status "Installing ai-sbx Python package..."
     
-    # Check if we need sudo
-    if [[ $EUID -ne 0 ]]; then
-        print_warning "Root access required to install system scripts"
-        print_info "You may be prompted for your sudo password..."
-        echo ""
-        
-        if sudo -v; then
-            sudo ./host/install.sh
-        else
-            print_error "Failed to obtain root access"
-            exit 1
-        fi
+    # Check if uv is available (preferred)
+    if command -v uv &> /dev/null; then
+        print_status "Using uv to install ai-sbx..."
+        uv pip install --system -e .
+        print_status "✓ Python CLI installed with uv"
+    elif command -v pip3 &> /dev/null; then
+        print_status "Using pip to install ai-sbx..."
+        pip3 install -e .
+        print_status "✓ Python CLI installed with pip"
     else
-        ./host/install.sh
+        print_error "Neither uv nor pip3 is available"
+        print_info "Please install pip3 or uv to continue"
+        exit 1
     fi
     
-    print_status "✓ Host scripts installed successfully"
+    # Verify installation
+    if command -v ai-sbx &> /dev/null; then
+        print_status "✓ AI Agents Sandbox CLI installed successfully"
+    else
+        print_error "Installation verification failed - ai-sbx command not found"
+        print_info "You may need to add Python scripts directory to your PATH"
+        print_info "Try: export PATH=\"\$HOME/.local/bin:\$PATH\""
+        exit 1
+    fi
+}
+
+# Setup system configuration
+setup_system_config() {
+    print_section "Setting up System Configuration"
+    
+    # Create local-ai-team group if it doesn't exist
+    DEV_GID=3000
+    if ! getent group local-ai-team >/dev/null 2>&1; then
+        print_status "Creating local-ai-team group (GID $DEV_GID) for file sharing..."
+        
+        if [[ $EUID -ne 0 ]]; then
+            print_info "Root access required to create group"
+            if sudo groupadd -g $DEV_GID local-ai-team 2>/dev/null; then
+                print_status "✓ Group 'local-ai-team' created"
+            else
+                print_warning "Could not create group (may already exist)"
+            fi
+        else
+            groupadd -g $DEV_GID local-ai-team 2>/dev/null || true
+            print_status "✓ Group 'local-ai-team' created"
+        fi
+    else
+        print_status "✓ Group 'local-ai-team' already exists"
+    fi
+    
+    # Add current user to local-ai-team group
+    CURRENT_USER="${SUDO_USER:-$USER}"
+    if [[ -n "$CURRENT_USER" ]] && [[ "$CURRENT_USER" != "root" ]]; then
+        print_status "Adding $CURRENT_USER to local-ai-team group..."
+        
+        if [[ $EUID -ne 0 ]]; then
+            if sudo usermod -aG local-ai-team "$CURRENT_USER" 2>/dev/null; then
+                print_status "✓ User added to local-ai-team group"
+            else
+                print_warning "Could not add user to group"
+            fi
+        else
+            usermod -aG local-ai-team "$CURRENT_USER" 2>/dev/null || true
+            print_status "✓ User added to local-ai-team group"
+        fi
+    fi
+    
+    # Create notification directories
+    if [[ -n "$CURRENT_USER" ]] && [[ "$CURRENT_USER" != "root" ]]; then
+        USER_HOME=$(eval echo ~$CURRENT_USER)
+        AI_SBX_DIR="${USER_HOME}/.ai_agents_sandbox"
+        NOTIFICATION_DIR="$AI_SBX_DIR/notifications"
+        PROJECTS_DIR="$AI_SBX_DIR/projects"
+        
+        print_status "Creating AI Agents Sandbox directories..."
+        
+        # Create directories
+        mkdir -p "$NOTIFICATION_DIR"
+        mkdir -p "$PROJECTS_DIR"
+        
+        # Set ownership
+        if [[ $EUID -eq 0 ]]; then
+            chown -R "$CURRENT_USER:$CURRENT_USER" "$AI_SBX_DIR"
+        fi
+        
+        print_status "✓ Notification directories created"
+    fi
 }\
 
 # Verify installation
@@ -266,21 +329,19 @@ verify_installation() {
         fi
     done
     
-    # Check installed scripts
-    for script in ai-sbx-create-task-worktree ai-sbx-remove-task-worktree ai-sbx-connect-task-worktree ai-sbx-notify-watch ai-sbx-init-project; do
-        if command -v "$script" >/dev/null 2>&1; then
-            print_status "✓ Script installed: $script"
-        else
-            print_error "✗ Script not found: $script"
-            ((errors++))
-        fi
-    done
-    
-    # Check templates
-    if [[ -d "/usr/local/share/ai-agents-sandbox" ]]; then
-        print_status "✓ Templates installed"
+    # Check installed Python CLI
+    if command -v "ai-sbx" >/dev/null 2>&1; then
+        print_status "✓ Python CLI installed: ai-sbx"
     else
-        print_error "✗ Templates not found"
+        print_error "✗ Python CLI not found: ai-sbx"
+        ((errors++))
+    fi
+    
+    # Check resources directory
+    if [[ -d "resources" ]]; then
+        print_status "✓ Resources directory exists"
+    else
+        print_error "✗ Resources directory not found"
         ((errors++))
     fi
     
@@ -327,11 +388,12 @@ show_quickstart() {
     printf "   Just open in PyCharm/VS Code - ${GREEN}.devcontainer/${NC} is ready!\n"
     printf "\n"
     printf "${BOLD}Available commands:${NC}\n"
-    printf "   ${GREEN}ai-sbx-create-task-worktree \"task description\"${NC} - Create task branch\n"
-    printf "   ${GREEN}ai-sbx-remove-task-worktree [worktree/branch]${NC} - Remove task worktree\n"
-    printf "   ${GREEN}ai-sbx-connect-task-worktree${NC} - Connect to existing task worktree\n"
-    printf "   ${GREEN}ai-sbx-notify-watch &${NC} - Enable desktop notifications\n"
-    printf "   ${GREEN}ai-sbx-init-project [path]${NC} - Initialize project permissions\n"
+    printf "   ${GREEN}ai-sbx init [path]${NC} - Initialize project\n"
+    printf "   ${GREEN}ai-sbx worktree create \"task description\"${NC} - Create task branch\n"
+    printf "   ${GREEN}ai-sbx worktree remove [name]${NC} - Remove task worktree\n"
+    printf "   ${GREEN}ai-sbx worktree connect${NC} - Connect to existing task\n"
+    printf "   ${GREEN}ai-sbx notify${NC} - Enable desktop notifications\n"
+    printf "   ${GREEN}ai-sbx doctor${NC} - Diagnose setup issues\n"
     printf "\n"
     printf "${BOLD}For more help:${NC}\n"
     printf "   - Documentation: ${BLUE}README.md${NC}\n"
@@ -406,11 +468,12 @@ EOF
         print_warning "Skipping Docker image build (--skip-build specified)"
     fi
     
-    # Install host scripts
+    # Install Python CLI
     if [[ "$SKIP_SCRIPTS" != true ]]; then
-        install_host_scripts
+        install_python_cli
+        setup_system_config
     else
-        print_warning "Skipping host script installation (--skip-scripts specified)"
+        print_warning "Skipping Python CLI installation (--skip-scripts specified)"
     fi
     
     # Verify installation

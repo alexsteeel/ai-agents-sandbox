@@ -373,12 +373,10 @@ services:
     image: ai-agents-sandbox/devcontainer:latest
 ```
 
-4. **`init-project.sh`** (wrapper):
+4. **Initialize with Python CLI**:
 ```bash
-#!/bin/bash
-if command -v ai-sbx-init-project >/dev/null 2>&1; then
-    ai-sbx-init-project "${1:-$(dirname $(dirname $0))}"
-fi
+# Initialize project
+ai-sbx init /path/to/project
 ```
 
 ## Network Configuration
@@ -439,7 +437,7 @@ The environment includes a host notification system for alerts from Claude Code:
    ```
 3. Start the notification watcher on your host:
    ```bash
-   ai-sbx-notify-watch  # Installed system-wide by ./install.sh
+   ai-sbx notify  # Start notification watcher
    ```
 
 ### How it works
@@ -590,7 +588,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 If you have the old shell-script version installed:
 ```bash
 # Remove old scripts
-sudo rm -f /usr/local/bin/ai-sbx-*
+pip uninstall ai-sbx  # or: uv pip uninstall ai-sbx
 
 # Install new Python package
 uv pip install ai-sbx

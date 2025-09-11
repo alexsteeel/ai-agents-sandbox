@@ -100,7 +100,7 @@ services:
 
 These domains are merged with built-in defaults at runtime. The entrypoint script generates two patterns per domain to match both the exact domain and its subdomains.
 
-**Note**: Docker registry access is handled transparently by docker-registry-proxy. To add custom registries, edit `host/docker-proxy/.env`.
+**Note**: Docker registry access is handled transparently by docker-registry-proxy. To add custom registries, edit `resources/docker-proxy/.env`.
 
 ### `override.yaml`
 Project-specific Docker Compose overrides:
@@ -304,7 +304,7 @@ The devcontainer supports host notifications through a shared volume:
 ### Host Watcher
 Run on host for desktop notifications:
 ```bash
-./host-scripts/notify-watch.sh
+ai-sbx notify
 ```
 
 ### Testing from Container
@@ -312,4 +312,4 @@ Run on host for desktop notifications:
 /home/claude/claude-defaults/hooks/notify.sh "test" "Message here"
 ```
 
-See `host-scripts/CLAUDE.md` for detailed host-side setup.
+The notification system is integrated into the Python CLI.

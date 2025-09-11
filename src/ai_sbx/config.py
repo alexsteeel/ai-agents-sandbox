@@ -24,15 +24,12 @@ class IDE(str, Enum):
 class ImageVariant(str, Enum):
     """Available image variants."""
 
-    BASE = "base"
-    MINIMAL = "minimal"
-    PYTHON = "python"
-    NODEJS = "nodejs"
-    # These will be future additions
-    # DOTNET = "dotnet"
-    # GOLANG = "golang"
-    # RUST = "rust"
-    # JAVA = "java"
+    BASE = "devcontainer"  # Maps to ai-agents-sandbox/devcontainer
+    DOTNET = "devcontainer-dotnet"
+    GOLANG = "devcontainer-golang"
+    # Future additions
+    # RUST = "devcontainer-rust"
+    # JAVA = "devcontainer-java"
 
 
 class ProxyConfig(BaseModel):
@@ -88,7 +85,7 @@ class GlobalConfig(BaseModel):
     group_gid: int = 3000
     user_uid: int = 1001
     default_ide: IDE = IDE.VSCODE
-    default_variant: ImageVariant = ImageVariant.BASE
+    default_variant: ImageVariant = Field(default=ImageVariant.BASE)
     docker: DockerConfig = Field(default_factory=DockerConfig)
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
     templates_dir: Optional[Path] = None

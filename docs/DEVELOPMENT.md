@@ -10,15 +10,13 @@ ai_agents_sandbox/
 ├── .devcontainer.example/  # Template for new projects
 ├── images/                 # Docker image sources
 │   ├── devcontainer-base/  # Base development image
-│   ├── tinyproxy/ # Proxy with whitelist filtering
-│   ├── tinyproxy-dind/     # Proxy for Docker-in-Docker
+│   ├── tinyproxy/          # Proxy with whitelist filtering
+│   ├── docker-dind/        # Docker-in-Docker service
 │   └── common-settings/    # Shared configurations
-├── templates/              # System templates
-│   └── docker-compose.base.yaml
-├── host/                   # Host-side scripts
-│   ├── install.sh          # System installer
-│   ├── claude-task-worktree
-│   └── claude-notify-watch
+├── src/                    # Python CLI source code
+│   └── ai_sbx/             # Main package
+├── resources/              # Configuration and templates
+│   └── docker-proxy/       # Docker registry proxy config
 └── docs/                   # Documentation
 ```
 
@@ -73,16 +71,10 @@ This repository already has a working `.devcontainer/` configuration:
 2. Rebuild with: `./images/build.sh [image-name]`
 3. Test in the devcontainer
 
-#### To Templates
+#### To Python CLI
 
-1. Edit `templates/docker-compose.base.yaml`
-2. Reinstall: `sudo ./host/install.sh`
-3. Test with a new project
-
-#### To Host Scripts
-
-1. Edit scripts in `host/`
-2. Reinstall: `sudo ./host/install.sh`
+1. Edit files in `src/ai_sbx/`
+2. Reinstall: `pip install -e .` or `uv pip install -e .`
 3. Test the commands
 
 ### Testing Changes
@@ -102,7 +94,7 @@ This repository already has a working `.devcontainer/` configuration:
 
 3. **Test parallel tasks:**
    ```bash
-   claude-task-worktree "test feature 123"
+   ai-sbx worktree create "test feature 123"
    ```
 
 ### Building and Tagging Images

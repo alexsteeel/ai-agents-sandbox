@@ -39,7 +39,9 @@ from ai_sbx.utils import (
 @click.option("--global", "global_init", is_flag=True, help="Initialize global configuration")
 @click.option("--wizard", is_flag=True, help="Run interactive setup wizard")
 @click.option(
-    "--variant", type=click.Choice([v.value for v in ImageVariant]), help="Image variant to use"
+    "--variant", 
+    type=click.Choice([v.value for v in ImageVariant]), 
+    help="Image variant to use (devcontainer, devcontainer-dotnet, devcontainer-golang)"
 )
 @click.option("--ide", type=click.Choice([i.value for i in IDE]), help="Preferred IDE")
 @click.option("--force", is_flag=True, help="Overwrite existing configuration")

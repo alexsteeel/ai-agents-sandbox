@@ -82,11 +82,11 @@ class TemplateManager:
     def _generate_docker_compose(self, config: ProjectConfig) -> str:
         """Generate docker-compose.yaml content."""
         template = """
-{% set image_repo = 'ai-agents-sandbox/' + config.variant.value %}
+{% set image_name = 'ai-agents-sandbox/' + config.variant.value %}
 
 services:
   devcontainer:
-    image: {{ image_repo }}:latest
+    image: {{ image_name }}:latest
     container_name: {{ config.name }}-devcontainer
     hostname: {{ config.name }}-dev
     networks:

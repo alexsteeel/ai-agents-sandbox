@@ -31,18 +31,24 @@ def docker() -> None:
 
 @docker.command()
 @click.option(
-    "--variant", type=click.Choice([v.value for v in ImageVariant]), help="Image variant to build"
+    "--variant", 
+    type=click.Choice([v.value for v in ImageVariant]), 
+    help="Image variant to build (devcontainer, devcontainer-dotnet, devcontainer-golang)"
 )
-@click.option("--all", is_flag=True, help="Build all image variants")
+@click.option("--all", is_flag=True, help="Build all image variants including support images")
 @click.option("--no-cache", is_flag=True, help="Build without using cache")
+@click.option("--force", is_flag=True, help="Force rebuild even if images exist")
+@click.option("--verify", is_flag=True, help="Only verify that images exist")
 @click.option("--push", is_flag=True, help="Push images after building")
-@click.option("--tag", default="latest", help="Image tag")
+@click.option("--tag", default="latest", help="Image tag (default: latest)")
 @click.pass_context
 def build(
     ctx: click.Context,
     variant: Optional[str],
     all: bool,
     no_cache: bool,
+    force: bool,
+    verify: bool,
     push: bool,
     tag: str,
 ) -> None:
@@ -53,14 +59,20 @@ def build(
 
     Examples:
 
-        # Build base image
+        # Build base devcontainer image
         ai-sbx docker build
 
         # Build specific variant
-        ai-sbx docker build --variant python
+        ai-sbx docker build --variant devcontainer-dotnet
 
-        # Build all variants
+        # Build all images including support
         ai-sbx docker build --all
+
+        # Verify images exist
+        ai-sbx docker build --verify
+
+        # Force rebuild even if exists
+        ai-sbx docker build --force --all
 
         # Build without cache
         ai-sbx docker build --no-cache
@@ -71,6 +83,10 @@ def build(
     if not is_docker_running():
         console.print("[red]Docker is not running. Please start Docker first.[/red]")
         sys.exit(1)
+    
+    # Verify mode - just check if images exist
+    if verify:
+        return _verify_images(console, variant, all, tag)
 
     # Determine which images to build
     if all:
@@ -101,66 +117,39 @@ def build(
         console=console,
     ) as progress:
 
-        # First build supporting images
-        support_images = [
-            ("tinyproxy-base", "images/tinyproxy-base"),
-            ("tinyproxy", "images/tinyproxy"),
-            ("docker-dind", "images/docker-dind"),
-        ]
-
-        for image_name, dockerfile_dir in support_images:
-            task = progress.add_task(f"Building {image_name}...", total=None)
-
-            if _build_image(
-                f"ai-agents-sandbox/{image_name}",
-                dockerfile_dir,
-                tag,
-                no_cache,
-                verbose,
-            ):
-                progress.update(task, description=f"[green]✓[/green] Built {image_name}")
-                success_count += 1
-            else:
-                progress.update(task, description=f"[red]✗[/red] Failed to build {image_name}")
-                failed_count += 1
-
-        # Build base image if needed
-        if ImageVariant.BASE in variants_to_build or len(variants_to_build) > 1:
-            task = progress.add_task("Building base image...", total=None)
-
-            if _build_image(
-                "ai-agents-sandbox/base",
-                "images/base",
-                tag,
-                no_cache,
-                verbose,
-            ):
-                progress.update(task, description="[green]✓[/green] Built base image")
-                success_count += 1
-            else:
-                progress.update(task, description="[red]✗[/red] Failed to build base image")
-                failed_count += 1
-                console.print("\n[red]Cannot build variants without base image[/red]")
-                sys.exit(1)
-
-        # Build variant images
+        # Build order: supporting images first, then base, then variants
+        images_to_build = []
+        
+        # Always build supporting images first
+        if all or any(v for v in variants_to_build):
+            images_to_build.extend([
+                ("tinyproxy-base", "images/tinyproxy-base", "ai-agents-sandbox/tinyproxy-base"),
+                ("tinyproxy", "images/tinyproxy", "ai-agents-sandbox/tinyproxy"),
+                ("tinyproxy-registry", "images/tinyproxy-registry", "ai-agents-sandbox/tinyproxy-registry"),
+                ("docker-dind", "images/docker-dind", "ai-agents-sandbox/docker-dind"),
+            ])
+        
+        # Add variant images
         for variant in variants_to_build:
-            if variant == ImageVariant.BASE:
-                continue  # Already built
-
             spec = _get_variant_image_spec(variant)
-            if spec is None:
-                task = progress.add_task(
-                    f"Skipping {variant.value} (unsupported in this repo)...", total=None
-                )
-                progress.update(
-                    task, description=f"[yellow]⚠[/yellow] Skipped {variant.value} (unsupported)"
-                )
+            if spec:
+                name, dockerfile_dir, image_repo = spec
+                images_to_build.append((name, dockerfile_dir, image_repo))
+        
+        # Build all images
+        for name, dockerfile_dir, image_repo in images_to_build:
+            task = progress.add_task(f"Building {name}...", total=None)
+            
+            # Check if dockerfile directory exists
+            if not Path(dockerfile_dir).exists():
+                progress.update(task, description=f"[yellow]⚠[/yellow] Skipped {name} (directory not found)")
                 continue
-
-            image_repo, dockerfile_dir = spec
-            task = progress.add_task(f"Building {variant.value} image...", total=None)
-
+            
+            # Check if image exists and skip if not forcing
+            if not force and _image_exists(image_repo, tag):
+                progress.update(task, description=f"[yellow]⚠[/yellow] {name} already exists (use --force to rebuild)")
+                continue
+            
             if _build_image(
                 image_repo,
                 dockerfile_dir,
@@ -168,12 +157,10 @@ def build(
                 no_cache,
                 verbose,
             ):
-                progress.update(task, description=f"[green]✓[/green] Built {variant.value} image")
+                progress.update(task, description=f"[green]✓[/green] Built {name}")
                 success_count += 1
             else:
-                progress.update(
-                    task, description=f"[red]✗[/red] Failed to build {variant.value} image"
-                )
+                progress.update(task, description=f"[red]✗[/red] Failed to build {name}")
                 failed_count += 1
 
     # Push images if requested
@@ -568,6 +555,93 @@ def clean(ctx: click.Context) -> None:
     console.print("\n[green]Docker cleanup complete![/green]")
 
 
+def _image_exists(image_name: str, tag: str) -> bool:
+    """Check if a Docker image exists locally."""
+    try:
+        result = subprocess.run(
+            ["docker", "image", "inspect", f"{image_name}:{tag}"],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def _verify_images(console: Console, variant: Optional[str], all_images: bool, tag: str) -> None:
+    """Verify that Docker images exist."""
+    console.print("\n[bold cyan]Verifying Docker images[/bold cyan]\n")
+    
+    images_to_check = []
+    
+    # Add support images if checking all
+    if all_images:
+        images_to_check.extend([
+            ("tinyproxy-base", "ai-agents-sandbox/tinyproxy-base"),
+            ("tinyproxy", "ai-agents-sandbox/tinyproxy"),
+            ("tinyproxy-registry", "ai-agents-sandbox/tinyproxy-registry"),
+            ("docker-dind", "ai-agents-sandbox/docker-dind"),
+        ])
+    
+    # Add variant images
+    if all_images:
+        for v in ImageVariant:
+            spec = _get_variant_image_spec(v)
+            if spec:
+                name, _, image_repo = spec
+                images_to_check.append((name, image_repo))
+    elif variant:
+        v = ImageVariant(variant)
+        spec = _get_variant_image_spec(v)
+        if spec:
+            name, _, image_repo = spec
+            images_to_check.append((name, image_repo))
+    else:
+        # Default to base
+        spec = _get_variant_image_spec(ImageVariant.BASE)
+        if spec:
+            name, _, image_repo = spec
+            images_to_check.append((name, image_repo))
+    
+    # Check each image
+    missing = []
+    found = []
+    
+    for name, image_repo in images_to_check:
+        if _image_exists(image_repo, tag):
+            # Get image size
+            try:
+                result = subprocess.run(
+                    ["docker", "image", "inspect", f"{image_repo}:{tag}", "--format={{.Size}}"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                size_bytes = int(result.stdout.strip())
+                size_mb = size_bytes / (1024 * 1024)
+                found.append((name, image_repo, f"{size_mb:.1f}MB"))
+            except:
+                found.append((name, image_repo, "unknown"))
+        else:
+            missing.append((name, image_repo))
+    
+    # Display results
+    if found:
+        console.print("[green]✓ Found images:[/green]")
+        for name, repo, size in found:
+            console.print(f"  • {repo}:{tag} ({size})")
+    
+    if missing:
+        console.print("\n[red]✗ Missing images:[/red]")
+        for name, repo in missing:
+            console.print(f"  • {repo}:{tag}")
+        console.print("\n[yellow]Run without --verify to build missing images[/yellow]")
+        sys.exit(1)
+    else:
+        console.print("\n[green]All required images are present![/green]")
+
+
 def _build_image(
     image_name: str,
     dockerfile_dir: str,
@@ -647,24 +721,26 @@ def _push_images(variants: list[ImageVariant], tag: str, console: Console, verbo
             console.print(f"[red]Failed to push {image_name}: {e}[/red]")
 
 
-def _get_variant_image_spec(variant: ImageVariant) -> Optional[tuple[str, str]]:
-    """Map variant to (image_repo, dockerfile_dir).
+def _get_variant_image_spec(variant: ImageVariant) -> Optional[tuple[str, str, str]]:
+    """Map variant to (name, dockerfile_dir, image_repo).
 
     Returns None if variant is not supported by this repository layout.
     """
     mapping = {
-        ImageVariant.BASE: ("ai-agents-sandbox/base", "images/base"),
-        ImageVariant.MINIMAL: ("ai-agents-sandbox/minimal", "images/minimal"),
-        ImageVariant.PYTHON: ("ai-agents-sandbox/python", "images/python"),
-        ImageVariant.NODEJS: ("ai-agents-sandbox/nodejs", "images/nodejs"),
-        # Future variants (commented out in enum)
-        # ImageVariant.DOTNET: (
-        #     "ai-agents-sandbox/devcontainer-dotnet",
-        #     "images/devcontainer-dotnet"
-        # ),
-        # ImageVariant.GOLANG: (
-        #     "ai-agents-sandbox/devcontainer-golang",
-        #     "images/devcontainer-golang"
-        # ),
+        ImageVariant.BASE: (
+            "devcontainer-base",
+            "images/devcontainer-base",
+            "ai-agents-sandbox/devcontainer"
+        ),
+        ImageVariant.DOTNET: (
+            "devcontainer-dotnet",
+            "images/devcontainer-dotnet",
+            "ai-agents-sandbox/devcontainer-dotnet"
+        ),
+        ImageVariant.GOLANG: (
+            "devcontainer-golang",
+            "images/devcontainer-golang",
+            "ai-agents-sandbox/devcontainer-golang"
+        ),
     }
     return mapping.get(variant)

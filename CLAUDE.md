@@ -13,7 +13,9 @@ This repository provides a **base devcontainer foundation** for secure, isolated
   - **common-settings/**: Shared configuration and whitelists
 - **.devcontainer/**: Minimal example showing how users implement the foundation in their projects
 - **docs/**: Documentation and notes
-- **host/**: Host-side scripts and tools
+- **resources/**: Configuration resources and templates
+  - **docker-proxy/**: Docker registry proxy configuration
+- **src/**: Python CLI source code
 - **claude/**: Claude-specific configurations (when present)
 
 The foundation enforces strict network isolation with proxy-based egress control for AI-assisted coding.
@@ -35,15 +37,16 @@ The foundation enforces strict network isolation with proxy-based egress control
 
 ### System-wide Installation (one-time setup)
 ```bash
-# Install everything: builds images + installs management commands
+# Install Python CLI and build Docker images
 ./install.sh
 
-# This installs system-wide commands:
-# - ai-sbx: Main CLI wrapper for all commands (NEW)
-# - ai-sbx-create-task-worktree: Create git worktree for new tasks
-# - ai-sbx-remove-task-worktree: Remove git worktree and optionally its branch
-# - ai-sbx-connect-task-worktree: Connect to existing task worktree
-# - ai-sbx-notify-watch: Host notification watcher (optional)
+# This installs the ai-sbx Python CLI with all commands:
+# - ai-sbx init: Initialize project with devcontainer
+# - ai-sbx worktree: Manage git worktrees for tasks
+# - ai-sbx docker: Manage Docker containers and images
+# - ai-sbx notify: Start notification watcher
+# - ai-sbx doctor: Diagnose and fix setup issues
+# - ai-sbx upgrade: Upgrade to latest version
 ```
 
 ### Manual Build (if needed)
@@ -64,7 +67,7 @@ The foundation enforces strict network isolation with proxy-based egress control
 #### 2. Initialize Project
 ```bash
 # Run initialization to set up permissions and generate .env
-ai-sbx-init-project /path/to/project
+ai-sbx init /path/to/project
 
 # This automatically:
 # - Sets PROJECT_NAME based on directory name
@@ -82,7 +85,7 @@ The initialization script automatically starts a docker-registry-proxy that tran
 - No need to change image names or use `docker tag`
 - Efficiently handles large (4GB+) test images
 - Shared cache across all projects
-- See `host/docker-proxy/README.md` for details
+- See `resources/docker-proxy/README.md` for details
 
 #### 3. Open in IDE
 
@@ -111,21 +114,17 @@ claude --dangerously-skip-permissions
 # Start Claude Code with local permissions
 claude --dangerously-skip-permissions
 
-# NEW: Unified CLI wrapper
+# Python CLI commands:
 ai-sbx worktree create "feature 123 implement user auth"  # Create task worktree
 ai-sbx worktree connect                                    # Connect to existing
 ai-sbx worktree remove [name]                              # Remove worktree
 ai-sbx worktree list                                       # List all worktrees
 ai-sbx init [path]                                         # Initialize project
 ai-sbx notify                                              # Start notifications
+ai-sbx docker build                                        # Build Docker images
+ai-sbx doctor --fix                                        # Fix common issues
 
-# Or use direct commands:
-ai-sbx-create-task-worktree "feature 123 implement user auth"
-ai-sbx-connect-task-worktree  # Interactive menu to select and connect
-ai-sbx-remove-task-worktree  # Interactive menu
-ai-sbx-remove-task-worktree fix-123  # By branch or partial name
-
-# Or manually:
+# Or manually manage worktrees:
 git worktree add -b task-name ../repo-name-task-name
 git worktree list
 git worktree remove ../repo-name-task-name
@@ -245,7 +244,7 @@ Edit `.devcontainer/.user.env` file (or create if it doesn't exist):
 USER_WHITELIST_DOMAINS=api.myproject.com,cdn.myproject.com
 ```
 
-For Docker registries, edit `host/docker-proxy/.env`:
+For Docker registries, edit `resources/docker-proxy/.env`:
 ```bash
 ADDITIONAL_REGISTRIES=my.registry.com artifactory.company.com
 ```
@@ -374,7 +373,7 @@ Pre-configured agents built into the base image:
 
 **Building Docker images from devcontainer:**
 - Docker automatically uses docker-registry-proxy for all image pulls
-- Add custom registries to `host/docker-proxy/.env`:
+- Add custom registries to `resources/docker-proxy/.env`:
   ```bash
   ADDITIONAL_REGISTRIES=my.registry.com artifactory.company.com
   ```

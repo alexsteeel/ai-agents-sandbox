@@ -46,7 +46,10 @@
       "WebSearch",
       "Bash(time docker exec:*)",
       "Bash(/media/bas/repo/github/ai-agents-sandbox/host/ai-sbx worktree list)",
-      "Bash(/media/bas/repo/github/ai-agents-sandbox/host/ai-sbx --help)"
+      "Bash(/media/bas/repo/github/ai-agents-sandbox/host/ai-sbx --help)",
+      "Read(//tmp/test-project/.devcontainer/**)",
+      "Read(//tmp/test-dotnet/.devcontainer/**)",
+      "Bash(ai-sbx docker build:*)"
     ],
     "deny": []
   },

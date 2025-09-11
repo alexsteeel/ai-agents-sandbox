@@ -12,14 +12,14 @@ This setup uses [docker-registry-proxy](https://github.com/rpardini/docker-regis
 - **Multiple registries**: Caches from Docker Hub, gcr.io, quay.io, k8s.io, ghcr.io, and more
 - **4GB+ image support**: Efficiently caches large test images
 - **Shared cache**: Multiple projects use the same cache
-- **Auto-start**: Managed by `ai-sbx-init-project` script
+- **Auto-start**: Managed by `ai-sbx init` command
 
 ## Quick Start
 
 The proxy is automatically started when you initialize a project:
 
 ```bash
-ai-sbx-init-project /path/to/project
+ai-sbx init /path/to/project
 ```
 
 ## Architecture
@@ -176,14 +176,14 @@ This ensures docker-registry-proxy can only access whitelisted registries.
 
 ```bash
 docker volume rm ai-sbx-proxy-cache
-docker compose -f host/docker-proxy/docker-compose.yaml up -d
+docker compose -f resources/docker-proxy/docker-compose.yaml up -d
 ```
 
 ### Update Proxy
 
 ```bash
-docker compose -f host/docker-proxy/docker-compose.yaml pull
-docker compose -f host/docker-proxy/docker-compose.yaml up -d
+docker compose -f resources/docker-proxy/docker-compose.yaml pull
+docker compose -f resources/docker-proxy/docker-compose.yaml up -d
 ```
 
 ### View Statistics
