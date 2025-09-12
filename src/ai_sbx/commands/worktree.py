@@ -303,13 +303,15 @@ def remove(
             container_name = f"{Path(path).name}-devcontainer"
             if _is_container_running(container_name):
                 console.print(f"Stopping container: [cyan]{container_name}[/cyan]")
-                try:
-                    run_command(["docker", "stop", container_name], verbose=verbose)
-                    console.print(f"[green]✓[/green] Stopped container: {container_name}")
-                    run_command(["docker", "rm", container_name], verbose=verbose)
-                    console.print(f"[green]✓[/green] Removed container: {container_name}")
-                except subprocess.CalledProcessError as e:
-                    console.print(f"[yellow]Warning: Could not remove container: {e}[/yellow]")
+                # Try both with and without -1 suffix
+                for name in [f"{container_name}-1", container_name]:
+                    try:
+                        run_command(["docker", "stop", name], verbose=verbose, check=False)
+                        run_command(["docker", "rm", name], verbose=verbose, check=False)
+                        console.print(f"[green]✓[/green] Stopped and removed container: {name}")
+                        break
+                    except subprocess.CalledProcessError:
+                        continue
 
         console.print(f"Removing worktree: [cyan]{path}[/cyan]")
 
@@ -897,8 +899,13 @@ def _is_container_running(container_name: str) -> bool:
             text=True,
             check=True,
         )
-
-        return container_name in result.stdout.splitlines()
+        
+        # Check for exact match or with -1 suffix (docker compose adds it)
+        container_names = result.stdout.splitlines()
+        return any(
+            name == container_name or name == f"{container_name}-1" 
+            for name in container_names
+        )
 
     except subprocess.CalledProcessError:
         return False
