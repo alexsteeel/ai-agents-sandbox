@@ -241,11 +241,13 @@ def remove(
     if not force and not delete_branch:
         # Check if any containers exist for the worktrees
         has_containers = False
+        containers_to_stop = {}
         for w in to_remove:
-            container_name = f"{Path(w['path']).name}-devcontainer"
-            if _is_container_running(container_name):
+            container_base_name = f"{Path(w['path']).name}-devcontainer"
+            actual_container = _get_running_container_name(container_base_name)
+            if actual_container:
                 has_containers = True
-                break
+                containers_to_stop[w['path']] = actual_container
         
         if has_containers:
             delete_containers = prompt_yes_no("Delete associated containers?", default=False)
@@ -253,6 +255,14 @@ def remove(
         # Ask about branches if not already specified
         if any(w.get("branch") for w in to_remove):
             delete_branch = prompt_yes_no("Delete branches?", default=False)
+    else:
+        # Still need to check for containers even with force flag
+        containers_to_stop = {}
+        for w in to_remove:
+            container_base_name = f"{Path(w['path']).name}-devcontainer"
+            actual_container = _get_running_container_name(container_base_name)
+            if actual_container:
+                containers_to_stop[w['path']] = actual_container
     
     # Confirm removal
     if not force:
@@ -261,10 +271,8 @@ def remove(
             console.print(f"  - {w['path']}")
             if delete_branch and w.get("branch"):
                 console.print(f"    [red]and delete branch: {w['branch']}[/red]")
-            if delete_containers:
-                container_name = f"{Path(w['path']).name}-devcontainer"
-                if _is_container_running(container_name):
-                    console.print(f"    [red]and stop container: {container_name}[/red]")
+            if delete_containers and w['path'] in containers_to_stop:
+                console.print(f"    [red]and stop container: {containers_to_stop[w['path']]}[/red]")
 
         if not prompt_yes_no("\nContinue?", default=False):
             console.print("[yellow]Cancelled[/yellow]")
@@ -276,19 +284,15 @@ def remove(
         branch = w.get("branch")
         
         # Stop and remove container if requested
-        if delete_containers:
-            container_name = f"{Path(path).name}-devcontainer"
-            if _is_container_running(container_name):
-                console.print(f"Stopping container: [cyan]{container_name}[/cyan]")
-                # Try both with and without -1 suffix
-                for name in [f"{container_name}-1", container_name]:
-                    try:
-                        run_command(["docker", "stop", name], verbose=verbose, check=False)
-                        run_command(["docker", "rm", name], verbose=verbose, check=False)
-                        console.print(f"[green]✓[/green] Stopped and removed container: {name}")
-                        break
-                    except subprocess.CalledProcessError:
-                        continue
+        if delete_containers and path in containers_to_stop:
+            actual_container = containers_to_stop[path]
+            console.print(f"Stopping container: [cyan]{actual_container}[/cyan]")
+            try:
+                run_command(["docker", "stop", actual_container], verbose=verbose, check=False)
+                run_command(["docker", "rm", actual_container], verbose=verbose, check=False)
+                console.print(f"[green]✓[/green] Stopped and removed container: {actual_container}")
+            except subprocess.CalledProcessError as e:
+                console.print(f"[yellow]Warning: Could not stop/remove container: {e}[/yellow]")
 
         console.print(f"Removing worktree: [cyan]{path}[/cyan]")
 
