@@ -219,6 +219,13 @@ def remove(
             label = f"{Path(w['path']).name}"
             if w.get("branch"):
                 label += f" ({w['branch']})"
+            
+            # Check if container is running
+            container_base_name = f"{Path(w['path']).name}-devcontainer"
+            actual_container = _get_running_container_name(container_base_name)
+            if actual_container:
+                label += f" [container: {actual_container}]"
+            
             choices.append((label, w))
 
         questions = [
@@ -236,33 +243,24 @@ def remove(
 
         to_remove = answers["worktrees"]
 
+    # Check for running containers
+    containers_to_stop = {}
+    for w in to_remove:
+        container_base_name = f"{Path(w['path']).name}-devcontainer"
+        actual_container = _get_running_container_name(container_base_name)
+        if actual_container:
+            containers_to_stop[w['path']] = actual_container
+    
     # Ask about containers and branches if not specified via flags
     delete_containers = False
-    if not force and not delete_branch:
-        # Check if any containers exist for the worktrees
-        has_containers = False
-        containers_to_stop = {}
-        for w in to_remove:
-            container_base_name = f"{Path(w['path']).name}-devcontainer"
-            actual_container = _get_running_container_name(container_base_name)
-            if actual_container:
-                has_containers = True
-                containers_to_stop[w['path']] = actual_container
-        
-        if has_containers:
+    if not force:
+        # Ask about containers if any are running
+        if containers_to_stop:
             delete_containers = prompt_yes_no("Delete associated containers?", default=False)
         
-        # Ask about branches if not already specified
-        if any(w.get("branch") for w in to_remove):
+        # Ask about branches if not already specified via flag
+        if not delete_branch and any(w.get("branch") for w in to_remove):
             delete_branch = prompt_yes_no("Delete branches?", default=False)
-    else:
-        # Still need to check for containers even with force flag
-        containers_to_stop = {}
-        for w in to_remove:
-            container_base_name = f"{Path(w['path']).name}-devcontainer"
-            actual_container = _get_running_container_name(container_base_name)
-            if actual_container:
-                containers_to_stop[w['path']] = actual_container
     
     # Confirm removal
     if not force:
