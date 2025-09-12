@@ -11,8 +11,8 @@ echo "Project dir is: $PROJECT_DIR"
 
 # Check if new unified command is available first
 if command -v ai-sbx >/dev/null 2>&1; then
-    # Use the new unified command
-    ai-sbx init "$PROJECT_DIR"
+    # Use the new project-setup command (replaces old ai-sbx-init-project)
+    ai-sbx project-setup "$PROJECT_DIR"
 elif command -v ai-sbx-init-project >/dev/null 2>&1; then
     # Fall back to old command for backward compatibility
     ai-sbx-init-project "$PROJECT_DIR"

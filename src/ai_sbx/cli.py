@@ -59,7 +59,8 @@ def show_welcome() -> None:
 
 
 # Add command groups
-cli.add_command(init.init)
+cli.add_command(init.devcontainer_init, name="init")
+cli.add_command(init.project_setup, name="project-setup")
 cli.add_command(worktree.worktree)
 cli.add_command(docker.docker)
 cli.add_command(notify.notify)

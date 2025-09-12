@@ -34,7 +34,7 @@ from ai_sbx.utils import (
 )
 
 
-@click.command()
+@click.command(name="init")
 @click.argument("path", type=click.Path(exists=True, path_type=Path), required=False)
 @click.option("--global", "global_init", is_flag=True, help="Initialize global configuration")
 @click.option("--wizard", is_flag=True, help="Run interactive setup wizard")
@@ -46,7 +46,7 @@ from ai_sbx.utils import (
 @click.option("--ide", type=click.Choice([i.value for i in IDE]), help="Preferred IDE")
 @click.option("--force", is_flag=True, help="Overwrite existing configuration")
 @click.pass_context
-def init(
+def devcontainer_init(
     ctx: click.Context,
     path: Optional[Path],
     global_init: bool,
@@ -55,11 +55,10 @@ def init(
     ide: Optional[str],
     force: bool,
 ) -> None:
-    """Initialize AI Agents Sandbox for a project or globally.
+    """Create .devcontainer configuration for a new project.
 
-    This command sets up the necessary configuration and environment for
-    using AI Agents Sandbox. It can be run globally (once per system) or
-    per project.
+    This command creates a .devcontainer folder with default configuration
+    files for using AI Agents Sandbox with new development projects.
 
     Examples:
 
@@ -440,3 +439,116 @@ def init_project(
         console.print("3. Open in PyCharm: Settings → Python Interpreter → Docker Compose")
     elif config.preferred_ide == IDE.CLAUDE:
         console.print("3. Open in Claude: [cyan]claude --dangerously-skip-permissions[/cyan]")
+
+
+import subprocess
+
+
+@click.command(name="project-setup")
+@click.argument("path", type=click.Path(exists=True, path_type=Path), required=False)
+@click.option("--skip-proxy", is_flag=True, help="Skip docker-proxy setup")
+@click.pass_context
+def project_setup(
+    ctx: click.Context,
+    path: Optional[Path],
+    skip_proxy: bool,
+) -> None:
+    """Setup project permissions and environment for Docker.
+    
+    This command sets up the necessary permissions and environment variables
+    for running the project with Docker. It's automatically called by
+    devcontainer when starting up.
+    
+    This replaces the old ai-sbx-init-project command.
+    """
+    console: Console = ctx.obj["console"]
+    verbose: bool = ctx.obj.get("verbose", False)
+    
+    # Use current directory if no path provided
+    if not path:
+        path = Path.cwd()
+    
+    path = path.resolve()
+    
+    console.print(f"Setting up project: [cyan]{path.name}[/cyan]")
+    
+    # Check if we're in a git worktree
+    is_worktree = False
+    try:
+        result = subprocess.run(
+            ["git", "worktree", "list"],
+            cwd=path,
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        for line in result.stdout.splitlines():
+            if str(path) in line:
+                is_worktree = True
+                break
+    except:
+        pass
+    
+    if is_worktree:
+        console.print("[dim]Detected git worktree - skipping .devcontainer creation[/dim]")
+    
+    # Create .env file if it doesn't exist
+    env_file = path / ".devcontainer" / ".env"
+    if not env_file.exists():
+        env_file.parent.mkdir(parents=True, exist_ok=True)
+        env_content = f"""# Project environment variables
+PROJECT_NAME={path.name}
+PROJECT_DIR={path}
+COMPOSE_PROJECT_NAME={path.name}
+"""
+        env_file.write_text(env_content)
+        console.print(f"[green]✓[/green] Created .env file")
+    else:
+        console.print(f"[dim].env file already exists[/dim]")
+    
+    # Set permissions
+    try:
+        # Get global config for group name
+        global_config = GlobalConfig.load()
+        
+        # Set group permissions (best-effort, ignore failures)
+        run_command(
+            ["chgrp", "-R", global_config.group_name, str(path / ".devcontainer")],
+            check=False,
+            capture_output=True,
+        )
+        run_command(
+            ["chmod", "-R", "g+rw", str(path / ".devcontainer")],
+            check=False,
+            capture_output=True,
+        )
+        
+        # Make scripts executable
+        for script in (path / ".devcontainer").glob("*.sh"):
+            script.chmod(0o755)
+        
+        console.print(f"[green]✓[/green] Permissions configured")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Could not set all permissions: {e}")
+    
+    # Start docker-proxy if not running (unless skipped)
+    if not skip_proxy:
+        try:
+            # Check if proxy is running
+            result = subprocess.run(
+                ["docker", "ps", "--format", "{{.Names}}"],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            if "ai-sbx-docker-proxy" not in result.stdout:
+                console.print("[dim]Starting docker-proxy...[/dim]")
+                subprocess.run(
+                    ["docker", "compose", "-f", "/usr/local/share/ai-agents-sandbox/docker-proxy/docker-compose.yaml", "up", "-d"],
+                    capture_output=True,
+                    check=False
+                )
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Could not start docker-proxy: {e}")
+    
+    console.print("[green]✓[/green] Project setup complete")

@@ -736,24 +736,40 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = F
         console.print("[cyan]Preparing DevContainer environment...[/cyan]")
         
         try:
+            # Change to worktree directory for devcontainer commands
+            import os
+            original_cwd = os.getcwd()
+            os.chdir(str(worktree_path))
+            
             # Start the devcontainer (this will build images if needed)
             console.print("Starting DevContainer (will build images if needed)...")
-            run_command(
-                ["devcontainer", "up", "--workspace-folder", str(worktree_path)],
-                cwd=worktree_path,
-                verbose=True  # Always show devcontainer output for build progress
+            console.print("[dim]This may take several minutes on first run...[/dim]")
+            
+            # Use subprocess.run directly for interactive output
+            result = subprocess.run(
+                ["devcontainer", "up", "--workspace-folder", "."],
+                cwd=worktree_path
             )
+            
+            if result.returncode != 0:
+                console.print(f"[red]Failed to start DevContainer (exit code: {result.returncode})[/red]")
+                os.chdir(original_cwd)
+                return
+                
             console.print("[green]✓[/green] DevContainer started successfully")
             
             # Open interactive shell in the devcontainer
             console.print("[cyan]Opening shell in DevContainer...[/cyan]")
+            console.print("[dim]Type 'exit' to leave the container[/dim]\n")
+            
             subprocess.run([
                 "devcontainer", "exec", 
-                "--workspace-folder", str(worktree_path),
+                "--workspace-folder", ".",
                 "/bin/zsh"
             ], cwd=worktree_path)
             
-            console.print("[green]DevContainer session ended[/green]")
+            os.chdir(original_cwd)
+            console.print("\n[green]DevContainer session ended[/green]")
             return
             
         except Exception as e:
