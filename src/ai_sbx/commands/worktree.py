@@ -158,7 +158,6 @@ def create(
 
 @worktree.command()
 @click.argument("name", required=False)
-@click.option("--multiple", "-m", is_flag=True, help="Select multiple worktrees")
 @click.option("--all", "-a", is_flag=True, help="Remove all worktrees")
 @click.option("--force", "-f", is_flag=True, help="Force removal without confirmation")
 @click.option("--delete-branch", "-b", is_flag=True, help="Also delete the branch")
@@ -166,7 +165,6 @@ def create(
 def remove(
     ctx: click.Context,
     name: Optional[str],
-    multiple: bool,
     all: bool,
     force: bool,
     delete_branch: bool,
@@ -174,18 +172,18 @@ def remove(
     """Remove git worktrees and optionally their branches.
 
     Can remove worktrees by name, partial match, or interactively.
-    Supports multiple selection for batch removal.
+    Interactive mode allows selecting multiple worktrees at once.
 
     Examples:
 
-        # Interactive selection
+        # Interactive selection (can select multiple)
         ai-sbx worktree remove
 
         # Remove specific worktree
         ai-sbx worktree remove fix-123
 
-        # Remove multiple interactively
-        ai-sbx worktree remove -m
+        # Remove all worktrees
+        ai-sbx worktree remove --all
 
         # Remove and delete branch
         ai-sbx worktree remove fix-123 -b
@@ -214,8 +212,8 @@ def remove(
             return
 
         to_remove = matches
-    elif multiple:
-        # Multi-select
+    else:
+        # Interactive selection - always use Checkbox for flexibility
         choices = []
         for w in worktrees:
             label = f"{Path(w['path']).name}"
@@ -226,38 +224,17 @@ def remove(
         questions = [
             inquirer.Checkbox(
                 "worktrees",
-                message="Select worktrees to remove",
+                message="Select worktree(s) to remove (space to select, enter to confirm)",
                 choices=choices,
             )
         ]
 
         answers = inquirer.prompt(questions)
-        if not answers:
+        if not answers or not answers["worktrees"]:
+            console.print("[yellow]No worktrees selected[/yellow]")
             return
 
         to_remove = answers["worktrees"]
-    else:
-        # Single select
-        choices = []
-        for w in worktrees:
-            label = f"{Path(w['path']).name}"
-            if w.get("branch"):
-                label += f" ({w['branch']})"
-            choices.append((label, w))
-
-        questions = [
-            inquirer.List(
-                "worktree",
-                message="Select worktree to remove",
-                choices=choices,
-            )
-        ]
-
-        answers = inquirer.prompt(questions)
-        if not answers:
-            return
-
-        to_remove = [answers["worktree"]]
 
     # Ask about containers and branches if not specified via flags
     delete_containers = False
