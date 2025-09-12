@@ -103,9 +103,6 @@ def create(
     # Create task folder structure
     _create_task_structure(worktree_path, branch, description, console)
 
-    # Always initialize devcontainer (matching original shell script behavior)
-    _initialize_worktree_devcontainer(worktree_path, console, verbose)
-
     # Determine preferred IDE
     preferred_ide = None
     if ide:
@@ -134,22 +131,29 @@ def create(
             return
 
     # Show summary
-    console.print("\n[bold green]✓ Task worktree created successfully![/bold green]")
-    console.print(f"Path: [cyan]{worktree_path}[/cyan]")
-    console.print(f"Branch: [cyan]{branch}[/cyan]")
-    console.print(f"Task folder: [cyan]tasks/{branch}[/cyan]")
-    console.print(f"Requirements: [cyan]tasks/{branch}/initial_requirements.md[/cyan]")
-    
-    console.print("\nNext steps:")
-    console.print(f"1. Edit requirements in: tasks/{branch}/initial_requirements.md")
+    console.print("\n" + "="*64)
+    console.print("[bold green]Task worktree created successfully![/bold green]")
+    console.print("")
+    console.print(f"[bold]Worktree:[/bold] {worktree_path}")
+    console.print(f"[bold]Branch:[/bold] {branch}")
+    console.print(f"[bold]Task folder:[/bold] tasks/{branch}")
+    console.print(f"[bold]Requirements:[/bold] tasks/{branch}/initial_requirements.md")
+    console.print("")
+    console.print("Next steps:")
+    console.print(f"1. Edit the initial requirements in: tasks/{branch}/initial_requirements.md")
     if preferred_ide == IDE.VSCODE:
         console.print("2. Click 'Reopen in Container' when VS Code prompts")
+        console.print("3. Begin development")
+    elif preferred_ide == IDE.DEVCONTAINER:
+        console.print("2. DevContainer will start automatically")
+        console.print("3. Begin development in the container shell")
     else:
-        console.print("2. Start the devcontainer if needed: [cyan]ai-sbx docker up[/cyan]")
-    console.print("3. Begin development!")
-    
-    console.print("\nTo remove this worktree later:")
-    console.print(f"[cyan]ai-sbx worktree remove {branch}[/cyan]")
+        console.print("2. Start the devcontainer if needed")
+        console.print("3. Begin development")
+    console.print("")
+    console.print("To remove this worktree later:")
+    console.print(f"  git worktree remove {worktree_path}")
+    console.print("="*64)
 
 
 @worktree.command()
@@ -554,41 +558,6 @@ def _create_task_structure(worktree_path: Path, branch_name: str, description: s
         console.print(f"[yellow]Warning: Failed to create task structure: {e}[/yellow]")
 
 
-def _initialize_worktree_devcontainer(worktree_path: Path, console: Console, verbose: bool) -> None:
-    """Initialize devcontainer for the worktree - always runs ai-sbx init."""
-    from ai_sbx.commands.init import init_project
-    
-    console.print("[cyan]Initializing project for AI Sandbox...[/cyan]")
-    
-    try:
-        # Get config from main repo if available
-        main_repo = find_project_root()
-        variant = None
-        ide = None
-        
-        if main_repo:
-            config = load_project_config(main_repo)
-            if config:
-                variant = config.variant.value if config.variant else None
-                ide = config.preferred_ide.value if config.preferred_ide else None
-        
-        # Always run ai-sbx init to ensure proper setup (including git worktree mounts)
-        init_project(
-            console=console,
-            project_path=worktree_path,
-            variant=variant,
-            ide=ide,
-            wizard=False,
-            force=False,
-            verbose=verbose
-        )
-        
-        console.print("[green]✓[/green] Project initialized for AI Sandbox")
-        
-    except Exception as e:
-        logger.warning(f"Could not initialize devcontainer: {e}")
-        console.print(f"[yellow]Warning: Project initialization failed: {e}[/yellow]")
-        console.print("You can initialize manually with: ai-sbx init")
 
 
 def _detect_available_ides() -> list[tuple[IDE, str]]:
@@ -713,12 +682,12 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = F
         console.print("[cyan]Preparing DevContainer environment...[/cyan]")
         
         try:
-            # Start the devcontainer
-            console.print("Starting DevContainer...")
+            # Start the devcontainer (this will build images if needed)
+            console.print("Starting DevContainer (will build images if needed)...")
             run_command(
                 ["devcontainer", "up", "--workspace-folder", str(worktree_path)],
                 cwd=worktree_path,
-                verbose=verbose
+                verbose=True  # Always show devcontainer output for build progress
             )
             console.print("[green]✓[/green] DevContainer started successfully")
             
