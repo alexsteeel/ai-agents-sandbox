@@ -259,6 +259,24 @@ def remove(
 
         to_remove = [answers["worktree"]]
 
+    # Ask about containers and branches if not specified via flags
+    delete_containers = False
+    if not force and not delete_branch:
+        # Check if any containers exist for the worktrees
+        has_containers = False
+        for w in to_remove:
+            container_name = f"{Path(w['path']).name}-devcontainer"
+            if _is_container_running(container_name):
+                has_containers = True
+                break
+        
+        if has_containers:
+            delete_containers = prompt_yes_no("Delete associated containers?", default=False)
+        
+        # Ask about branches if not already specified
+        if any(w.get("branch") for w in to_remove):
+            delete_branch = prompt_yes_no("Delete branches?", default=False)
+    
     # Confirm removal
     if not force:
         console.print("\n[yellow]Will remove:[/yellow]")
@@ -266,6 +284,10 @@ def remove(
             console.print(f"  - {w['path']}")
             if delete_branch and w.get("branch"):
                 console.print(f"    [red]and delete branch: {w['branch']}[/red]")
+            if delete_containers:
+                container_name = f"{Path(w['path']).name}-devcontainer"
+                if _is_container_running(container_name):
+                    console.print(f"    [red]and stop container: {container_name}[/red]")
 
         if not prompt_yes_no("\nContinue?", default=False):
             console.print("[yellow]Cancelled[/yellow]")
@@ -275,6 +297,19 @@ def remove(
     for w in to_remove:
         path = w["path"]
         branch = w.get("branch")
+        
+        # Stop and remove container if requested
+        if delete_containers:
+            container_name = f"{Path(path).name}-devcontainer"
+            if _is_container_running(container_name):
+                console.print(f"Stopping container: [cyan]{container_name}[/cyan]")
+                try:
+                    run_command(["docker", "stop", container_name], verbose=verbose)
+                    console.print(f"[green]✓[/green] Stopped container: {container_name}")
+                    run_command(["docker", "rm", container_name], verbose=verbose)
+                    console.print(f"[green]✓[/green] Removed container: {container_name}")
+                except subprocess.CalledProcessError as e:
+                    console.print(f"[yellow]Warning: Could not remove container: {e}[/yellow]")
 
         console.print(f"Removing worktree: [cyan]{path}[/cyan]")
 
