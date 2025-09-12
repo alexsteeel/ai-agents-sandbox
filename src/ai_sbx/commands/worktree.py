@@ -408,11 +408,12 @@ def connect(ctx: click.Context) -> None:
         return
 
     # Check container status
-    container_name = f"{path.name}-devcontainer"
+    container_base_name = f"{path.name}-devcontainer"
+    actual_container_name = _get_running_container_name(container_base_name)
 
-    if _is_container_running(container_name):
+    if actual_container_name:
         # Container is running - offer to connect
-        console.print(f"[green]Container '{container_name}' is running[/green]")
+        console.print(f"[green]Container '{container_base_name}' is running[/green]")
 
         connect_choices = [
             ("Open shell in container", "shell"),
@@ -433,13 +434,13 @@ def connect(ctx: click.Context) -> None:
             return
 
         if answers["action"] == "shell":
-            # Connect to container
-            console.print(f"Connecting to container: [cyan]{container_name}[/cyan]")
+            # Connect to container using actual name
+            console.print(f"Connecting to container: [cyan]{actual_container_name}[/cyan]")
             console.print("[dim]Type 'exit' to disconnect[/dim]\n")
 
             # Use subprocess for safer execution with shell fallback
             subprocess.run([
-                "docker", "exec", "-it", container_name,
+                "docker", "exec", "-it", actual_container_name,
                 "sh", "-lc",
                 "if [ -x /bin/zsh ]; then exec /bin/zsh; "
                 "elif [ -x /bin/bash ]; then exec /bin/bash; else exec /bin/sh; fi"
@@ -450,7 +451,7 @@ def connect(ctx: click.Context) -> None:
             console.print(f"[cyan]cd {path}[/cyan]")
     else:
         # Container not running
-        console.print(f"[yellow]Container '{container_name}' is not running[/yellow]")
+        console.print(f"[yellow]Container '{container_base_name}' is not running[/yellow]")
         console.print("\nTo start the container:")
         console.print(f"1. Navigate to worktree: [cyan]cd {path}[/cyan]")
         console.print("2. Start containers: [cyan]ai-sbx docker up[/cyan]")
@@ -502,8 +503,8 @@ def list_worktrees(ctx: click.Context, verbose: bool) -> None:
                 modified = "[missing]"
 
             # Check container status
-            container_name = f"{path.name}-devcontainer"
-            container_status = "running" if _is_container_running(container_name) else "stopped"
+            container_base_name = f"{path.name}-devcontainer"
+            container_status = "running" if _is_container_running(container_base_name) else "stopped"
 
             row.extend([desc, modified, container_status])
 
@@ -890,8 +891,8 @@ def _get_task_description(worktree_path: Path) -> Optional[str]:
     return None
 
 
-def _is_container_running(container_name: str) -> bool:
-    """Check if a container is running."""
+def _get_running_container_name(container_name: str) -> Optional[str]:
+    """Get the actual running container name (with or without -1 suffix)."""
     try:
         result = subprocess.run(
             ["docker", "ps", "--format", "{{.Names}}"],
@@ -902,10 +903,15 @@ def _is_container_running(container_name: str) -> bool:
         
         # Check for exact match or with -1 suffix (docker compose adds it)
         container_names = result.stdout.splitlines()
-        return any(
-            name == container_name or name == f"{container_name}-1" 
-            for name in container_names
-        )
+        for name in container_names:
+            if name == container_name or name == f"{container_name}-1":
+                return name
+        return None
 
     except subprocess.CalledProcessError:
-        return False
+        return None
+
+
+def _is_container_running(container_name: str) -> bool:
+    """Check if a container is running."""
+    return _get_running_container_name(container_name) is not None

@@ -51,7 +51,8 @@
       "Read(//tmp/test-dotnet/.devcontainer/**)",
       "Bash(ai-sbx docker build:*)",
       "Bash(ai-sbx worktree create:*)",
-      "Read(//media/bas/data/repo/github/ai-agents-sandbox-test-fixed-worktree-functionality/tasks/test-fixed-worktree-functionality/**)"
+      "Read(//media/bas/data/repo/github/ai-agents-sandbox-test-fixed-worktree-functionality/tasks/test-fixed-worktree-functionality/**)",
+      "Bash(pip install:*)"
     ],
     "deny": []
   },
