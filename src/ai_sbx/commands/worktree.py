@@ -644,29 +644,48 @@ def _prompt_ide_selection(
     console: Console
 ) -> Optional[IDE]:
     """Prompt user to select an IDE."""
+    import sys
+    
+    # Check if we're in an interactive terminal
+    if not sys.stdin.isatty():
+        console.print("[yellow]Non-interactive mode detected. Skipping IDE selection.[/yellow]")
+        console.print("Available IDEs:")
+        for ide, name in available_ides:
+            console.print(f"  - {name} ({ide.value})")
+        console.print("\nYou can open the project manually or specify --ide option")
+        return None
+    
     choices = [(name, ide) for ide, name in available_ides]
     choices.append(("Skip (open manually later)", None))
     
-    questions = [
-        inquirer.List(
-            "ide",
-            message="Select IDE to open",
-            choices=choices,
-        )
-    ]
-    
-    answers = inquirer.prompt(questions)
-    if not answers or not answers["ide"]:
+    try:
+        questions = [
+            inquirer.List(
+                "ide",
+                message="Select IDE to open",
+                choices=choices,
+            )
+        ]
+        
+        answers = inquirer.prompt(questions)
+        if not answers or not answers["ide"]:
+            return None
+        
+        selected_ide = answers["ide"]
+        
+        # Ask if user wants to save preference (unless it's devcontainer)
+        if selected_ide != IDE.DEVCONTAINER:
+            if prompt_yes_no(f"Save {selected_ide.value} as preferred IDE for this project?", default=True):
+                _save_preferred_ide(project_root, selected_ide, console)
+        
+        return selected_ide
+    except Exception as e:
+        console.print(f"[yellow]Cannot prompt for IDE selection: {e}[/yellow]")
+        console.print("Available IDEs:")
+        for ide, name in available_ides:
+            console.print(f"  - {name} ({ide.value})")
+        console.print("\nYou can open the project manually or specify --ide option")
         return None
-    
-    selected_ide = answers["ide"]
-    
-    # Ask if user wants to save preference (unless it's devcontainer)
-    if selected_ide != IDE.DEVCONTAINER:
-        if prompt_yes_no(f"Save {selected_ide.value} as preferred IDE for this project?", default=True):
-            _save_preferred_ide(project_root, selected_ide, console)
-    
-    return selected_ide
 
 
 def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = False) -> None:
