@@ -49,7 +49,9 @@
       "Bash(/media/bas/repo/github/ai-agents-sandbox/host/ai-sbx --help)",
       "Read(//tmp/test-project/.devcontainer/**)",
       "Read(//tmp/test-dotnet/.devcontainer/**)",
-      "Bash(ai-sbx docker build:*)"
+      "Bash(ai-sbx docker build:*)",
+      "Bash(ai-sbx worktree create:*)",
+      "Read(//media/bas/data/repo/github/ai-agents-sandbox-test-fixed-worktree-functionality/tasks/test-fixed-worktree-functionality/**)"
     ],
     "deny": []
   },
