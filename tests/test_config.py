@@ -12,7 +12,7 @@ from ai_sbx.config import (
     ProxyConfig,
     DockerConfig,
     IDE,
-    ImageVariant,
+    BaseImage,
     get_default_whitelist_domains,
     load_project_config,
     save_project_config,
@@ -42,7 +42,7 @@ class TestGlobalConfig:
             # Create and save config
             config = GlobalConfig(
                 default_ide=IDE.PYCHARM,
-                default_variant=ImageVariant.PYTHON,
+                default_variant=ImageVariant.DOTNET,
             )
             config.save(config_path)
             
@@ -50,7 +50,7 @@ class TestGlobalConfig:
             loaded = GlobalConfig.load(config_path)
             
             assert loaded.default_ide == IDE.PYCHARM
-            assert loaded.default_variant == ImageVariant.PYTHON
+            assert loaded.default_variant == ImageVariant.DOTNET
             assert loaded.group_gid == 3000
             
         finally:
@@ -66,13 +66,13 @@ class TestProjectConfig:
             name="test-project",
             path=Path("/test/project"),
             preferred_ide=IDE.VSCODE,
-            variant=ImageVariant.PYTHON,
+            variant=ImageVariant.GOLANG,
         )
         
         assert config.name == "test-project"
         assert config.path == Path("/test/project")
         assert config.preferred_ide == IDE.VSCODE
-        assert config.variant == ImageVariant.PYTHON
+        assert config.variant == ImageVariant.GOLANG
     
     def test_path_validation(self):
         """Test path is made absolute."""
@@ -90,13 +90,13 @@ class TestProjectConfig:
             path=Path("/test"),
             proxy=ProxyConfig(
                 enabled=True,
-                upstream="http://proxy:3128",
+                upstream="http://host.gateway:3128",
                 whitelist_domains=["example.com"],
             ),
         )
         
         assert config.proxy.enabled
-        assert config.proxy.upstream == "http://proxy:3128"
+        assert config.proxy.upstream == "http://host.gateway:3128"
         assert "example.com" in config.proxy.whitelist_domains
     
     def test_invalid_proxy_upstream(self):
@@ -138,7 +138,7 @@ class TestProjectConfigIO:
                 name="test-project",
                 path=project_dir,
                 preferred_ide=IDE.PYCHARM,
-                variant=ImageVariant.PYTHON,
+                variant=ImageVariant.DOTNET,
                 proxy=ProxyConfig(
                     upstream="socks5://localhost:1080",
                     whitelist_domains=["api.example.com"],
@@ -154,7 +154,7 @@ class TestProjectConfigIO:
             assert loaded is not None
             assert loaded.name == "test-project"
             assert loaded.preferred_ide == IDE.PYCHARM
-            assert loaded.variant == ImageVariant.PYTHON
+            assert loaded.variant == ImageVariant.DOTNET
             assert loaded.proxy.upstream == "socks5://localhost:1080"
             assert "api.example.com" in loaded.proxy.whitelist_domains
     
@@ -170,7 +170,7 @@ class TestProjectConfigIO:
             env_file.write_text("""
 PROJECT_NAME=legacy-project
 PREFERRED_IDE=pycharm
-UPSTREAM_PROXY=http://proxy:8080
+UPSTREAM_PROXY=http://host.gateway:8080
 USER_WHITELIST_DOMAINS=api.legacy.com,cdn.legacy.com
 """)
             
@@ -214,10 +214,10 @@ class TestEnums:
     
     def test_image_variant_enum(self):
         """Test ImageVariant enum values."""
-        assert ImageVariant.BASE.value == "base"
-        assert ImageVariant.PYTHON.value == "python"
-        assert ImageVariant.NODEJS.value == "nodejs"
+        assert ImageVariant.BASE.value == "devcontainer"
+        assert ImageVariant.GOLANG.value == "devcontainer-golang"
+        assert ImageVariant.DOTNET.value == "devcontainer-dotnet"
         
         # Test from string
-        assert ImageVariant("python") == ImageVariant.PYTHON
-        assert ImageVariant("nodejs") == ImageVariant.NODEJS
+        assert ImageVariant("devcontainer") == ImageVariant.BASE
+        assert ImageVariant("devcontainer-golang") == ImageVariant.GOLANG

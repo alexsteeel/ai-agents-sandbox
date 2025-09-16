@@ -10,7 +10,7 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-from ai_sbx.config import ImageVariant, load_project_config
+from ai_sbx.config import BaseImage, load_project_config
 from ai_sbx.utils import (
     find_project_root,
     is_docker_running,
@@ -31,11 +31,11 @@ def docker() -> None:
 
 @docker.command()
 @click.option(
-    "--variant", 
-    type=click.Choice([v.value for v in ImageVariant]), 
-    help="Image variant to build (devcontainer, devcontainer-dotnet, devcontainer-golang)"
+    "--environment",
+    type=click.Choice([v.value for v in BaseImage]),
+    help="Development environment to build (base, dotnet, golang)"
 )
-@click.option("--all", is_flag=True, help="Build all image variants including support images")
+@click.option("--all", is_flag=True, help="Build all image environments including support images")
 @click.option("--no-cache", is_flag=True, help="Build without using cache")
 @click.option("--force", is_flag=True, help="Force rebuild even if images exist")
 @click.option("--verify", is_flag=True, help="Only verify that images exist")
@@ -44,7 +44,7 @@ def docker() -> None:
 @click.pass_context
 def build(
     ctx: click.Context,
-    variant: Optional[str],
+    environment: Optional[str],
     all: bool,
     no_cache: bool,
     force: bool,
@@ -55,15 +55,15 @@ def build(
     """Build Docker images for AI Agents Sandbox.
 
     This command builds the necessary Docker images for your development
-    environment. You can build specific variants or all images at once.
+    environment. You can build specific environments or all images at once.
 
     Examples:
 
         # Build base devcontainer image
         ai-sbx docker build
 
-        # Build specific variant
-        ai-sbx docker build --variant devcontainer-dotnet
+        # Build specific environment
+        ai-sbx docker build --environment devcontainer-dotnet
 
         # Build all images including support
         ai-sbx docker build --all
@@ -86,24 +86,24 @@ def build(
     
     # Verify mode - just check if images exist
     if verify:
-        return _verify_images(console, variant, all, tag)
+        return _verify_images(console, environment, all, tag)
 
     # Determine which images to build
     if all:
-        variants_to_build = list(ImageVariant)
-    elif variant:
-        variants_to_build = [ImageVariant(variant)]
+        environments_to_build = list(BaseImage)
+    elif environment:
+        environments_to_build = [BaseImage(environment)]
     else:
         # Try to detect from project
         project_root = find_project_root()
         if project_root:
             config = load_project_config(project_root)
             if config:
-                variants_to_build = [config.variant]
+                environments_to_build = [config.base_image]
             else:
-                variants_to_build = [ImageVariant.BASE]
+                environments_to_build = [BaseImage.BASE]
         else:
-            variants_to_build = [ImageVariant.BASE]
+            environments_to_build = [BaseImage.BASE]
 
     console.print(f"\n[bold cyan]Building Docker images (tag: {tag})[/bold cyan]\n")
 
@@ -117,11 +117,11 @@ def build(
         console=console,
     ) as progress:
 
-        # Build order: supporting images first, then base, then variants
+        # Build order: supporting images first, then base, then environments
         images_to_build = []
         
         # Always build supporting images first
-        if all or any(v for v in variants_to_build):
+        if all or any(v for v in environments_to_build):
             images_to_build.extend([
                 ("tinyproxy-base", "images/tinyproxy-base", "ai-agents-sandbox/tinyproxy-base"),
                 ("tinyproxy", "images/tinyproxy", "ai-agents-sandbox/tinyproxy"),
@@ -129,9 +129,9 @@ def build(
                 ("docker-dind", "images/docker-dind", "ai-agents-sandbox/docker-dind"),
             ])
         
-        # Add variant images
-        for variant in variants_to_build:
-            spec = _get_variant_image_spec(variant)
+        # Add environment images
+        for environment in environments_to_build:
+            spec = _get_environment_image_spec(environment)
             if spec:
                 name, dockerfile_dir, image_repo = spec
                 images_to_build.append((name, dockerfile_dir, image_repo))
@@ -166,7 +166,7 @@ def build(
     # Push images if requested
     if push and success_count > 0:
         console.print("\n[cyan]Pushing images...[/cyan]")
-        _push_images(variants_to_build, tag, console, verbose)
+        _push_images(environments_to_build, tag, console, verbose)
 
     # Summary
     console.print("\n[bold]Build Summary:[/bold]")
@@ -569,7 +569,7 @@ def _image_exists(image_name: str, tag: str) -> bool:
         return False
 
 
-def _verify_images(console: Console, variant: Optional[str], all_images: bool, tag: str) -> None:
+def _verify_images(console: Console, environment: Optional[str], all_images: bool, tag: str) -> None:
     """Verify that Docker images exist."""
     console.print("\n[bold cyan]Verifying Docker images[/bold cyan]\n")
     
@@ -584,22 +584,22 @@ def _verify_images(console: Console, variant: Optional[str], all_images: bool, t
             ("docker-dind", "ai-agents-sandbox/docker-dind"),
         ])
     
-    # Add variant images
+    # Add environment images
     if all_images:
-        for v in ImageVariant:
-            spec = _get_variant_image_spec(v)
+        for v in BaseImage:
+            spec = _get_environment_image_spec(v)
             if spec:
                 name, _, image_repo = spec
                 images_to_check.append((name, image_repo))
-    elif variant:
-        v = ImageVariant(variant)
-        spec = _get_variant_image_spec(v)
+    elif environment:
+        v = BaseImage(environment)
+        spec = _get_environment_image_spec(v)
         if spec:
             name, _, image_repo = spec
             images_to_check.append((name, image_repo))
     else:
         # Default to base
-        spec = _get_variant_image_spec(ImageVariant.BASE)
+        spec = _get_environment_image_spec(BaseImage.BASE)
         if spec:
             name, _, image_repo = spec
             images_to_check.append((name, image_repo))
@@ -653,9 +653,9 @@ def _build_image(
     dockerfile_path = Path(dockerfile_dir)
 
     if not dockerfile_path.exists():
-        # Create minimal Dockerfile for new variants
+        # Create minimal Dockerfile for new environments
         dockerfile_path.mkdir(parents=True, exist_ok=True)
-        _create_variant_dockerfile(dockerfile_path)
+        _create_environment_dockerfile(dockerfile_path)
 
     dockerfile = dockerfile_path / "Dockerfile"
     if not dockerfile.exists():
@@ -685,29 +685,29 @@ def _build_image(
         return False
 
 
-def _create_variant_dockerfile(variant_dir: Path) -> None:
-    """Create a minimal Dockerfile for a new variant."""
-    variant_name = variant_dir.name
+def _create_environment_dockerfile(environment_dir: Path) -> None:
+    """Create a minimal Dockerfile for a new environment."""
+    environment_name = environment_dir.name
 
-    dockerfile_content = f"""# AI Agents Sandbox - {variant_name.capitalize()} variant
+    dockerfile_content = f"""# AI Agents Sandbox - {environment_name.capitalize()} environment
 FROM ai-agents-sandbox/base:latest
 
 USER root
 
-# Add {variant_name}-specific installations here
+# Add {environment_name}-specific installations here
 
 USER claude
 WORKDIR /workspace
 """
 
-    (variant_dir / "Dockerfile").write_text(dockerfile_content)
+    (environment_dir / "Dockerfile").write_text(dockerfile_content)
 
 
-def _push_images(variants: list[ImageVariant], tag: str, console: Console, verbose: bool) -> None:
+def _push_images(environments: list[BaseImage], tag: str, console: Console, verbose: bool) -> None:
     """Push images to registry."""
-    for variant in variants:
+    for environment in environments:
         # Use mapping for image repo
-        spec = _get_variant_image_spec(variant)
+        spec = _get_environment_image_spec(environment)
         if spec is None:
             continue
         image_repo, _ = spec
@@ -721,26 +721,26 @@ def _push_images(variants: list[ImageVariant], tag: str, console: Console, verbo
             console.print(f"[red]Failed to push {image_name}: {e}[/red]")
 
 
-def _get_variant_image_spec(variant: ImageVariant) -> Optional[tuple[str, str, str]]:
-    """Map variant to (name, dockerfile_dir, image_repo).
+def _get_environment_image_spec(environment: BaseImage) -> Optional[tuple[str, str, str]]:
+    """Map environment to (name, dockerfile_dir, image_repo).
 
-    Returns None if variant is not supported by this repository layout.
+    Returns None if environment is not supported by this repository layout.
     """
     mapping = {
-        ImageVariant.BASE: (
+        BaseImage.BASE: (
             "devcontainer-base",
             "images/devcontainer-base",
             "ai-agents-sandbox/devcontainer"
         ),
-        ImageVariant.DOTNET: (
+        BaseImage.DOTNET: (
             "devcontainer-dotnet",
             "images/devcontainer-dotnet",
             "ai-agents-sandbox/devcontainer-dotnet"
         ),
-        ImageVariant.GOLANG: (
+        BaseImage.GOLANG: (
             "devcontainer-golang",
             "images/devcontainer-golang",
             "ai-agents-sandbox/devcontainer-golang"
         ),
     }
-    return mapping.get(variant)
+    return mapping.get(environment)

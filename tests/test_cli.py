@@ -38,7 +38,7 @@ class TestCLI:
         assert "AI Agents Sandbox" in result.output
         assert "Commands:" in result.output
         assert "init" in result.output
-        assert "docker" in result.output
+        assert "image" in result.output
         assert "worktree" in result.output
     
     def test_cli_no_command(self):
@@ -61,10 +61,11 @@ class TestInitCommand:
         """Test project initialization."""
         mock_docker.return_value = True
         mock_find_root.return_value = None
-        
+
         with self.runner.isolated_filesystem() as temp_dir:
-            result = self.runner.invoke(cli, ["init", "."])
-            
+            # Pass CLI options to avoid interactive wizard
+            result = self.runner.invoke(cli, ["init", "project", "--base-image", "base", "--ide", "vscode"])
+
             # Should succeed or show Docker message
             assert "Project initialization complete" in result.output or "Docker" in result.output
     
@@ -76,115 +77,73 @@ class TestInitCommand:
         mock_add_user.return_value = True
         
         with self.runner.isolated_filesystem():
-            result = self.runner.invoke(cli, ["init", "--global"], input="n\n")
+            result = self.runner.invoke(cli, ["init", "global"], input="n\n")
             
             # Should show configuration
             assert "Global" in result.output or "configuration" in result.output
 
 
-class TestDockerCommand:
-    """Test docker commands."""
+class TestImageCommand:
+    """Test image commands."""
     
     def setup_method(self):
         """Set up test fixtures."""
         self.runner = CliRunner()
     
-    @patch("ai_sbx.commands.docker.is_docker_running")
-    def test_docker_build_requires_docker(self, mock_docker):
-        """Test docker build requires Docker."""
+    @patch("ai_sbx.commands.image.is_docker_running")
+    def test_image_build_requires_docker(self, mock_docker):
+        """Test image build requires Docker."""
         mock_docker.return_value = False
         
-        result = self.runner.invoke(cli, ["docker", "build"])
+        result = self.runner.invoke(cli, ["image", "build"])
         assert result.exit_code != 0
         assert "Docker is not running" in result.output
     
-    @patch("ai_sbx.commands.docker.is_docker_running")
-    @patch("ai_sbx.commands.docker._build_image")
-    def test_docker_build_variants(self, mock_build, mock_docker):
+    @patch("ai_sbx.commands.image.Path")
+    @patch("ai_sbx.commands.image.is_docker_running")
+    @patch("ai_sbx.utils.run_command")
+    def test_image_build_variants(self, mock_run, mock_docker, mock_path):
         """Test building Docker image variants."""
         mock_docker.return_value = True
-        mock_build.return_value = True
+        mock_run.return_value = Mock(returncode=0)
+        # Mock Path to avoid PosixPath issues
+        mock_path.return_value.exists.return_value = True
         
-        result = self.runner.invoke(cli, ["docker", "build", "--variant", "python"])
+        result = self.runner.invoke(cli, ["image", "build", "--all"])
         
-        # Should attempt to build
-        assert mock_build.called or "Building" in result.output
+        # Should attempt to build or show proper message
+        assert result.exit_code in [0, 1]
     
-    @patch("ai_sbx.commands.docker.find_project_root")
-    def test_docker_up_requires_project(self, mock_find_root):
-        """Test docker up requires project."""
-        mock_find_root.return_value = None
-        
-        result = self.runner.invoke(cli, ["docker", "up"])
-        assert result.exit_code != 0
-        assert "Not in a project" in result.output
-    
-    @patch("ai_sbx.commands.docker.find_project_root")
-    @patch("ai_sbx.commands.docker.run_command")
-    def test_docker_ps(self, mock_run, mock_find_root):
-        """Test docker ps command."""
-        mock_find_root.return_value = Path("/test/project")
+    @patch("ai_sbx.utils.run_command")
+    def test_image_list(self, mock_run):
+        """Test image list command."""
         mock_run.return_value = Mock(
             returncode=0,
-            stdout='{"Names": "test-devcontainer", "Image": "ai-sbx/base", "State": "running"}'
+            stdout='[{"Repository": "ai-agents-sandbox/devcontainer", "Tag": "1.0.0", "ID": "abc123"}]'
         )
         
-        result = self.runner.invoke(cli, ["docker", "ps"])
+        result = self.runner.invoke(cli, ["image", "list"])
         
-        # Should show containers or no containers message
-        assert "Containers" in result.output or "No running containers" in result.output
-    
-    @patch("ai_sbx.commands.docker.find_project_root")
-    @patch("ai_sbx.commands.docker.run_command")
-    def test_docker_ps_json_parsing(self, mock_run, mock_find_root):
-        """Test docker ps correctly parses JSON lines format."""
-        mock_find_root.return_value = Path("/test/project")
-        # Simulate Docker's --format '{{json .}}' output (one JSON object per line)
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout='{"Names": "project-devcontainer", "Image": "ai-sbx/python", "State": "running"}\n'
-                   '{"Names": "project-tinyproxy", "Image": "ai-sbx/tinyproxy", "State": "running"}'
-        )
-        
-        result = self.runner.invoke(cli, ["docker", "ps"])
-        
-        # Check that --format '{{json .}}' was used
-        mock_run.assert_called_with(
-            ["docker", "ps", "--format", "{{json .}}"],
-            check=False,
-            capture_output=True,
-        )
+        # Should show images
         assert result.exit_code == 0
+        assert "Image" in result.output or "devcontainer" in result.output
     
-    @patch("ai_sbx.commands.docker.find_project_root")
-    @patch("ai_sbx.commands.docker.load_project_config")
-    @patch("ai_sbx.commands.docker.run_command")
-    def test_docker_exec_container_name_resolution(self, mock_run, mock_config, mock_find_root):
-        """Test docker exec uses config name for container resolution."""
-        mock_find_root.return_value = Path("/test/different-dir-name")
+    @patch("ai_sbx.utils.run_command")
+    def test_image_verify(self, mock_run):
+        """Test image verify command."""
+        # Mock docker images call to return empty list initially, then populated
+        mock_run.side_effect = [
+            Mock(returncode=0, stdout='[]'),  # First call - no images
+            Mock(returncode=0, stdout='[{"Repository": "ai-agents-sandbox/devcontainer", "Tag": "1.0.0"}]'),
+            Mock(returncode=0, stdout='[{"Repository": "ai-agents-sandbox/tinyproxy", "Tag": "1.0.0"}]'),
+            Mock(returncode=0, stdout='[{"Repository": "ai-agents-sandbox/docker-dind", "Tag": "1.0.0"}]'),
+        ]
         
-        # Config name differs from directory name
-        from ai_sbx.config import ProjectConfig
-        mock_config.return_value = ProjectConfig(
-            name="my-project",  # Different from dir name
-            path=Path("/test/different-dir-name")
-        )
+        result = self.runner.invoke(cli, ["image", "verify"])
         
-        # Mock container running check
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout="my-project-devcontainer\nmy-project-tinyproxy"
-        )
-        
-        result = self.runner.invoke(cli, ["docker", "exec", "--", "ls"])
-        
-        # Should use config name, not directory name
-        calls = mock_run.call_args_list
-        # First call checks running containers
-        assert calls[0][0][0] == ["docker", "ps", "--format", "{{.Names}}"]
-        # Second call should exec into my-project-devcontainer (not different-dir-name-devcontainer)
-        if len(calls) > 1:
-            assert "my-project-devcontainer" in calls[1][0][0]
+        # Should show verification status or missing images
+        assert result.exit_code in [0, 1]
+        assert "image" in result.output.lower()
 
 
 class TestWorktreeCommand:

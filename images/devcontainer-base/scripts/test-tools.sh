@@ -143,11 +143,7 @@ check_vcs_tools() {
     # Check git
     check_tool "git" "--version" "true"
     
-    # Check gh (GitHub CLI)
-    check_tool "gh" "--version" "false"
-    
-    # Check git-lfs
-    check_tool "git-lfs" "--version" "false"
+    # GitHub CLI and git-lfs are optional and not checked by default
 }
 
 # Function to check shell and terminal tools
@@ -212,8 +208,7 @@ check_network_tools() {
     check_tool "nslookup" "-version" "false"
     check_tool "dig" "-v" "false"
     
-    # Check nc (netcat)
-    check_tool "nc" "-h" "false"
+    # netcat is optional and not checked by default
 }
 
 # Function to check editor tools
@@ -221,8 +216,7 @@ check_editor_tools() {
     echo ""
     echo "=== Editor Tools ==="
     
-    # Check nano
-    check_tool "nano" "--version" "false"
+    # nano is optional and not checked by default
     
     # Check vim
     check_tool "vim" "--version" "false"

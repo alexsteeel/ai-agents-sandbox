@@ -1,5 +1,0 @@
-# Local environment configuration (auto-generated)
-.env
-
-# Secure initialization script (contains credentials)
-secure.init.sh

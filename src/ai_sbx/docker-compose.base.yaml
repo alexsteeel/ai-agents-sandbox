@@ -1,0 +1,133 @@
+# Devcontainer proxy configuration - ONLY uses tinyproxy-devcontainer
+x-devcontainer-proxy-env: &devcontainer-proxy-env
+  HTTP_PROXY: ${PROXY_URL:-http://tinyproxy-devcontainer:8888}
+  HTTPS_PROXY: ${PROXY_URL:-http://tinyproxy-devcontainer:8888}
+  NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,docker}
+  # Lowercase versions for compatibility
+  http_proxy: ${PROXY_URL:-http://tinyproxy-devcontainer:8888}
+  https_proxy: ${PROXY_URL:-http://tinyproxy-devcontainer:8888}
+  no_proxy: ${NO_PROXY:-localhost,127.0.0.1,::1,docker}
+
+services:
+  # Docker-in-Docker service
+  docker:
+    image: ai-agents-sandbox/docker-dind:${IMAGE_TAG:-1.0.0}
+    privileged: true  # Required for DinD
+    restart: unless-stopped
+    environment:
+      # Docker uses docker-registry-proxy for all image pulls
+      HTTP_PROXY: http://ai-sbx-docker-proxy:3128
+      HTTPS_PROXY: http://ai-sbx-docker-proxy:3128
+      NO_PROXY: localhost,127.0.0.1,::1,docker
+    volumes:
+      # must be added here for successful mounts to interpreter containers inside devcontainer
+      - ${PROJECT_DIR:-..}:/workspace
+      - docker-certs-ca:/certs/ca
+      - docker-certs-client:/certs/client
+      - docker-data:/var/lib/docker
+      - ai-sbx-proxy-certs:/proxy-ca:ro  # CA certificates from docker-registry-proxy
+    tmpfs:
+      - /run
+      - /tmp
+    networks:
+      - ai-sbx-internal  # Internal network only - no direct internet access
+      - ai-sbx-proxy-internal # Common docker proxy internal network
+
+  # Main proxy for devcontainer - supports upstream proxy
+  tinyproxy-devcontainer:
+    image: ai-agents-sandbox/tinyproxy:${IMAGE_TAG:-1.0.0}
+    restart: unless-stopped
+    environment:
+      # Simplified upstream proxy configuration
+      UPSTREAM_PROXY: ${UPSTREAM_PROXY:-}  # Format: socks5://host:port or http://host:port
+      NO_UPSTREAM: ${NO_UPSTREAM:-}         # Domains that bypass upstream
+      USER_WHITELIST_DOMAINS: ${USER_WHITELIST_DOMAINS:-}  # Comma or space separated list
+    volumes:
+      - proxy-devcontainer-logs:/var/log/tinyproxy
+    extra_hosts:
+      - "host.gateway:host-gateway"  # Maps to Docker host for upstream proxy
+    networks:
+      - ai-sbx-internal
+      - ai-sbx-external
+
+  # Development container
+  devcontainer:
+    user: claude
+    environment:
+      <<: *devcontainer-proxy-env
+      # Project-specific environment
+      PROJECT_NAME: ${PROJECT_NAME:-project}
+      WORKSPACE: ${WORKSPACE:-/workspace}
+      # Docker-in-Docker client configuration
+      # Docker connection is internal network only - no proxy needed
+      DOCKER_HOST: tcp://docker:2376
+      DOCKER_TLS_VERIFY: "1"
+      DOCKER_CERT_PATH: /certs/client
+      # JetBrains remote development
+      JETBRAINS_REMOTE_RUN: "true"
+      # Claude Code configuration
+      CLAUDE_CONFIG_DIR: /home/claude/.claude
+      NODE_OPTIONS: --max-old-space-size=4096
+    volumes:
+      # Core volumes
+      - ${PROJECT_DIR:-..}:/workspace
+      - claude-code-config:/home/claude/.claude
+      - docker-certs-client:/certs/client:ro
+      
+      # User configuration volumes
+      - ${HOME}/.ai_agents_sandbox:/host/.ai_agents_sandbox:ro
+      - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
+      - ${HOME}/.claude/projects/:/home/claude/.claude/projects
+      - ${HOME}/.ai_agents_sandbox/notifications:/home/claude/.ai_agents_sandbox/notifications
+
+      # Persistent state volumes
+      - cache:/home/claude/.cache
+      - codex:/home/claude/.codex
+      
+      # IDE cache for JetBrains
+      - jb-cache:/.jbdevcontainer
+    ports:
+      # OpenAI Codex auth port
+      - "${CODEX_PORT:-1455}:1455"
+    working_dir: /workspace
+    networks:
+      - ai-sbx-internal
+    depends_on:
+      - docker  # For Docker CLI access
+      - tinyproxy-devcontainer  # ONLY its own proxy, NOT tinyproxy-dind
+    # Allow custom command override
+    command: ${DEVCONTAINER_COMMAND:-sleep infinity}
+
+volumes:
+  docker-certs-ca:
+    name: ${PROJECT_NAME:-project}-docker-certs-ca
+  docker-certs-client:
+    name: ${PROJECT_NAME:-project}-docker-certs-client
+  docker-data:
+    name: ${PROJECT_NAME:-project}-docker-data
+  proxy-devcontainer-logs:
+    name: ${PROJECT_NAME:-project}-proxy-devcontainer-logs
+  claude-code-config:
+    name: ${PROJECT_NAME:-project}-claude-code-config
+  codex:
+    name: ${PROJECT_NAME:-project}-codex
+  cache:
+    name: ${PROJECT_NAME:-project}-cache
+  jb-cache:
+    name: ${PROJECT_NAME:-project}-jb-cache
+  # External volume from docker-registry-proxy for CA certificates
+  ai-sbx-proxy-certs:
+    external: true
+
+networks:
+  ai-sbx-internal:
+    name: ${PROJECT_NAME:-project}-ai-sbx-internal
+    driver: bridge
+    internal: true  # Critical: blocks direct internet access
+  ai-sbx-external:
+    name: ${PROJECT_NAME:-project}-ai-sbx-external
+    driver: bridge
+  ai-sbx-proxy-internal:
+    name: ai-sbx-proxy-internal
+    driver: bridge
+    external: true

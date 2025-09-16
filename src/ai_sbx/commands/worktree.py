@@ -15,6 +15,7 @@ from rich.table import Table
 
 from ai_sbx.config import IDE, load_project_config, save_project_config
 from ai_sbx.utils import (
+    AliasedGroup,
     check_command_exists,
     detect_ide,
     find_project_root,
@@ -24,7 +25,15 @@ from ai_sbx.utils import (
 )
 
 
-@click.group()
+@click.group(cls=AliasedGroup, aliases={
+    'ls': 'list',
+    'rm': 'remove',
+    'del': 'remove',
+    'delete': 'remove',
+    'new': 'create',
+    'add': 'create',
+    'cn': 'connect',
+})
 def worktree() -> None:
     """Manage git worktrees for isolated development tasks.
 
@@ -37,8 +46,9 @@ def worktree() -> None:
 @worktree.command()
 @click.argument("description")
 @click.option("--branch", help="Custom branch name")
-@click.option("--ide", type=click.Choice(["vscode", "devcontainer", "pycharm", "rider", "goland", "claude"]))
+@click.option("--ide", type=click.Choice(["vscode", "devcontainer", "pycharm", "rider", "goland"]))
 @click.option("--no-open", is_flag=True, help="Don't open IDE after creation")
+@click.option("--with-task-folder/--no-task-folder", default=None, help="Create task folder (prompts if not specified)")
 @click.pass_context
 def create(
     ctx: click.Context,
@@ -46,16 +56,16 @@ def create(
     branch: Optional[str],
     ide: Optional[str],
     no_open: bool,
+    with_task_folder: Optional[bool],
 ) -> None:
     """Create a new worktree for a development task.
 
     This command creates a git worktree with a descriptive branch name,
     sets up the devcontainer environment, and optionally opens your IDE.
 
+    \b
     Examples:
-
         ai-sbx worktree create "feature 123 implement user auth"
-
         ai-sbx worktree create "bugfix memory leak in parser" --branch fix-parser
     """
     console: Console = ctx.obj["console"]
@@ -66,6 +76,28 @@ def create(
     if not project_root:
         console.print("[red]Not in a git repository[/red]")
         return
+
+    # Check if .devcontainer is committed
+    devcontainer_path = project_root / ".devcontainer"
+    if devcontainer_path.exists():
+        try:
+            # Check if .devcontainer is tracked by git
+            result = subprocess.run(
+                ["git", "ls-files", ".devcontainer"],
+                cwd=project_root,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if not result.stdout.strip():
+                console.print("[yellow]⚠ Warning: .devcontainer folder is not committed to git[/yellow]")
+                console.print("[dim]Worktrees won't have access to the devcontainer configuration[/dim]")
+                console.print("\nTo fix this, run:")
+                console.print("[cyan]git add .devcontainer && git commit -m \"Add devcontainer configuration\"[/cyan]")
+                if not prompt_yes_no("\nContinue anyway?", default=False):
+                    return
+        except Exception:
+            pass
 
     # Generate branch name if not provided
     if not branch:
@@ -99,9 +131,21 @@ def create(
 
     # Copy secure.init.sh if it exists (for credentials not in git)
     _copy_secure_init(project_root, worktree_path, console)
-    
-    # Create task folder structure
-    _create_task_structure(worktree_path, branch, description, console)
+
+    # Determine if we should create task folder
+    if with_task_folder is None:
+        # Not specified on command line, ask the user
+        create_task_folder = prompt_yes_no(
+            "Create task folder with requirements template?",
+            default=True
+        )
+    else:
+        # Use command line flag value
+        create_task_folder = with_task_folder
+
+    if create_task_folder:
+        # Create task folder structure
+        _create_task_structure(worktree_path, branch, description, console)
 
     # Determine preferred IDE
     preferred_ide = None
@@ -123,37 +167,39 @@ def create(
                     _save_preferred_ide(project_root, preferred_ide, console)
 
     # Open IDE if requested
+    opened_ide = False
     if not no_open and preferred_ide:
+        console.print(f"\n[cyan]Opening {preferred_ide.value}...[/cyan]")
         _open_ide(worktree_path, preferred_ide, console, verbose)
+        opened_ide = True
         
         # Special handling for devcontainer - it runs interactively, so exit after
         if preferred_ide == IDE.DEVCONTAINER:
             return
 
-    # Show summary
-    console.print("\n" + "="*64)
-    console.print("[bold green]Task worktree created successfully![/bold green]")
-    console.print("")
-    console.print(f"[bold]Worktree:[/bold] {worktree_path}")
-    console.print(f"[bold]Branch:[/bold] {branch}")
-    console.print(f"[bold]Task folder:[/bold] tasks/{branch}")
-    console.print(f"[bold]Requirements:[/bold] tasks/{branch}/initial_requirements.md")
-    console.print("")
-    console.print("Next steps:")
-    console.print(f"1. Edit the initial requirements in: tasks/{branch}/initial_requirements.md")
-    if preferred_ide == IDE.VSCODE:
-        console.print("2. Click 'Reopen in Container' when VS Code prompts")
-        console.print("3. Begin development")
-    elif preferred_ide == IDE.DEVCONTAINER:
-        console.print("2. DevContainer will start automatically")
-        console.print("3. Begin development in the container shell")
+    # Show summary only if IDE wasn't opened or user chose no IDE
+    if not opened_ide:
+        console.print("\n" + "="*64)
+        console.print("[bold green]Task worktree created successfully![/bold green]")
+        console.print("")
+        console.print(f"[bold]Worktree:[/bold] {worktree_path}")
+        console.print(f"[bold]Branch:[/bold] {branch}")
+        console.print(f"[bold]Task folder:[/bold] tasks/{branch}")
+        console.print(f"[bold]Requirements:[/bold] tasks/{branch}/initial_requirements.md")
+        console.print("")
+        console.print("To open the worktree:")
+        console.print(f"  [cyan]cd {worktree_path}[/cyan]")
+        console.print("  [cyan]code .[/cyan]  # Open in VS Code (containers will start automatically)")
+        console.print("")
+        console.print("To remove this worktree later:")
+        console.print(f"  [cyan]git worktree remove {worktree_path}[/cyan]")
+        console.print("="*64)
     else:
-        console.print("2. Start the devcontainer if needed")
-        console.print("3. Begin development")
-    console.print("")
-    console.print("To remove this worktree later:")
-    console.print(f"  git worktree remove {worktree_path}")
-    console.print("="*64)
+        # If IDE was opened, just show a brief summary
+        console.print(f"\n[green]✓[/green] Worktree created: {worktree_path}")
+        console.print(f"[green]✓[/green] Branch: {branch}")
+        console.print(f"[green]✓[/green] Task folder: tasks/{branch}")
+        console.print(f"\n[dim]To remove later: git worktree remove {worktree_path}[/dim]")
 
 
 @worktree.command()
@@ -174,28 +220,29 @@ def remove(
     Can remove worktrees by name, partial match, or interactively.
     Interactive mode allows selecting multiple worktrees at once.
 
+    \b
     Examples:
-
         # Interactive selection (can select multiple)
         ai-sbx worktree remove
-
+        
         # Remove specific worktree
         ai-sbx worktree remove fix-123
-
+        
         # Remove all worktrees
         ai-sbx worktree remove --all
-
+        
         # Remove and delete branch
         ai-sbx worktree remove fix-123 -b
     """
     console: Console = ctx.obj["console"]
     verbose: bool = ctx.obj.get("verbose", False)
 
-    # Get list of worktrees
-    worktrees = _list_worktrees()
+    # Get list of worktrees (excluding main repository)
+    worktrees = _list_worktrees(exclude_current=True)
 
     if not worktrees:
-        console.print("[yellow]No worktrees found[/yellow]")
+        console.print("[yellow]No worktrees found to remove[/yellow]")
+        console.print("[dim]The main repository cannot be removed[/dim]")
         return
 
     # Filter worktrees to remove
@@ -277,10 +324,17 @@ def remove(
             return
 
     # Remove worktrees
+    main_path = _get_main_worktree_path()
     for w in to_remove:
         path = w["path"]
         branch = w.get("branch")
-        
+
+        # Safety check: Never remove the main repository
+        if main_path and Path(path) == main_path:
+            console.print(f"\n[red]Cannot remove main repository: {path}[/red]")
+            console.print("[dim]The main repository is where the project was initialized[/dim]")
+            continue
+
         # Stop and remove container if requested
         if delete_containers and path in containers_to_stop:
             actual_container = containers_to_stop[path]
@@ -331,51 +385,82 @@ def remove(
 
 
 @worktree.command()
+@click.argument("name", required=False)
+@click.option("--ide", type=click.Choice(["vscode", "devcontainer", "pycharm", "rider", "goland"]))
 @click.pass_context
-def connect(ctx: click.Context) -> None:
+def connect(ctx: click.Context, name: Optional[str], ide: Optional[str]) -> None:
     """Connect to an existing worktree.
 
-    Interactively select a worktree and either open a shell
-    in its container or navigate to its directory.
+    Can specify worktree by name/branch or select interactively.
+    
+    \b
+    Examples:
+        ai-sbx worktree connect                  # Interactive selection
+        ai-sbx worktree connect test-feature     # Connect to specific worktree
+        ai-sbx worktree connect --ide vscode     # Open with specific IDE
     """
     console: Console = ctx.obj["console"]
+    verbose: bool = ctx.obj.get("verbose", False)
 
-    # Get list of worktrees
-    worktrees = _list_worktrees()
+    # Get list of worktrees (excluding main repository)
+    worktrees = _list_worktrees(exclude_current=True)
 
     if not worktrees:
         console.print("[yellow]No worktrees found[/yellow]")
+        console.print("[dim]Use 'ai-sbx worktree create \"task description\"' to create one[/dim]")
         return
 
-    # Create choice list with task descriptions
-    choices = []
-    for w in worktrees:
-        path = Path(w["path"])
-        label = f"{path.name}"
+    selected = None
+    
+    # If name provided, try to find matching worktree
+    if name:
+        for w in worktrees:
+            path = Path(w["path"])
+            branch = w.get("branch", "")
+            # Match by path name or branch name
+            if name in path.name or name == branch:
+                selected = w
+                break
+        
+        if not selected:
+            console.print(f"[red]No worktree found matching: {name}[/red]")
+            console.print("\nAvailable worktrees:")
+            for w in worktrees:
+                path = Path(w["path"])
+                branch = w.get("branch", "")
+                console.print(f"  • {path.name} ({branch})")
+            return
+    else:
+        # Interactive selection
+        # Create choice list with task descriptions
+        choices = []
+        for w in worktrees:
+            path = Path(w["path"])
+            label = f"{path.name}"
 
-        if w.get("branch"):
-            label += f" ({w['branch']})"
+            if w.get("branch"):
+                label += f" ({w['branch']})"
 
-        # Try to get task description
-        desc = _get_task_description(path)
-        if desc:
-            label += f" - {desc}"
+            # Try to get task description
+            desc = _get_task_description(path)
+            if desc:
+                label += f" - {desc}"
 
-        choices.append((label, w))
+            choices.append((label, w))
 
-    questions = [
-        inquirer.List(
-            "worktree",
-            message="Select worktree to connect to",
-            choices=choices,
-        )
-    ]
+        questions = [
+            inquirer.List(
+                "worktree",
+                message="Select worktree to connect to",
+                choices=choices,
+            )
+        ]
 
-    answers = inquirer.prompt(questions)
-    if not answers:
-        return
+        answers = inquirer.prompt(questions)
+        if not answers:
+            return
 
-    selected = answers["worktree"]
+        selected = answers["worktree"]
     path = Path(selected["path"])
 
     if not path.exists():
@@ -386,6 +471,20 @@ def connect(ctx: click.Context) -> None:
         )
         return
 
+    # Check if IDE was specified or load preference
+    preferred_ide = None
+    if ide:
+        preferred_ide = IDE(ide)
+    else:
+        # Load preference from .user.env in the worktree path
+        preferred_ide = _get_preferred_ide(path)
+        
+        # If no preference in worktree, check main project
+        if not preferred_ide:
+            project_root = find_project_root()
+            if project_root:
+                preferred_ide = _get_preferred_ide(project_root)
+    
     # Check container status
     container_base_name = f"{path.name}-devcontainer"
     actual_container_name = _get_running_container_name(container_base_name)
@@ -397,14 +496,25 @@ def connect(ctx: click.Context) -> None:
         connect_choices = [
             ("Open shell in container", "shell"),
             ("Just change directory", "cd"),
-            ("Cancel", "cancel"),
         ]
+        
+        # Add IDE option if preferred IDE is set
+        if preferred_ide:
+            connect_choices.insert(0, (f"Open in {preferred_ide.value}", "ide"))
+        else:
+            # Detect available IDEs
+            detected = _detect_available_ides()
+            if detected:
+                connect_choices.insert(0, ("Open in IDE", "ide_select"))
+        
+        connect_choices.append(("Cancel", "cancel"))
 
         questions = [
             inquirer.List(
                 "action",
                 message="What would you like to do?",
                 choices=connect_choices,
+                default=connect_choices[0][1] if preferred_ide else None,  # Default to IDE if set
             )
         ]
 
@@ -412,7 +522,19 @@ def connect(ctx: click.Context) -> None:
         if not answers or answers["action"] == "cancel":
             return
 
-        if answers["action"] == "shell":
+        if answers["action"] == "ide":
+            # Open with preferred IDE
+            console.print(f"\n[cyan]Opening {preferred_ide.value}...[/cyan]")
+            _open_ide(path, preferred_ide, console, verbose)
+        elif answers["action"] == "ide_select":
+            # Select IDE and remember choice
+            detected = _detect_available_ides()
+            if detected:
+                selected_ide = _prompt_ide_selection(detected, path, console)
+                if selected_ide:
+                    console.print(f"\n[cyan]Opening {selected_ide.value}...[/cyan]")
+                    _open_ide(path, selected_ide, console, verbose)
+        elif answers["action"] == "shell":
             # Connect to container using actual name
             console.print(f"Connecting to container: [cyan]{actual_container_name}[/cyan]")
             console.print("[dim]Type 'exit' to disconnect[/dim]\n")
@@ -429,11 +551,25 @@ def connect(ctx: click.Context) -> None:
             console.print("\nTo navigate to worktree, run:")
             console.print(f"[cyan]cd {path}[/cyan]")
     else:
-        # Container not running
+        # Container not running - offer to start with IDE
         console.print(f"[yellow]Container '{container_base_name}' is not running[/yellow]")
+        
+        # Check for preferred IDE or detect available ones
+        if preferred_ide or (detected := _detect_available_ides()):
+            if prompt_yes_no("\nWould you like to open the worktree in an IDE?", default=True):
+                if not preferred_ide and detected:
+                    # Prompt for IDE selection
+                    preferred_ide = _prompt_ide_selection(detected, path, console)
+                
+                if preferred_ide:
+                    console.print(f"\n[cyan]Opening {preferred_ide.value}...[/cyan]")
+                    _open_ide(path, preferred_ide, console, verbose)
+                    return
+        
+        # Fallback instructions
         console.print("\nTo start the container:")
         console.print(f"1. Navigate to worktree: [cyan]cd {path}[/cyan]")
-        console.print("2. Start containers: [cyan]ai-sbx docker up[/cyan]")
+        console.print("2. Open in IDE (containers will start automatically)")
 
 
 @worktree.command(name="list")
@@ -446,29 +582,53 @@ def list_worktrees(ctx: click.Context, verbose: bool) -> None:
     """
     console: Console = ctx.obj["console"]
 
-    worktrees = _list_worktrees()
+    # Use exclude_current=True to filter out the main repository
+    worktrees = _list_worktrees(exclude_current=True)
 
     if not worktrees:
         console.print("[yellow]No worktrees found[/yellow]")
+        console.print("[dim]Use 'ai-sbx worktree create \"task description\"' to create one[/dim]")
         return
 
     # Create table
-    table = Table(title="Git Worktrees", show_lines=True)
+    table = Table(show_lines=True)
     table.add_column("Path", style="cyan")
     table.add_column("Branch", style="green")
     table.add_column("Commit", style="yellow")
+    table.add_column("Message", style="dim")
+    table.add_column("Container", style="blue")
 
     if verbose:
         table.add_column("Description")
         table.add_column("Modified")
-        table.add_column("Container")
 
     for w in worktrees:
         path = Path(w["path"])
         branch = w.get("branch", "[detached]")
         commit = w.get("commit", "")[:7]
+        
+        # Get commit message
+        commit_msg = "-"
+        if path.exists() and commit:
+            try:
+                result = subprocess.run(
+                    ["git", "log", "-1", "--pretty=%s", commit],
+                    capture_output=True,
+                    text=True,
+                    cwd=path,
+                    check=True,
+                )
+                commit_msg = result.stdout.strip()[:50]  # Limit to 50 chars
+                if len(result.stdout.strip()) > 50:
+                    commit_msg += "..."
+            except subprocess.CalledProcessError:
+                pass
+        
+        # Check container status
+        container_base_name = f"{path.name}-devcontainer"
+        container_status = "running" if _is_container_running(container_base_name) else "stopped"
 
-        row = [path.name, branch, commit]
+        row = [path.name, branch, commit, commit_msg, container_status]
 
         if verbose:
             # Get task description
@@ -481,11 +641,7 @@ def list_worktrees(ctx: click.Context, verbose: bool) -> None:
             else:
                 modified = "[missing]"
 
-            # Check container status
-            container_base_name = f"{path.name}-devcontainer"
-            container_status = "running" if _is_container_running(container_base_name) else "stopped"
-
-            row.extend([desc, modified, container_status])
+            row.extend([desc, modified])
 
         table.add_row(*row)
 
@@ -578,33 +734,25 @@ def _create_task_structure(worktree_path: Path, branch_name: str, description: s
 
 
 def _detect_available_ides() -> list[tuple[IDE, str]]:
-    """Detect available IDEs on the system."""
+    """Detect available IDEs on the system using shared detection logic."""
     available = []
-    
-    # Check for VS Code
-    if check_command_exists("code"):
-        available.append((IDE.VSCODE, "VS Code"))
-    
-    # Check for devcontainer CLI (VS Code DevContainer)
-    if check_command_exists("devcontainer"):
-        available.append((IDE.DEVCONTAINER, "VS Code DevContainer"))
-    
-    # Check for PyCharm
-    if check_command_exists("pycharm") or check_command_exists("pycharm.sh"):
-        available.append((IDE.PYCHARM, "PyCharm"))
-    
-    # Check for Rider
-    if check_command_exists("rider") or check_command_exists("rider.sh"):
-        available.append((IDE.RIDER, "Rider"))
-    
-    # Check for GoLand
-    if check_command_exists("goland") or check_command_exists("goland.sh"):
-        available.append((IDE.GOLAND, "GoLand"))
-    
-    # Check for Claude
-    if check_command_exists("claude"):
-        available.append((IDE.CLAUDE, "Claude"))
-    
+
+    # Use the shared detect_ide function to get detected IDE names
+    detected = detect_ide()
+
+    # Map detected names to IDE enum and display names
+    ide_mapping = {
+        "vscode": (IDE.VSCODE, "VS Code"),
+        "pycharm": (IDE.PYCHARM, "PyCharm"),
+        "rider": (IDE.RIDER, "Rider"),
+        "goland": (IDE.GOLAND, "GoLand"),
+        "devcontainer": (IDE.DEVCONTAINER, "DevContainer"),
+    }
+
+    for ide_name in detected:
+        if ide_name in ide_mapping:
+            available.append(ide_mapping[ide_name])
+
     return available
 
 
@@ -656,13 +804,13 @@ def _save_preferred_ide(project_root: Path, ide: IDE, console: Console) -> None:
 
 
 def _prompt_ide_selection(
-    available_ides: list[tuple[IDE, str]], 
+    available_ides: list[tuple[IDE, str]],
     project_root: Path,
     console: Console
 ) -> Optional[IDE]:
     """Prompt user to select an IDE."""
     import sys
-    
+
     # Check if we're in an interactive terminal
     if not sys.stdin.isatty():
         console.print("[yellow]Non-interactive mode detected. Skipping IDE selection.[/yellow]")
@@ -671,19 +819,33 @@ def _prompt_ide_selection(
             console.print(f"  - {name} ({ide.value})")
         console.print("\nYou can open the project manually or specify --ide option")
         return None
-    
+
+    # Load project configuration to get preferred IDE
+    from ai_sbx.config import load_project_config
+    config = load_project_config(project_root)
+    preferred_ide = config.preferred_ide if config else None
+
     choices = [(name, ide) for ide, name in available_ides]
     choices.append(("Skip (open manually later)", None))
-    
+
+    # Find the default choice based on preferred IDE
+    default_choice = choices[-1][0]  # Default to "Skip" if preferred not found
+    if preferred_ide:
+        for name, ide in choices:
+            if ide == preferred_ide:
+                default_choice = name
+                break
+
     try:
         questions = [
             inquirer.List(
                 "ide",
                 message="Select IDE to open",
                 choices=choices,
+                default=default_choice,
             )
         ]
-        
+
         answers = inquirer.prompt(questions)
         if not answers or not answers["ide"]:
             return None
@@ -717,15 +879,44 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = F
             
         console.print("[cyan]Preparing DevContainer environment...[/cyan]")
         
+        # Check for required Docker images
+        from ai_sbx.utils import check_docker_images, prompt_build_images
+        import os
+        
+        # Get the image tag from environment or use default
+        image_tag = os.environ.get("IMAGE_TAG", "1.0.3")
+        required_images = [
+            f"ai-agents-sandbox/devcontainer:{image_tag}",
+            f"ai-agents-sandbox/tinyproxy:{image_tag}",
+            f"ai-agents-sandbox/docker-dind:{image_tag}",
+        ]
+        
+        existing, missing = check_docker_images(required_images, console)
+        
+        if missing:
+            if prompt_build_images(missing, console):
+                console.print("\n[cyan]Building images...[/cyan]")
+                # Use ai-sbx image build command
+                result = subprocess.run(
+                    ["ai-sbx", "image", "build", "--tag", image_tag],
+                    cwd=worktree_path
+                )
+                if result.returncode != 0:
+                    console.print("[red]Failed to build images[/red]")
+                    return
+                console.print("[green]✓ Images built successfully[/green]\n")
+            else:
+                console.print("[yellow]Cannot start DevContainer without required images[/yellow]")
+                return
+        
         try:
             # Change to worktree directory for devcontainer commands
-            import os
             original_cwd = os.getcwd()
             os.chdir(str(worktree_path))
             
             # Start the devcontainer (this will build images if needed)
-            console.print("Starting DevContainer (will build images if needed)...")
-            console.print("[dim]This may take several minutes on first run...[/dim]")
+            console.print("Starting DevContainer...")
+            console.print("[dim]This may take a few moments...[/dim]")
             
             # Use subprocess.run directly for interactive output
             result = subprocess.run(
@@ -768,7 +959,6 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = F
             IDE.PYCHARM: ["pycharm", str(worktree_path)],
             IDE.RIDER: ["rider", str(worktree_path)],
             IDE.GOLAND: ["goland", str(worktree_path)],
-            IDE.CLAUDE: ["claude", "--dangerously-skip-permissions"],
         }
         
         if ide not in ide_commands:
@@ -797,8 +987,40 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = F
         console.print(f"[red]Failed to open {ide.value}: {e}[/red]")
 
 
-def _list_worktrees() -> list[dict]:
-    """Get list of git worktrees."""
+def _get_current_branch() -> Optional[str]:
+    """Get the current git branch name."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+def _get_main_worktree_path() -> Optional[Path]:
+    """Get the path of the main worktree (non-worktree checkout)."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return Path(result.stdout.strip())
+    except subprocess.CalledProcessError:
+        return None
+
+
+def _list_worktrees(exclude_current: bool = True) -> list[dict]:
+    """Get list of git worktrees.
+
+    Args:
+        exclude_current: If True, excludes the main worktree from the list
+    """
     try:
         result = subprocess.run(
             ["git", "worktree", "list", "--porcelain"],
@@ -809,6 +1031,7 @@ def _list_worktrees() -> list[dict]:
 
         worktrees = []
         current = {}
+        main_path = _get_main_worktree_path()
 
         for line in result.stdout.splitlines():
             if line.startswith("worktree "):
@@ -824,6 +1047,10 @@ def _list_worktrees() -> list[dict]:
 
         if current:
             worktrees.append(current)
+
+        # Filter out the main worktree if requested
+        if exclude_current and main_path:
+            worktrees = [w for w in worktrees if Path(w["path"]) != main_path]
 
         return worktrees
 

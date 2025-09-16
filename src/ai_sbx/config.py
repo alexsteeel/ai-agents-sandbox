@@ -18,15 +18,14 @@ class IDE(str, Enum):
     RIDER = "rider"
     GOLAND = "goland"
     DEVCONTAINER = "devcontainer"
-    CLAUDE = "claude"
 
 
-class ImageVariant(str, Enum):
-    """Available image variants."""
+class BaseImage(str, Enum):
+    """Available base Docker images for development."""
 
-    BASE = "devcontainer"  # Maps to ai-agents-sandbox/devcontainer
-    DOTNET = "devcontainer-dotnet"
-    GOLANG = "devcontainer-golang"
+    BASE = "base"  # General-purpose development environment
+    DOTNET = "dotnet"  # Base + .NET SDK
+    GOLANG = "golang"  # Base + Go toolchain
     # Future additions
     # RUST = "devcontainer-rust"
     # JAVA = "devcontainer-java"
@@ -55,7 +54,7 @@ class DockerConfig(BaseModel):
     registry_proxy: bool = True
     custom_registries: list[str] = Field(default_factory=list)
     image_prefix: str = "ai-agents-sandbox"
-    image_tag: str = "latest"
+    image_tag: str = "1.0.0"  # Default version for stability
     build_args: dict[str, str] = Field(default_factory=dict)
 
 
@@ -65,7 +64,8 @@ class ProjectConfig(BaseModel):
     name: str
     path: Path
     preferred_ide: IDE = IDE.VSCODE
-    variant: ImageVariant = ImageVariant.BASE
+    base_image: BaseImage = BaseImage.BASE
+    main_branch: Optional[str] = None  # The branch where devcontainer was initialized
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
     docker: DockerConfig = Field(default_factory=DockerConfig)
     environment: dict[str, str] = Field(default_factory=dict)
@@ -85,7 +85,7 @@ class GlobalConfig(BaseModel):
     group_gid: int = 3000
     user_uid: int = 1001
     default_ide: IDE = IDE.VSCODE
-    default_variant: ImageVariant = Field(default=ImageVariant.BASE)
+    default_base_image: BaseImage = Field(default=BaseImage.BASE)
     docker: DockerConfig = Field(default_factory=DockerConfig)
     proxy: ProxyConfig = Field(default_factory=ProxyConfig)
     templates_dir: Optional[Path] = None

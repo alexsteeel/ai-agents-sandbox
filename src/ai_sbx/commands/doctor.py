@@ -1,6 +1,7 @@
 """Doctor command for diagnosing and fixing AI Agents Sandbox issues."""
 
 from rich.console import Console
+from rich.prompt import Confirm
 from rich.table import Table
 
 from ai_sbx.config import GlobalConfig, get_global_config_path
@@ -19,9 +20,17 @@ def run_doctor(
     check_only: bool = False,
     fix_issues: bool = False,
     verbose: bool = False,
+    interactive: bool = False,
 ) -> None:
     """Run system diagnostics and optionally fix issues."""
     console.print("\n[bold cyan]AI Agents Sandbox - System Diagnostics[/bold cyan]\n")
+    
+    # Interactive mode prompts
+    if interactive:
+        verbose = Confirm.ask(
+            "[cyan]Would you like to see detailed diagnostic output?[/cyan]",
+            default=False
+        )
 
     issues = []
     warnings = []
@@ -33,11 +42,14 @@ def run_doctor(
 
     # Check system requirements
     sys_status = check_system_requirements(console, verbose)
+    ok_results = []
     for status in sys_status:
         if status[0] == "error":
             issues.append(status)
         elif status[0] == "warning":
             warnings.append(status)
+        elif status[0] == "ok" and verbose:
+            ok_results.append(status)
 
     # Check configuration
     config_status = check_configuration(console, verbose)
@@ -60,15 +72,28 @@ def run_doctor(
     for status in image_status:
         if status[0] == "warning":
             warnings.append(status)
+        elif status[0] == "ok" and verbose:
+            ok_results.append(status)
 
     # Display results
-    display_results(console, issues, warnings)
+    display_results(console, issues, warnings, ok_results if verbose else [])
 
+    # Handle fixing issues
+    should_fix = fix_issues
+    
+    # In interactive mode, ask if we should fix issues
+    if interactive and (issues or warnings):
+        console.print()  # Add spacing
+        should_fix = Confirm.ask(
+            "[cyan]Issues were found. Would you like me to attempt to fix them automatically?[/cyan]",
+            default=True
+        )
+    
     # Fix issues if requested
-    if fix_issues and (issues or warnings):
+    if should_fix and (issues or warnings):
         console.print("\n[cyan]Attempting to fix issues...[/cyan]\n")
-        fix_detected_issues(console, issues, warnings, verbose)
-    elif issues:
+        fix_detected_issues(console, issues, warnings, verbose, interactive)
+    elif not interactive and issues:
         console.print("\n[yellow]Run with --fix to attempt automatic fixes[/yellow]")
 
 
@@ -215,21 +240,30 @@ def check_images(console: Console, verbose: bool) -> list[tuple[str, str, str]]:
     results = []
 
     required_images = [
-        "ai-agents-sandbox/base",
+        "ai-agents-sandbox/devcontainer",
         "ai-agents-sandbox/tinyproxy",
         "ai-agents-sandbox/docker-dind",
     ]
 
     for image in required_images:
         try:
+            # Check if image exists with any tag
             result = run_command(
-                ["docker", "image", "inspect", f"{image}:latest"],
+                ["docker", "images", "--format", "{{.Repository}}", image],
                 check=False,
                 capture_output=True,
             )
-            if result.returncode == 0:
+            if result.returncode == 0 and result.stdout.strip():
+                # Get all tags for this image
+                tag_result = run_command(
+                    ["docker", "images", "--format", "{{.Tag}}", image],
+                    check=False,
+                    capture_output=True,
+                )
+                tags = tag_result.stdout.strip().split("\n") if tag_result.stdout else []
+                tag_info = f"Image exists (tags: {', '.join(tags)})"
                 if verbose:
-                    results.append(("ok", image, "Image exists"))
+                    results.append(("ok", image, tag_info))
             else:
                 results.append(("warning", image, "Image not built"))
         except Exception:
@@ -242,11 +276,20 @@ def display_results(
     console: Console,
     issues: list[tuple[str, str, str]],
     warnings: list[tuple[str, str, str]],
+    ok_results: list[tuple[str, str, str]] = None,
 ) -> None:
     """Display diagnostic results."""
+    ok_results = ok_results or []
+    
     if not issues and not warnings:
         console.print("[bold green]✓ All checks passed![/bold green]")
         console.print("Your AI Agents Sandbox installation is healthy.")
+        
+        # In verbose mode, show what was checked
+        if ok_results:
+            console.print("\n[dim]Checks performed:[/dim]")
+            for _status, component, details in ok_results:
+                console.print(f"  [green]✓[/green] {component}: {details}")
         return
 
     # Create results table
@@ -270,6 +313,14 @@ def display_results(
             component,
             details,
         )
+    
+    # Add ok results in verbose mode
+    for _status, component, details in ok_results:
+        table.add_row(
+            "[green]✓ OK[/green]",
+            component,
+            details,
+        )
 
     console.print(table)
 
@@ -279,6 +330,8 @@ def display_results(
         console.print(f"  [red]Errors: {len(issues)}[/red]")
     if warnings:
         console.print(f"  [yellow]Warnings: {len(warnings)}[/yellow]")
+    if ok_results:
+        console.print(f"  [green]OK: {len(ok_results)}[/green]")
 
 
 def fix_detected_issues(
@@ -286,6 +339,7 @@ def fix_detected_issues(
     issues: list[tuple[str, str, str]],
     warnings: list[tuple[str, str, str]],
     verbose: bool,
+    interactive: bool = False,
 ) -> None:
     """Attempt to fix detected issues."""
     fixed_count = 0
@@ -293,6 +347,13 @@ def fix_detected_issues(
     # Fix Docker issues
     for _status, component, details in issues:
         if component == "Docker" and "not running" in details:
+            if interactive:
+                if not Confirm.ask(
+                    "[yellow]Docker is not running. Start Docker daemon?[/yellow]",
+                    default=True
+                ):
+                    continue
+            
             console.print("Starting Docker daemon...")
             try:
                 run_command(["sudo", "systemctl", "start", "docker"], check=False)
@@ -303,9 +364,84 @@ def fix_detected_issues(
                 console.print("[red]Could not start Docker automatically[/red]")
                 console.print("Please start Docker manually")
 
+    # Fix missing Docker images
+    missing_images = []
+    for _status, component, details in warnings:
+        if "Image not built" in details and component.startswith("ai-agents-sandbox/"):
+            missing_images.append(component)
+    
+    if missing_images:
+        if interactive:
+            images_list = "\n  • ".join(missing_images)
+            if not Confirm.ask(
+                f"[yellow]The following Docker images are missing:[/yellow]\n  • {images_list}\n\n"
+                f"[cyan]Build missing images?[/cyan]",
+                default=True
+            ):
+                missing_images = []
+        
+        if missing_images:
+            console.print("\n[cyan]Building missing Docker images...[/cyan]")
+            for image in missing_images:
+                # Map image names to build commands
+                image_name = image.split("/")[-1]  # Get the last part after '/'
+                
+                if image_name == "devcontainer":
+                    console.print(f"Building {image}...")
+                    try:
+                        # Use ai-sbx docker build command
+                        result = run_command(
+                            ["ai-sbx", "docker", "build"],
+                            check=False,
+                            capture_output=not verbose,
+                        )
+                        if result.returncode == 0:
+                            console.print(f"[green]✓ Built {image}[/green]")
+                            fixed_count += 1
+                        else:
+                            console.print(f"[red]Failed to build {image}[/red]")
+                    except Exception as e:
+                        console.print(f"[red]Error building {image}: {e}[/red]")
+                
+                elif image_name in ["tinyproxy", "docker-dind"]:
+                    console.print(f"Building {image}...")
+                    try:
+                        # Use ai-sbx docker build with the all flag to build support images
+                        result = run_command(
+                            ["ai-sbx", "docker", "build", "--all", "--tag", "1.0.3"],
+                            check=False,
+                            capture_output=not verbose,
+                        )
+                        if result.returncode == 0:
+                            console.print(f"[green]✓ Built {image}[/green]")
+                            fixed_count += 1
+                        else:
+                            # Try with latest tag as fallback
+                            result = run_command(
+                                ["ai-sbx", "docker", "build", "--all"],
+                                check=False,
+                                capture_output=not verbose,
+                            )
+                            if result.returncode == 0:
+                                console.print(f"[green]✓ Built {image} with latest tag[/green]")
+                                fixed_count += 1
+                            else:
+                                console.print(f"[red]Failed to build {image}[/red]")
+                        break  # Don't try to build other support images since we built all
+                    except Exception as e:
+                        console.print(f"[red]Error building {image}: {e}[/red]")
+
     # Fix group issues
     for _status, component, details in warnings:
         if component == "Group" and "not created" in details:
+            if interactive:
+                if not Confirm.ask(
+                    "[yellow]The local-ai-team group (GID 3000) is missing. Create it?[/yellow]\n"
+                    "[dim]This requires sudo access[/dim]",
+                    default=True
+                ):
+                    continue
+            
             console.print("Creating local-ai-team group...")
             console.print("[yellow]This requires sudo access[/yellow]")
             try:
@@ -321,6 +457,14 @@ def fix_detected_issues(
         elif component == "User" and "not in local-ai-team group" in details:
             username = get_current_user()
             if username:
+                if interactive:
+                    if not Confirm.ask(
+                        f"[yellow]Add user '{username}' to local-ai-team group?[/yellow]\n"
+                        f"[dim]This requires sudo access and logout/login[/dim]",
+                        default=True
+                    ):
+                        continue
+                
                 console.print(f"Adding {username} to local-ai-team group...")
                 console.print("[yellow]This requires sudo access[/yellow]")
                 try:
@@ -336,6 +480,7 @@ def fix_detected_issues(
 
     # Fix missing directories
     home = get_user_home()
+    missing_dirs = []
     for _status, component, details in warnings:
         if "Directory does not exist" in details:
             dir_name = component
@@ -344,18 +489,36 @@ def fix_detected_issues(
                 if dir_name != ".ai_agents_sandbox"
                 else home / ".ai_agents_sandbox"
             )
-
-            console.print(f"Creating directory: {dir_path}")
-            try:
-                dir_path.mkdir(parents=True, exist_ok=True)
-                console.print(f"[green]✓ Created {dir_path}[/green]")
-                fixed_count += 1
-            except Exception as e:
-                console.print(f"[red]Could not create directory: {e}[/red]")
+            missing_dirs.append((dir_name, dir_path))
+    
+    if missing_dirs and interactive:
+        dirs_list = "\n  • ".join([str(path) for _, path in missing_dirs])
+        if not Confirm.ask(
+            f"[yellow]The following directories are missing:[/yellow]\n  • {dirs_list}\n\n"
+            f"[cyan]Create missing directories?[/cyan]",
+            default=True
+        ):
+            missing_dirs = []
+    
+    for dir_name, dir_path in missing_dirs:
+        console.print(f"Creating directory: {dir_path}")
+        try:
+            dir_path.mkdir(parents=True, exist_ok=True)
+            console.print(f"[green]✓ Created {dir_path}[/green]")
+            fixed_count += 1
+        except Exception as e:
+            console.print(f"[red]Could not create directory: {e}[/red]")
 
     # Fix missing configuration
     for _status, component, details in warnings:
         if component == "Configuration" and "not initialized" in details:
+            if interactive:
+                if not Confirm.ask(
+                    "[yellow]Global configuration is not initialized. Initialize it?[/yellow]",
+                    default=True
+                ):
+                    continue
+            
             console.print("Initializing global configuration...")
             try:
                 config = GlobalConfig()

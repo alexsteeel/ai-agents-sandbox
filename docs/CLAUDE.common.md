@@ -1,2 +1,0 @@
-- Don’t write backward compatibility code and fallback code.
-- Always use IDE diagnostics to validate code after implementation

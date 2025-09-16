@@ -1,0 +1,6 @@
+profile = "gpt-5-high"
+
+[profiles.gpt-5-high]
+model = "gpt-5"
+model_provider = "openai"
+model_reasoning_effort = "high"

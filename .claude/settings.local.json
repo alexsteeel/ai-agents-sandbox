@@ -52,12 +52,28 @@
       "Bash(ai-sbx docker build:*)",
       "Bash(ai-sbx worktree create:*)",
       "Read(//media/bas/data/repo/github/ai-agents-sandbox-test-fixed-worktree-functionality/tasks/test-fixed-worktree-functionality/**)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(ai-sbx doctor:*)",
+      "Read(//usr/local/share/ai-agents-sandbox/**)",
+      "Bash(ai-sbx:*)",
+      "Read(//media/bas/data/repo/github/ai-agents-sandbox-test-with-ide-flag/.devcontainer/**)",
+      "Read(//tmp/test-dotnet/**)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python -m pytest tests/ -v --tb=no)",
+      "Bash(python -m pytest tests/test_cli.py::TestImageCommand::test_image_build_variants -v)",
+      "Bash(python -m pytest tests/ --tb=no)",
+      "Bash(python -m pytest tests/ --cov=src/ai_sbx --cov-report=term-missing)",
+      "Bash(python -m pytest tests/ --tb=short)",
+      "Bash(python -m pytest tests/test_templates.py::TestTemplateManager::test_generate_project_files -v)",
+      "Bash(python -m pytest tests/test_image_commands.py::TestImageListCommand::test_list_no_images -v)",
+      "Bash(python -m pytest tests/ --co -q)",
+      "Read(//tmp/test-ai-sbx-project/**)",
+      "Bash(git worktree:*)",
+      "Read(//media/bas/data/repo/github/ai-agents-sandbox-workflow-1/.devcontainer/**)",
+      "Read(//media/bas/data/repo/github/ai-agents-sandbox-workflow-4/.devcontainer/**)",
+      "Bash(python:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "input=$(cat); model=$(echo \"$input\" | jq -r '.model.display_name'); ccusage_info=$(ccusage statusline); printf \"\\033[96m%s\\033[0m | \\033[93m%s\\033[0m\" \"$model\" \"$ccusage_info\""
   }
 }

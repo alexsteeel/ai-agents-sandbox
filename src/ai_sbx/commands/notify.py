@@ -21,14 +21,14 @@ def notify(ctx: click.Context, test: bool, daemon: bool) -> None:
     This command monitors for notifications from containers and displays
     desktop alerts when Claude or other tools need your attention.
 
+    \b
     Examples:
-
         # Start notification watcher
         ai-sbx notify
-
+        
         # Send test notification
         ai-sbx notify --test
-
+        
         # Run as daemon
         ai-sbx notify -d
     """
@@ -262,7 +262,10 @@ def stop(ctx: click.Context) -> None:
     console: Console = ctx.obj["console"]
 
     try:
-        # Find and kill notify processes
+        # Get current process PID to exclude it
+        current_pid = str(os.getpid())
+
+        # Find notify processes (excluding 'stop' command)
         result = run_command(
             ["pgrep", "-f", "ai-sbx notify"],
             check=False,
@@ -271,11 +274,35 @@ def stop(ctx: click.Context) -> None:
 
         if result.returncode == 0:
             pids = result.stdout.strip().split("\n")
-            for pid in pids:
-                if pid:
-                    run_command(["kill", pid], check=False)
+            stopped_count = 0
 
-            console.print("[green]Notification watcher stopped[/green]")
+            for pid in pids:
+                if pid and pid != current_pid:
+                    # Check if this is actually a notify daemon (not 'notify stop')
+                    try:
+                        # Get the command line of the process
+                        cmd_result = run_command(
+                            ["ps", "-p", pid, "-o", "args="],
+                            check=False,
+                            capture_output=True,
+                        )
+
+                        # Skip if it contains 'stop' (that's us or another stop command)
+                        if cmd_result.returncode == 0:
+                            cmd_line = cmd_result.stdout.strip()
+                            if "notify stop" in cmd_line:
+                                continue
+
+                        # Kill the daemon process
+                        run_command(["kill", pid], check=False)
+                        stopped_count += 1
+                    except:
+                        pass
+
+            if stopped_count > 0:
+                console.print(f"[green]Stopped {stopped_count} notification watcher(s)[/green]")
+            else:
+                console.print("[yellow]No notification watcher daemon running[/yellow]")
         else:
             console.print("[yellow]No notification watcher running[/yellow]")
 

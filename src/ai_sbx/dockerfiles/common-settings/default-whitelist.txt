@@ -1,0 +1,48 @@
+# Default allowed domains for egress proxy
+# These are safe, tooling-related endpoints. Users can extend in .devcontainer/allowed-domains.txt
+
+# Source control and releases
+github.com
+raw.githubusercontent.com
+
+# Python packages (uv/uvx, ruff, black, etc.)
+pypi.org
+files.pythonhosted.org
+
+# Node packages
+registry.npmjs.org
+
+# Anthropic and telemetry required by upstream tooling
+anthropic.com
+api.anthropic.com
+sentry.io
+statsig.anthropic.com
+statsig.com
+
+# OpenAI API endpoints for Codex and GPT integration
+api.openai.com
+auth.openai.com
+platform.openai.com
+openai.com
+chatgpt.com
+
+# JetBrains (IDE licensing/plugins)
+account.jetbrains.com
+plugins.jetbrains.com
+frameworks.jetbrains.com
+download.jetbrains.com
+download-cdn.jetbrains.com
+data.services.jetbrains.com
+resources.jetbrains.com
+auth.jetbrains.com
+sales.jetbrains.com
+jetbrains.com
+
+# Maven repositories for java plugins
+repo1.maven.org
+repository.jboss.org
+maven.aliyun.com
+
+# Powerlevel10k gitstatusd mirrors and GitHub release assets
+gitee.com
+objects.githubusercontent.com

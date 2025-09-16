@@ -5,8 +5,18 @@ from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, Template
 
-from ai_sbx.config import ProjectConfig, get_default_whitelist_domains
+from ai_sbx.config import ProjectConfig, get_default_whitelist_domains, BaseImage
 from ai_sbx.utils import logger
+
+
+def get_docker_image_name(base_image: BaseImage) -> str:
+    """Map base image type to actual Docker image name."""
+    mapping = {
+        BaseImage.BASE: "devcontainer",
+        BaseImage.DOTNET: "devcontainer-dotnet",
+        BaseImage.GOLANG: "devcontainer-golang",
+    }
+    return mapping.get(base_image, "devcontainer")
 
 
 class TemplateManager:
@@ -47,14 +57,16 @@ class TemplateManager:
         """
         success = True
 
-        # Files to generate
+        # Files to generate (NOT docker-compose.yaml!)
         files = {
-            "docker-compose.yaml": self._generate_docker_compose(config),
             "devcontainer.json": self._generate_devcontainer_json(config),
             "Dockerfile": self._generate_dockerfile(config),
             ".env": self._generate_env_file(config),
-            "whitelist.txt": self._generate_whitelist(config),
-            "init.sh": self._generate_init_script(config),
+            ".gitignore": self._generate_gitignore(),
+            "local.project.yaml": "services: {}\n",  # Empty local overrides
+            "override.user.yaml": self._generate_user_override(config),
+            "init-project.sh": self._generate_init_script(config),
+            "ai-sbx.yaml.template": self._generate_config_template(config),
         }
 
         for filename, content in files.items():
@@ -79,137 +91,82 @@ class TemplateManager:
 
         return success
 
-    def _generate_docker_compose(self, config: ProjectConfig) -> str:
-        """Generate docker-compose.yaml content."""
-        template = """
-{% set image_name = 'ai-agents-sandbox/' + config.variant.value %}
+    def _generate_gitignore(self) -> str:
+        """Generate .gitignore file."""
+        return """# Local environment configuration
+.env
+.user.env
+
+# Generated docker-compose file (should not exist, using dockerComposeFile array in devcontainer.json)
+docker-compose.yaml
+docker-compose.yml
+
+# Local project configuration (contains machine-specific paths)
+ai-sbx.yaml
+
+# Security-sensitive initialization script (contains secrets/credentials)
+secure.init.sh
+
+# NOTE: override.user.yaml is NOT ignored - it contains common project overrides
+"""
+
+    def _generate_user_override(self, config: ProjectConfig) -> str:
+        """Generate override.user.yaml with common project overrides."""
+        # Check if Claude settings should be mounted
+        mount_claude = config.environment.get("MOUNT_CLAUDE_SETTINGS") == "true"
+
+        base_content = """# Common Project Docker Compose Overrides
+# This file is committed to git and shared across the team
+# Add project-specific configuration here
 
 services:
-  devcontainer:
-    image: {{ image_name }}:latest
-    container_name: {{ config.name }}-devcontainer
-    hostname: {{ config.name }}-dev
-    networks:
-      - internal
+  devcontainer:"""
+
+        if mount_claude:
+            base_content += """
     volumes:
-      - {{ config.path }}:/workspace:cached
-      - ~/.ai_agents_sandbox/notifications:/home/claude/.ai_agents_sandbox/notifications
-      - ~/.ai_agents_sandbox/projects:/home/claude/.ai_agents_sandbox/projects
-      - devcontainer-history:/commandhistory
-      - docker-certs-client:/certs/client:ro
+      # Mount user's Claude settings (readonly) - will be copied on startup
+      - ${HOME}/.claude:/host/.claude:ro
     environment:
-      - PROJECT_NAME={{ config.name }}
-      - PROJECT_DIR={{ config.path }}
-      - DOCKER_HOST=tcp://docker:2376
-      - DOCKER_TLS_VERIFY=1
-      - DOCKER_CERT_PATH=/certs/client
-{% if config.proxy.enabled %}
-      - HTTP_PROXY=http://tinyproxy:8888
-      - HTTPS_PROXY=http://tinyproxy:8888
-      - http_proxy=http://tinyproxy:8888
-      - https_proxy=http://tinyproxy:8888
-      - NO_PROXY=localhost,127.0.0.1,docker,docker-registry-proxy
-      - no_proxy=localhost,127.0.0.1,docker,docker-registry-proxy
-{% endif %}
-    depends_on:
-{% if config.proxy.enabled %}
-      - tinyproxy
-{% endif %}
-      - docker
-    working_dir: /workspace
-    command: sleep infinity
+      # Flag to copy Claude settings on startup
+      - COPY_CLAUDE_SETTINGS=true"""
+        else:
+            base_content += """
+    # Example: Add custom environment variables
+    # environment:
+    #   - MY_CUSTOM_VAR=value
 
-{% if config.proxy.enabled %}
-  tinyproxy:
-    image: ai-agents-sandbox/tinyproxy:latest
-    container_name: {{ config.name }}-tinyproxy
-    hostname: tinyproxy
-    networks:
-      - internal
-      - external
-    volumes:
-      - ./whitelist.txt:/etc/tinyproxy/filter:ro
-    environment:
-      - FILTER_FILE=/etc/tinyproxy/filter
-      - FILTER_DEFAULT_DENY=Yes
-{% if config.proxy.upstream %}
-      - UPSTREAM_PROXY={{ config.proxy.upstream }}
-{% endif %}
-{% if config.proxy.no_proxy %}
-      - NO_UPSTREAM={{ ' '.join(config.proxy.no_proxy) }}
-{% endif %}
-    restart: unless-stopped
-{% endif %}
+    # Example: Mount additional volumes
+    # volumes:
+    #   - ~/my-data:/data"""
 
-  docker:
-    image: ai-agents-sandbox/docker-dind:latest
-    container_name: {{ config.name }}-docker
-    hostname: docker
-    privileged: true
-    networks:
-      - internal
-    volumes:
-      - docker-data:/var/lib/docker
-      - docker-certs-ca:/certs/ca
-      - docker-certs-client:/certs/client
-    environment:
-      - DOCKER_TLS_CERTDIR=/certs
-      - HTTP_PROXY=http://docker-registry-proxy:3128
-      - HTTPS_PROXY=http://docker-registry-proxy:3128
-      - NO_PROXY=localhost,127.0.0.1
-    restart: unless-stopped
-
-  docker-registry-proxy:
-    image: rpardini/docker-registry-proxy:latest
-    container_name: {{ config.name }}-registry-proxy
-    hostname: docker-registry-proxy
-    networks:
-      - internal
-{% if config.proxy.enabled %}
-      - external
-{% endif %}
-    volumes:
-      - registry-cache:/docker_mirror_cache
-    environment:
-{% if config.docker.custom_registries %}
-      - REGISTRIES={{ ' '.join(config.docker.custom_registries) }}
-{% else %}
-      - REGISTRIES=docker.io gcr.io ghcr.io k8s.gcr.io quay.io
-{% endif %}
-      - ENABLE_MANIFEST_CACHE=true
-      - MANIFEST_CACHE_PRIMARY_REGEX=.*
-{% if config.proxy.enabled and config.proxy.upstream %}
-      - HTTP_PROXY={{ config.proxy.upstream }}
-      - HTTPS_PROXY={{ config.proxy.upstream }}
-{% endif %}
-    restart: unless-stopped
-
-networks:
-  internal:
-    internal: true
-    driver: bridge
-{% if config.proxy.enabled %}
-  external:
-    driver: bridge
-{% endif %}
-
-volumes:
-  devcontainer-history:
-  docker-data:
-  docker-certs-ca:
-  docker-certs-client:
-  registry-cache:
-"""
-        return Template(template).render(config=config)
+        return base_content + "\n"
 
     def _generate_devcontainer_json(self, config: ProjectConfig) -> str:
         """Generate devcontainer.json content."""
         template = """{
-    "name": "{{ config.name }}",
-    "dockerComposeFile": "docker-compose.yaml",
+    "name": "{{ config.name }} - AI Agents Sandbox",
+    "dockerComposeFile": [
+        "local.project.yaml",
+        "/usr/local/share/ai-agents-sandbox/docker-compose.base.yaml",
+        "override.user.yaml"
+    ],
     "service": "devcontainer",
     "workspaceFolder": "/workspace",
-    "remoteUser": "claude",
+    "shutdownAction": "stopCompose",
+    "containerUser": "claude",
+    "updateRemoteUserUID": false,
+    "initializeCommand": ".devcontainer/init-project.sh \\"${localWorkspaceFolder}\\"",
+    "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
+    "containerEnv": {
+        "TERM": "xterm-256color",
+        "COLORTERM": "truecolor"
+    },
+    "remoteEnv": {
+        "NODE_OPTIONS": "--max-old-space-size=4096",
+        "CLAUDE_CONFIG_DIR": "/home/claude/.claude",
+        "POWERLEVEL9K_DISABLE_GITSTATUS": "true"
+    },
 
     "features": {},
 
@@ -236,25 +193,20 @@ volumes:
         }
     },
 
-    "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
-    "postStartCommand": "",
-    "postAttachCommand": "",
-
     "forwardPorts": [],
 
-    "mounts": [],
-
-    "runArgs": []
+    "mounts": []
 }
 """
         return Template(template).render(config=config)
 
     def _generate_dockerfile(self, config: ProjectConfig) -> str:
         """Generate Dockerfile content."""
+        docker_image = get_docker_image_name(config.base_image)
         template = """# Project-specific Dockerfile
-# Extends the AI Agents Sandbox {{ config.variant.value }} image
+# Extends the AI Agents Sandbox {{ docker_image }} image
 
-FROM ai-agents-sandbox/{{ config.variant.value }}:latest
+FROM ai-agents-sandbox/{{ docker_image }}:{{ config.docker.image_tag }}
 
 # Switch to root for any additional installations
 USER root
@@ -277,26 +229,23 @@ USER claude
 
 WORKDIR /workspace
 """
-        return Template(template).render(config=config)
+        return Template(template).render(config=config, docker_image=docker_image)
 
     def _generate_env_file(self, config: ProjectConfig) -> str:
-        """Generate .env file content."""
-        template = """# AI Agents Sandbox Project Configuration
-# This file is auto-generated. Use 'ai-sbx init' to reconfigure.
+        """Generate .env file content with only Docker runtime variables."""
+        template = """# Docker Compose Runtime Configuration
+# This file is auto-generated from ai-sbx.yaml
+# To modify settings, edit ai-sbx.yaml and run 'ai-sbx init update'
 
-# Project settings
-PROJECT_NAME={{ config.name }}
+# Required for Docker Compose
 PROJECT_DIR={{ config.path }}
 COMPOSE_PROJECT_NAME={{ config.name }}
 
-# IDE preference
-PREFERRED_IDE={{ config.preferred_ide.value }}
-
-# Image variant
-IMAGE_VARIANT={{ config.variant.value }}
+# Docker image version
+IMAGE_TAG={{ config.docker.image_tag }}
 
 {% if config.proxy.upstream -%}
-# Proxy configuration
+# Proxy configuration (from ai-sbx.yaml)
 UPSTREAM_PROXY={{ config.proxy.upstream }}
 {% endif -%}
 
@@ -305,16 +254,16 @@ NO_UPSTREAM={{ ' '.join(config.proxy.no_proxy) }}
 {% endif -%}
 
 {% if config.proxy.whitelist_domains -%}
-# Additional whitelist domains (merged with defaults)
+# Additional whitelist domains (from ai-sbx.yaml)
 USER_WHITELIST_DOMAINS={{ ' '.join(config.proxy.whitelist_domains) }}
 {% endif -%}
 
 {% if config.docker.custom_registries -%}
-# Custom Docker registries
+# Custom Docker registries (from ai-sbx.yaml)
 ADDITIONAL_REGISTRIES={{ ' '.join(config.docker.custom_registries) }}
 {% endif -%}
 
-# Add any additional environment variables below
+# Custom environment variables
 {% for key, value in config.environment.items() -%}
 {{ key }}={{ value }}
 {% endfor -%}
@@ -355,69 +304,107 @@ ADDITIONAL_REGISTRIES={{ ' '.join(config.docker.custom_registries) }}
         return "\n".join(content) + "\n"
 
     def _generate_init_script(self, config: ProjectConfig) -> str:
-        """Generate init.sh script content."""
+        """Generate init-project.sh script content."""
         template = """#!/bin/bash
-set -euo pipefail
-
 # AI Agents Sandbox - Project Initialization Script
-# This script runs when the container is created
+# This script is called automatically by VS Code when opening the project
+#
+# Example of manual usage:
+#   .devcontainer/init-project.sh /path/to/project
 
-echo "Initializing {{ config.name }} development environment..."
+PROJECT_DIR="${1:-$(pwd)}"
 
-# Fix permissions
-if [ -d "/workspace" ]; then
-    # Ensure group write permissions for collaboration
-    find /workspace -type d -exec chmod g+s {} \\; 2>/dev/null || true
-fi
+# Initialize the worktree environment
+ai-sbx init worktree "$PROJECT_DIR"
+"""
+        return Template(template).render(config=config)
 
-# Set up git configuration if needed
-if [ -d "/workspace/.git" ]; then
-    git config --global --add safe.directory /workspace
-fi
+    def _generate_config_template(self, config: ProjectConfig) -> str:
+        """Generate ai-sbx.yaml.template with shareable configuration.
 
-# Create project-specific directories
-mkdir -p /workspace/.ai_agents_sandbox/{logs,temp,cache}
+        This template contains project defaults without machine-specific paths.
+        Other users can use this to generate their own ai-sbx.yaml.
+        """
+        template = """# AI Agents Sandbox - Project Configuration Template
+# This file contains shareable project defaults
+# When cloning this repository, run 'ai-sbx init project' to generate your local ai-sbx.yaml
 
-# Run any project-specific initialization here
-# Example: install dependencies, set up databases, etc.
+# Project name (used for Docker Compose project name)
+name: {{ config.name }}
 
-{% if config.variant.value == "python" -%}
-# Python project initialization
-if [ -f "/workspace/requirements.txt" ]; then
-    echo "Installing Python dependencies..."
-    pip install --user -r /workspace/requirements.txt
-fi
+# NOTE: 'path' will be set automatically to your local project path
 
-if [ -f "/workspace/pyproject.toml" ]; then
-    echo "Installing Python project..."
-    pip install --user -e /workspace
-fi
+# Development environment preferences
+preferred_ide: {{ config.preferred_ide.value }}
+base_image: {{ config.base_image.value }}
+
+# Main branch (for worktree filtering)
+{% if config.main_branch -%}
+main_branch: {{ config.main_branch }}
+{% else -%}
+# main_branch: main  # Uncomment and set if needed
 {% endif -%}
 
-{% if config.variant.value == "nodejs" -%}
-# Node.js project initialization
-if [ -f "/workspace/package.json" ]; then
-    echo "Installing Node.js dependencies..."
-    npm install
-fi
-{% endif -%}
+# Proxy configuration (always enabled for security)
+proxy:
+  enabled: true
+  {% if config.proxy.upstream -%}
+  # Upstream proxy (adjust for your environment)
+  upstream: {{ config.proxy.upstream }}
+  {% else -%}
+  # Uncomment and configure if you need an upstream proxy
+  # upstream: socks5://host.gateway:8888
+  {% endif -%}
 
-{% if config.variant.value == "dotnet" -%}
-# .NET project initialization
-if [ -f "/workspace/*.sln" ] || [ -f "/workspace/*.csproj" ]; then
-    echo "Restoring .NET packages..."
-    dotnet restore
-fi
-{% endif -%}
+  {% if config.proxy.no_proxy -%}
+  # Domains that bypass the upstream proxy
+  no_proxy:
+  {% for domain in config.proxy.no_proxy -%}
+    - {{ domain }}
+  {% endfor -%}
+  {% else -%}
+  # Domains that bypass the upstream proxy
+  # no_proxy:
+  #   - github.com
+  #   - gitlab.com
+  {% endif -%}
 
-{% if config.variant.value == "golang" -%}
-# Go project initialization
-if [ -f "/workspace/go.mod" ]; then
-    echo "Downloading Go modules..."
-    go mod download
-fi
-{% endif -%}
+  {% if config.proxy.whitelist_domains -%}
+  # Additional domains to allow through the proxy
+  whitelist_domains:
+  {% for domain in config.proxy.whitelist_domains -%}
+    - {{ domain }}
+  {% endfor -%}
+  {% else -%}
+  # Additional domains to allow through the proxy
+  # whitelist_domains:
+  #   - api.myproject.com
+  {% endif %}
 
-echo "Initialization complete!"
+# Docker configuration
+docker:
+  image_tag: {{ config.docker.image_tag }}
+  {% if config.docker.custom_registries -%}
+  # Custom Docker registries
+  custom_registries:
+  {% for registry in config.docker.custom_registries -%}
+    - {{ registry }}
+  {% endfor -%}
+  {% else -%}
+  # Custom Docker registries
+  # custom_registries:
+  #   - my.registry.com
+  {% endif %}
+
+# Environment variables
+{% if config.environment -%}
+environment:
+{% for key, value in config.environment.items() -%}
+  {{ key }}: {{ value }}
+{% endfor -%}
+{% else -%}
+# environment:
+#   MY_VAR: value
+{% endif -%}
 """
         return Template(template).render(config=config)
