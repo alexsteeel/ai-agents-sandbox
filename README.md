@@ -49,6 +49,11 @@ ai-sbx worktree remove   # Remove workspace
 ai-sbx doctor --fix      # Fix common issues
 ```
 
+## Documentation
+
+- [Architecture — Components & Networks](docs/ARCHITECTURE.md)
+- [Full documentation](docs/)
+
 ## Configuration
 
 Run `ai-sbx init project` again to reconfigure:
@@ -63,7 +68,10 @@ Or manually edit `.devcontainer/ai-sbx.yaml` and run `ai-sbx init update`
 
 **VS Code:** Open folder → "Reopen in Container"
 
-**PyCharm:** Settings → Python Interpreter → Docker Compose → Service: `devcontainer`
+**PyCharm (DevContainer setup):**
+When you open the project, it should automatically suggest loading in devcontainer. Alternative method:
+- Right-click on .devcontainer.json file > Dev Containers > Create Devcontainer and mount sources > PyCharm
+For other JetBrains IDEs, the process is similar
 
 **Claude Code:** `claude --dangerously-skip-permissions`
 
