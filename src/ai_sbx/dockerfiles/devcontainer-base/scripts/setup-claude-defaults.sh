@@ -65,10 +65,16 @@ copy_host_claude_settings() {
         fi
     fi
 
-    # Copy settings.json if it exists (but don't override settings.local.json)
+    # Copy settings.json if it exists
     if [[ -f "${HOST_SOURCE}/settings.json" ]]; then
         cp "${HOST_SOURCE}/settings.json" "${TARGET_DIR}/settings.json"
         echo -e "${GREEN}✓${NC} Copied settings.json"
+    fi
+
+    # Copy settings.local.json if it exists from host
+    if [[ -f "${HOST_SOURCE}/settings.local.json" ]]; then
+        cp "${HOST_SOURCE}/settings.local.json" "${TARGET_DIR}/settings.local.json"
+        echo -e "${GREEN}✓${NC} Copied settings.local.json from host"
     fi
 
     # Set proper ownership
@@ -188,6 +194,51 @@ verify_claude_structure() {
     fi
 }
 
+# Function to ensure notification hook is always present
+ensure_notification_hook() {
+    local USER="${1:-claude}"
+    local HOME="/home/${USER}"
+    local SOURCE_DIR="${HOME}/claude-defaults"
+    local TARGET_DIR="${HOME}/.claude"
+
+    echo ""
+    echo "=== Ensuring Notification Hook ==="
+
+    # Always ensure hooks directory exists
+    mkdir -p "${TARGET_DIR}/hooks"
+
+    # Always copy notification hook from defaults
+    if [[ -f "${SOURCE_DIR}/hooks/notify.sh" ]]; then
+        cp "${SOURCE_DIR}/hooks/notify.sh" "${TARGET_DIR}/hooks/"
+        chmod +x "${TARGET_DIR}/hooks/notify.sh"
+        echo -e "${GREEN}✓${NC} Notification hook installed"
+    fi
+
+    # If no settings.local.json exists or it doesn't have notification hooks, add defaults
+    if [[ ! -f "${TARGET_DIR}/settings.local.json" ]]; then
+        # Copy default settings.local.json with notification hooks
+        if [[ -f "${SOURCE_DIR}/settings.local.json" ]]; then
+            cp "${SOURCE_DIR}/settings.local.json" "${TARGET_DIR}/"
+            echo -e "${GREEN}✓${NC} Default settings.local.json with notification hooks installed"
+        fi
+    else
+        # Check if existing settings.local.json has notification hooks
+        if ! grep -q "notify.sh" "${TARGET_DIR}/settings.local.json" 2>/dev/null; then
+            echo -e "${YELLOW}⚠${NC} Existing settings.local.json doesn't have notification hooks"
+            echo "Consider merging notification hooks from ${SOURCE_DIR}/settings.local.json"
+        fi
+    fi
+
+    # Ensure base settings.json exists
+    if [[ ! -f "${TARGET_DIR}/settings.json" ]] && [[ -f "${SOURCE_DIR}/settings.json" ]]; then
+        cp "${SOURCE_DIR}/settings.json" "${TARGET_DIR}/"
+        echo -e "${GREEN}✓${NC} Default settings.json installed"
+    fi
+
+    # Set proper ownership
+    chown -R "${USER}:${USER}" "${TARGET_DIR}" 2>/dev/null
+}
+
 # Main execution
 main() {
     local USER="${1:-claude}"
@@ -198,7 +249,7 @@ main() {
     echo "Date: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
     echo ""
 
-    # Try to copy host settings first
+    # Try to copy host settings first (agents, commands, etc)
     if copy_host_claude_settings "$USER"; then
         echo -e "${GREEN}✓${NC} Using host Claude settings"
     else
@@ -209,6 +260,9 @@ main() {
             echo -e "${YELLOW}⚠${NC} Claude setup incomplete"
         fi
     fi
+
+    # ALWAYS ensure notification hook is present
+    ensure_notification_hook "$USER"
 
     # Verify structure
     verify_claude_structure "$USER"
