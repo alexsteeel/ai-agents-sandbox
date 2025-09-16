@@ -206,11 +206,10 @@ __marimo__/
 .streamlit/secrets.toml
 
 # DevContainer sensitive files
-.devcontainer/.env
-.devcontainer/secure.init.sh
-.devcontainer/.user.env
-.devcontainer/override.user.yaml
-.devcontainer/ai-sbx.yaml
+.devcontainer/settings.local.json
+
+# Claude settings (user-specific)
+.claude/settings.local.json
 
 # Task worktrees
 tasks/
