@@ -6,6 +6,7 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+GRAY='\033[0;90m'
 NC='\033[0m' # No Color
 
 # Test result tracking
@@ -108,11 +109,23 @@ check_nodejs_tools() {
     # Check npm
     check_tool "npm" "--version" "true"
     
-    # Check yarn (optional)
-    check_tool "yarn" "--version" "false"
+    # Check yarn (optional - no warning if missing)
+    if command -v yarn >/dev/null 2>&1; then
+        local yarn_version=$(yarn --version 2>&1)
+        echo -e "${GREEN}✓${NC} yarn: $yarn_version"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${GRAY}○${NC} yarn: not installed (optional)"
+    fi
     
-    # Check pnpm (optional)
-    check_tool "pnpm" "--version" "false"
+    # Check pnpm (optional - no warning if missing)
+    if command -v pnpm >/dev/null 2>&1; then
+        local pnpm_version=$(pnpm --version 2>&1)
+        echo -e "${GREEN}✓${NC} pnpm: $pnpm_version"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${GRAY}○${NC} pnpm: not installed (optional)"
+    fi
 }
 
 # Function to check container/Docker tools
@@ -123,8 +136,14 @@ check_container_tools() {
     # Check Docker CLI
     check_tool "docker" "--version" "true"
     
-    # Check docker-compose
-    check_tool "docker-compose" "--version" "false"
+    # Check docker-compose (optional - no warning if missing)
+    if command -v docker-compose >/dev/null 2>&1; then
+        local dc_version=$(docker-compose --version 2>&1)
+        echo -e "${GREEN}✓${NC} docker-compose: $dc_version"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${GRAY}○${NC} docker-compose: not installed (optional)"
+    fi
     
     # Check if Docker daemon is accessible
     if docker version >/dev/null 2>&1; then
@@ -235,18 +254,22 @@ check_claude_tools() {
         echo -e "${YELLOW}⚠${NC} claude: not found (may not be installed yet)"
     fi
     
-    # Check Claude configuration directory
-    if [[ -d "$HOME/.ai_agents_sandbox" ]]; then
+    # Check Claude configuration directory (.claude, not .ai_agents_sandbox)
+    if [[ -d "$HOME/.claude" ]]; then
         echo -e "${GREEN}✓${NC} Claude config directory: exists"
         ((TESTS_PASSED++))
-        
-        # Check for agents directory
-        if [[ -d "$HOME/.ai_agents_sandbox/agents" ]]; then
-            local agent_count=$(ls -1 "$HOME/.ai_agents_sandbox/agents"/*.md 2>/dev/null | wc -l)
-            echo -e "${GREEN}✓${NC} Claude agents: $agent_count agent(s) found"
+
+        # Check for settings files (agents are optional and user-provided)
+        if [[ -f "$HOME/.claude/settings.json" ]]; then
+            echo -e "${GREEN}✓${NC} Claude settings.json: found"
+            ((TESTS_PASSED++))
+        fi
+
+        if [[ -f "$HOME/.claude/settings.local.json" ]]; then
+            echo -e "${GREEN}✓${NC} Claude settings.local.json: found"
             ((TESTS_PASSED++))
         else
-            echo -e "${YELLOW}⚠${NC} Claude agents directory: not found"
+            echo -e "${GRAY}○${NC} Claude settings.local.json: will be created by setup"
         fi
     else
         echo -e "${YELLOW}⚠${NC} Claude config directory: not found"
