@@ -6,7 +6,7 @@ import platform
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Optional, Dict, List
+from typing import Any, Dict, Optional
 
 import click
 from rich.console import Console
@@ -507,21 +507,20 @@ def is_docker_running() -> bool:
 
 
 def check_docker_images(
-    required_images: list[str], 
-    console: Optional[Console] = None
+    required_images: list[str], console: Optional[Console] = None
 ) -> tuple[list[str], list[str]]:
     """Check which Docker images exist locally.
-    
+
     Args:
         required_images: List of image:tag strings to check
         console: Optional console for output
-        
+
     Returns:
         Tuple of (existing_images, missing_images)
     """
     existing = []
     missing = []
-    
+
     for image_tag in required_images:
         try:
             result = run_command(
@@ -535,7 +534,7 @@ def check_docker_images(
                 missing.append(image_tag)
         except Exception:
             missing.append(image_tag)
-    
+
     return existing, missing
 
 
@@ -544,56 +543,54 @@ def prompt_build_images(
     console: Console,
 ) -> bool:
     """Prompt user to build missing Docker images.
-    
+
     Args:
         missing_images: List of missing image:tag strings
         console: Console for output
-        
+
     Returns:
         True if user wants to build images
     """
     if not missing_images:
         return False
-    
+
     console.print("\n[yellow]Missing Docker images detected:[/yellow]")
     for image in missing_images:
         console.print(f"  • {image}")
-    
+
     console.print()
     from rich.prompt import Confirm
-    return Confirm.ask(
-        "[cyan]Would you like to build the missing images?[/cyan]",
-        default=True
-    )
+
+    return Confirm.ask("[cyan]Would you like to build the missing images?[/cyan]", default=True)
 
 
 class AliasedGroup(click.Group):
     """Click group that supports command aliases."""
-    
+
     def __init__(self, *args, aliases: Optional[Dict[str, str]] = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.aliases = aliases or {}
-    
+
     def get_command(self, ctx, cmd_name):
         # First try the command as-is
         rv = click.Group.get_command(self, ctx, cmd_name)
         if rv is not None:
             return rv
-        
+
         # Check if it's an alias
         if cmd_name in self.aliases:
             actual_cmd = self.aliases[cmd_name]
             return click.Group.get_command(self, ctx, actual_cmd)
-        
+
         # Check for unique prefix match
         matches = [x for x in self.list_commands(ctx) if x.startswith(cmd_name)]
         if not matches:
             return None
         elif len(matches) == 1:
             return click.Group.get_command(self, ctx, matches[0])
-        
+
         ctx.fail(f"Too many matches: {', '.join(sorted(matches))}")
-    
+
     def format_epilog(self, ctx, formatter):
         """Format the epilog to include aliases."""
         if self.aliases:
@@ -603,7 +600,7 @@ class AliasedGroup(click.Group):
                 if command not in command_to_aliases:
                     command_to_aliases[command] = []
                 command_to_aliases[command].append(alias)
-            
+
             with formatter.section("Aliases"):
                 rows = []
                 for command in sorted(command_to_aliases.keys()):
@@ -611,10 +608,10 @@ class AliasedGroup(click.Group):
                     alias_str = ", ".join(aliases)
                     rows.append((alias_str, f"-> {command}"))
                 formatter.write_dl(rows)
-        
+
         # Call parent's format_epilog if it exists
         super().format_epilog(ctx, formatter)
-    
+
     def resolve_command(self, ctx, args):
         # Override to show both command and aliases in help
         cmd_name, cmd, args = super().resolve_command(ctx, args)

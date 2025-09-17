@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from platformdirs import user_config_dir, user_data_dir
+# No longer using platformdirs, using ~/.ai-sbx for all global files
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -80,7 +80,7 @@ class ProjectConfig(BaseModel):
 class GlobalConfig(BaseModel):
     """Global AI Agents Sandbox configuration."""
 
-    version: str = "2.0.0"
+    version: str = "2.1.0"
     group_name: str = "local-ai-team"
     group_gid: int = 3000
     user_uid: int = 1001
@@ -132,9 +132,9 @@ class Settings(BaseSettings):
     verbose: bool = False
     no_color: bool = False
 
-    # Paths
-    config_dir: Path = Field(default_factory=lambda: Path(user_config_dir("ai-agents-sandbox")))
-    data_dir: Path = Field(default_factory=lambda: Path(user_data_dir("ai-agents-sandbox")))
+    # Paths - all under ~/.ai-sbx
+    config_dir: Path = Field(default_factory=lambda: Path.home() / ".ai-sbx" / "config")
+    data_dir: Path = Field(default_factory=lambda: Path.home() / ".ai-sbx" / "data")
     templates_dir: Optional[Path] = None
 
     # Docker settings
@@ -161,7 +161,7 @@ class Settings(BaseSettings):
 
 def get_global_config_path() -> Path:
     """Get the path to the global configuration file."""
-    return Path(user_config_dir("ai-agents-sandbox")) / "config.yaml"
+    return Path.home() / ".ai-sbx" / "config" / "config.yaml"
 
 
 def get_project_config_path(project_dir: Path) -> Path:

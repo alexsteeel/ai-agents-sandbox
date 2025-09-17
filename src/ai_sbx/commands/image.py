@@ -1,6 +1,5 @@
 """Docker image management for AI Agents Sandbox."""
 
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -13,11 +12,10 @@ from rich.table import Table
 
 from ai_sbx.utils import AliasedGroup, is_docker_running, logger
 
-
 # Required images for AI Agents Sandbox
 REQUIRED_IMAGES = [
     "ai-agents-sandbox/tinyproxy-base",
-    "ai-agents-sandbox/tinyproxy", 
+    "ai-agents-sandbox/tinyproxy",
     "ai-agents-sandbox/docker-dind",
     "ai-agents-sandbox/devcontainer",
 ]
@@ -39,12 +37,15 @@ BUILD_ORDER = [
 ]
 
 
-@click.group(cls=AliasedGroup, aliases={
-    'ls': 'list',
-    'b': 'build',
-    'v': 'verify',
-    'check': 'verify',
-})
+@click.group(
+    cls=AliasedGroup,
+    aliases={
+        "ls": "list",
+        "b": "build",
+        "v": "verify",
+        "check": "verify",
+    },
+)
 def image() -> None:
     """Manage Docker images for AI Agents Sandbox."""
     pass
@@ -57,11 +58,13 @@ def image() -> None:
 @click.option("--tag", default="1.0.0", help="Tag for the images (default: 1.0.0)")
 @click.option("--show-logs", is_flag=True, help="Show Docker build output")
 @click.pass_context
-def build(ctx: click.Context, all: bool, force: bool, no_cache: bool, tag: str, show_logs: bool) -> None:
+def build(
+    ctx: click.Context, all: bool, force: bool, no_cache: bool, tag: str, show_logs: bool
+) -> None:
     """Build Docker images for AI Agents Sandbox.
-    
+
     Builds images from the repository's images/ directory.
-    
+
     \b
     Examples:
         ai-sbx image build               # Build required images with tag 1.0.0
@@ -71,18 +74,18 @@ def build(ctx: click.Context, all: bool, force: bool, no_cache: bool, tag: str, 
     """
     console: Console = ctx.obj["console"]
     verbose: bool = ctx.obj.get("verbose", False)
-    
+
     if not is_docker_running():
         console.print("[red]Docker is not running. Please start Docker first.[/red]")
         sys.exit(1)
-    
+
     # Find dockerfiles location (either package or repository)
     images_dir = _find_dockerfiles_dir()
     if not images_dir:
         console.print("[red]Could not find Docker build files.[/red]")
         console.print("Please ensure ai-sbx is properly installed or run from repository.")
         sys.exit(1)
-    
+
     # Build images directly using Python
     images_to_build = BUILD_ORDER if all else BUILD_ORDER[:5]  # First 5 are required
 
@@ -108,7 +111,9 @@ def build(ctx: click.Context, all: bool, force: bool, no_cache: bool, tag: str, 
         return
 
     total_images = len(images_to_process)
-    console.print(f"[cyan]Building {total_images} Docker image{'s' if total_images > 1 else ''}...[/cyan]")
+    console.print(
+        f"[cyan]Building {total_images} Docker image{'s' if total_images > 1 else ''}...[/cyan]"
+    )
 
     if show_logs or verbose:
         # When showing logs, don't use progress spinner
@@ -118,16 +123,12 @@ def build(ctx: click.Context, all: bool, force: bool, no_cache: bool, tag: str, 
             console.print(f"\n[cyan][{idx}/{total_images}] Building {image_name}...[/cyan]")
 
             # Build the image with visible output
-            success = _build_image(
-                full_image_name,
-                tag,
-                full_path,
-                no_cache=no_cache,
-                verbose=True
-            )
+            success = _build_image(full_image_name, tag, full_path, no_cache=no_cache, verbose=True)
 
             if success:
-                console.print(f"[green]✓ [{idx}/{total_images}] {image_name} built successfully[/green]")
+                console.print(
+                    f"[green]✓ [{idx}/{total_images}] {image_name} built successfully[/green]"
+                )
             else:
                 console.print(f"[red]✗ [{idx}/{total_images}] Failed to build {image_name}[/red]")
                 sys.exit(1)
@@ -139,24 +140,26 @@ def build(ctx: click.Context, all: bool, force: bool, no_cache: bool, tag: str, 
             console=console,
         ) as progress:
             for idx, (image_name, full_path, full_image_name) in enumerate(images_to_process, 1):
-                task = progress.add_task(f"[{idx}/{total_images}] Building {image_name}...", total=None)
+                task = progress.add_task(
+                    f"[{idx}/{total_images}] Building {image_name}...", total=None
+                )
 
                 # Build the image silently
                 success = _build_image(
-                    full_image_name,
-                    tag,
-                    full_path,
-                    no_cache=no_cache,
-                    verbose=False
+                    full_image_name, tag, full_path, no_cache=no_cache, verbose=False
                 )
 
                 if success:
-                    progress.update(task, description=f"[green]✓[/green] [{idx}/{total_images}] {image_name}")
+                    progress.update(
+                        task, description=f"[green]✓[/green] [{idx}/{total_images}] {image_name}"
+                    )
                 else:
-                    progress.update(task, description=f"[red]✗[/red] [{idx}/{total_images}] {image_name}")
+                    progress.update(
+                        task, description=f"[red]✗[/red] [{idx}/{total_images}] {image_name}"
+                    )
                     console.print(f"\n[red]Failed to build {image_name}[/red]")
                     sys.exit(1)
-    
+
     console.print("\n[green]✓ All images built successfully![/green]")
 
 
@@ -165,22 +168,22 @@ def build(ctx: click.Context, all: bool, force: bool, no_cache: bool, tag: str, 
 def list_images(ctx: click.Context) -> None:
     """List AI Agents Sandbox Docker images and their status."""
     console: Console = ctx.obj["console"]
-    
+
     if not is_docker_running():
         console.print("[red]Docker is not running. Please start Docker first.[/red]")
         sys.exit(1)
-    
+
     table = Table(title="AI Agents Sandbox Images")
     table.add_column("Image", style="cyan")
     table.add_column("Tag", style="magenta")
     table.add_column("Status", style="green")
     table.add_column("Required", style="yellow")
-    
+
     all_images = REQUIRED_IMAGES + OPTIONAL_IMAGES
-    
+
     for image_name in all_images:
         is_required = image_name in REQUIRED_IMAGES
-        
+
         # Check for 1.0.0 tag
         if _image_exists(image_name, "1.0.0"):
             status = "✓ Installed"
@@ -188,22 +191,19 @@ def list_images(ctx: click.Context) -> None:
         else:
             status = "✗ Not found"
             style = "red"
-        
+
         table.add_row(
             image_name.replace("ai-agents-sandbox/", ""),
             "1.0.0",
             f"[{style}]{status}[/{style}]",
-            "Yes" if is_required else "No"
+            "Yes" if is_required else "No",
         )
-    
+
     console.print(table)
-    
+
     # Check if any required images are missing
-    missing_required = [
-        img for img in REQUIRED_IMAGES
-        if not _image_exists(img, "1.0.0")
-    ]
-    
+    missing_required = [img for img in REQUIRED_IMAGES if not _image_exists(img, "1.0.0")]
+
     if missing_required:
         console.print("\n[yellow]Some required images are missing.[/yellow]")
         console.print("Run: [cyan]ai-sbx image build[/cyan]")
@@ -214,11 +214,11 @@ def list_images(ctx: click.Context) -> None:
 def verify(ctx: click.Context) -> None:
     """Verify that all required images are installed."""
     console: Console = ctx.obj["console"]
-    
+
     if not is_docker_running():
         console.print("[red]Docker is not running. Please start Docker first.[/red]")
         sys.exit(1)
-    
+
     all_ok = True
     for image_name in REQUIRED_IMAGES:
         if _image_exists(image_name, "1.0.0"):
@@ -226,7 +226,7 @@ def verify(ctx: click.Context) -> None:
         else:
             console.print(f"[red]✗[/red] {image_name} - missing")
             all_ok = False
-    
+
     if all_ok:
         console.print("\n[green]All required images are installed![/green]")
     else:
@@ -238,6 +238,7 @@ def verify(ctx: click.Context) -> None:
 def _find_dockerfiles_dir() -> Optional[Path]:
     """Find the dockerfiles directory in the package."""
     import ai_sbx
+
     package_dir = Path(ai_sbx.__file__).parent
     dockerfiles_dir = package_dir / "dockerfiles"
     if dockerfiles_dir.exists():
@@ -245,14 +246,8 @@ def _find_dockerfiles_dir() -> Optional[Path]:
     return None
 
 
-
-
 def _build_image(
-    image_name: str,
-    tag: str,
-    build_path: Path,
-    no_cache: bool = False,
-    verbose: bool = False
+    image_name: str, tag: str, build_path: Path, no_cache: bool = False, verbose: bool = False
 ) -> bool:
     """Build a Docker image."""
     try:
@@ -261,32 +256,29 @@ def _build_image(
         build_context = build_path.parent
 
         cmd = [
-            "docker", "build",
-            "-t", f"{image_name}:{tag}",
-            "-f", str(build_path / "Dockerfile"),
-            str(build_context)
+            "docker",
+            "build",
+            "-t",
+            f"{image_name}:{tag}",
+            "-f",
+            str(build_path / "Dockerfile"),
+            str(build_context),
         ]
-        
+
         if no_cache:
             cmd.insert(2, "--no-cache")
-        
+
         # Add build args
         cmd.extend(["--build-arg", f"IMAGE_TAG={tag}"])
-        
+
         if verbose:
             result = subprocess.run(cmd, check=True)
         else:
-            result = subprocess.run(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                check=True
-            )
-        
+            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+
         # Also tag as latest
         subprocess.run(
-            ["docker", "tag", f"{image_name}:{tag}", f"{image_name}:latest"],
-            capture_output=True
+            ["docker", "tag", f"{image_name}:{tag}", f"{image_name}:latest"], capture_output=True
         )
 
         return True

@@ -1,6 +1,11 @@
-profile = "gpt-5-high"
+profile = "gpt-5-codex"
 
 [profiles.gpt-5-high]
 model = "gpt-5"
 model_provider = "openai"
 model_reasoning_effort = "high"
+
+[profiles.gpt-5-codex]
+model = "gpt-5-codex"
+model_provider = "openai"
+model_reasoning_effort = "medium"

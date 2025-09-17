@@ -1,5 +1,7 @@
 """Doctor command for diagnosing and fixing AI Agents Sandbox issues."""
 
+from pathlib import Path
+
 from rich.console import Console
 from rich.prompt import Confirm
 from rich.table import Table
@@ -24,12 +26,21 @@ def run_doctor(
 ) -> None:
     """Run system diagnostics and optionally fix issues."""
     console.print("\n[bold cyan]AI Agents Sandbox - System Diagnostics[/bold cyan]\n")
-    
+
+    # Track all system state information
+    system_state = {
+        "directories": {},
+        "files": {},
+        "docker": {},
+        "groups": {},
+        "permissions": {},
+        "configuration": {},
+    }
+
     # Interactive mode prompts
     if interactive:
         verbose = Confirm.ask(
-            "[cyan]Would you like to see detailed diagnostic output?[/cyan]",
-            default=False
+            "[cyan]Would you like to see detailed diagnostic output?[/cyan]", default=False
         )
 
     issues = []
@@ -75,26 +86,130 @@ def run_doctor(
         elif status[0] == "ok" and verbose:
             ok_results.append(status)
 
+    # Analyze system state in verbose mode or when issues exist
+    if verbose:
+        analyze_system_state(console, system_state, verbose)
+    elif issues or warnings:
+        # Also analyze if there are issues (but not as detailed)
+        analyze_system_state(console, system_state, False)
+
     # Display results
-    display_results(console, issues, warnings, ok_results if verbose else [])
+    display_results(
+        console, issues, warnings, ok_results if verbose else [], system_state if verbose else None
+    )
 
     # Handle fixing issues
     should_fix = fix_issues
-    
+
     # In interactive mode, ask if we should fix issues
     if interactive and (issues or warnings):
         console.print()  # Add spacing
         should_fix = Confirm.ask(
             "[cyan]Issues were found. Would you like me to attempt to fix them automatically?[/cyan]",
-            default=True
+            default=True,
         )
-    
+
     # Fix issues if requested
     if should_fix and (issues or warnings):
         console.print("\n[cyan]Attempting to fix issues...[/cyan]\n")
         fix_detected_issues(console, issues, warnings, verbose, interactive)
     elif not interactive and issues:
         console.print("\n[yellow]Run with --fix to attempt automatic fixes[/yellow]")
+
+
+def analyze_system_state(console: Console, system_state: dict, verbose: bool) -> None:
+    """Analyze and populate system state information."""
+    home = get_user_home()
+
+    # Check AI Agents Sandbox directories
+    system_dirs = {
+        "Global Config": get_global_config_path().parent,
+        "Notifications": home / ".ai-sbx" / "notifications",
+        "Projects": home / ".ai-sbx" / "projects",
+        "System Resources": home / ".ai-sbx" / "share",
+        "Docker Proxy": home / ".ai-sbx" / "share" / "docker-proxy",
+    }
+
+    for name, path in system_dirs.items():
+        if path.exists():
+            try:
+                stat = path.stat()
+                system_state["directories"][str(path)] = {
+                    "name": name,
+                    "exists": True,
+                    "mode": oct(stat.st_mode)[-3:],
+                    "owner": stat.st_uid,
+                    "group": stat.st_gid,
+                    "size": (
+                        sum(f.stat().st_size for f in path.rglob("*") if f.is_file())
+                        if path.is_dir()
+                        else stat.st_size
+                    ),
+                }
+            except Exception as e:
+                system_state["directories"][str(path)] = {
+                    "name": name,
+                    "exists": True,
+                    "error": str(e),
+                }
+        else:
+            system_state["directories"][str(path)] = {"name": name, "exists": False}
+
+    # Check important files
+    system_files = {
+        "Global Config": get_global_config_path(),
+        "Docker Proxy Compose": home / ".ai-sbx" / "share" / "docker-proxy" / "docker-compose.yaml",
+        "Docker Proxy Env": home / ".ai-sbx" / "share" / "docker-proxy" / ".env",
+        "Base Compose": home / ".ai-sbx" / "share" / "docker-compose.base.yaml",
+    }
+
+    for name, path in system_files.items():
+        if path.exists():
+            try:
+                stat = path.stat()
+                system_state["files"][str(path)] = {
+                    "name": name,
+                    "exists": True,
+                    "mode": oct(stat.st_mode)[-3:],
+                    "size": stat.st_size,
+                }
+            except Exception as e:
+                system_state["files"][str(path)] = {"name": name, "exists": True, "error": str(e)}
+        else:
+            system_state["files"][str(path)] = {"name": name, "exists": False}
+
+    # Check Docker containers
+    if is_docker_running():
+        try:
+            result = run_command(
+                ["docker", "ps", "-a", "--format", "{{.Names}}:{{.State}}:{{.Status}}"],
+                capture_output=True,
+                check=False,
+            )
+            if result.returncode == 0:
+                for line in result.stdout.strip().split("\n"):
+                    if line and "ai-sbx" in line:
+                        parts = line.split(":", 2)
+                        if len(parts) >= 2:
+                            system_state["docker"][parts[0]] = {
+                                "state": parts[1],
+                                "status": parts[2] if len(parts) > 2 else "",
+                            }
+        except Exception:
+            pass
+
+    # Check groups
+    try:
+        result = run_command(["getent", "group", "local-ai-team"], capture_output=True, check=False)
+        if result.returncode == 0:
+            parts = result.stdout.strip().split(":")
+            if len(parts) >= 3:
+                system_state["groups"]["local-ai-team"] = {
+                    "gid": parts[2],
+                    "members": parts[3].split(",") if len(parts) > 3 and parts[3] else [],
+                }
+    except Exception:
+        pass
 
 
 def check_docker(console: Console, verbose: bool) -> tuple[str, str, str]:
@@ -216,9 +331,9 @@ def check_permissions(console: Console, verbose: bool) -> list[tuple[str, str, s
 
     # Check directories
     dirs_to_check = [
-        home / ".ai_agents_sandbox",
-        home / ".ai_agents_sandbox" / "notifications",
-        home / ".ai_agents_sandbox" / "projects",
+        home / ".ai-sbx",
+        home / ".ai-sbx" / "notifications",
+        home / ".ai-sbx" / "projects",
     ]
 
     for dir_path in dirs_to_check:
@@ -277,52 +392,120 @@ def display_results(
     issues: list[tuple[str, str, str]],
     warnings: list[tuple[str, str, str]],
     ok_results: list[tuple[str, str, str]] = None,
+    system_state: dict = None,
 ) -> None:
     """Display diagnostic results."""
     ok_results = ok_results or []
-    
+
     if not issues and not warnings:
         console.print("[bold green]✓ All checks passed![/bold green]")
         console.print("Your AI Agents Sandbox installation is healthy.")
-        
+
         # In verbose mode, show what was checked
         if ok_results:
             console.print("\n[dim]Checks performed:[/dim]")
             for _status, component, details in ok_results:
                 console.print(f"  [green]✓[/green] {component}: {details}")
-        return
 
-    # Create results table
-    table = Table(title="Diagnostic Results", show_lines=True)
-    table.add_column("Status", style="bold")
-    table.add_column("Component")
-    table.add_column("Details")
+        # Don't return early - continue to show system state if available
 
-    # Add issues
-    for _status, component, details in issues:
-        table.add_row(
-            "[red]✗ ERROR[/red]",
-            component,
-            details,
-        )
+    # Only show diagnostic results table if there are issues/warnings or verbose results
+    if issues or warnings or ok_results:
+        # Create results table
+        table = Table(title="Diagnostic Results", show_lines=True)
+        table.add_column("Status", style="bold")
+        table.add_column("Component")
+        table.add_column("Details")
 
-    # Add warnings
-    for _status, component, details in warnings:
-        table.add_row(
-            "[yellow]⚠ WARNING[/yellow]",
-            component,
-            details,
-        )
-    
-    # Add ok results in verbose mode
-    for _status, component, details in ok_results:
-        table.add_row(
-            "[green]✓ OK[/green]",
-            component,
-            details,
-        )
+        # Add issues
+        for _status, component, details in issues:
+            table.add_row(
+                "[red]✗ ERROR[/red]",
+                component,
+                details,
+            )
 
-    console.print(table)
+        # Add warnings
+        for _status, component, details in warnings:
+            table.add_row(
+                "[yellow]⚠ WARNING[/yellow]",
+                component,
+                details,
+            )
+
+        # Add ok results in verbose mode
+        for _status, component, details in ok_results:
+            table.add_row(
+                "[green]✓ OK[/green]",
+                component,
+                details,
+            )
+
+        console.print(table)
+
+    # System State Report (if available)
+    if system_state:
+        console.print("\n[bold]System State Analysis[/bold]")
+
+        # Directories table
+        if system_state.get("directories"):
+            dir_table = Table(title="AI Agents Sandbox Directories", show_header=True)
+            dir_table.add_column("Directory", style="cyan")
+            dir_table.add_column("Status")
+            dir_table.add_column("Permissions")
+            dir_table.add_column("Size")
+
+            for path, info in system_state["directories"].items():
+                status = "[green]Exists[/green]" if info["exists"] else "[red]Missing[/red]"
+                perms = info.get("mode", "-")
+                size = f"{info.get('size', 0):,} bytes" if info.get("size") else "-"
+                if info.get("error"):
+                    status = f"[yellow]Error: {info['error']}[/yellow]"
+                dir_table.add_row(f"{info['name']}\n[dim]{path}[/dim]", status, perms, size)
+            console.print(dir_table)
+
+        # Files table
+        if system_state.get("files"):
+            file_table = Table(title="Configuration Files", show_header=True)
+            file_table.add_column("File", style="cyan")
+            file_table.add_column("Status")
+            file_table.add_column("Permissions")
+            file_table.add_column("Size")
+
+            for path, info in system_state["files"].items():
+                status = "[green]Exists[/green]" if info["exists"] else "[red]Missing[/red]"
+                perms = info.get("mode", "-")
+                size = f"{info.get('size', 0):,} bytes" if info.get("size") else "-"
+                if info.get("error"):
+                    status = f"[yellow]Error: {info['error']}[/yellow]"
+                file_table.add_row(f"{info['name']}\n[dim]{path}[/dim]", status, perms, size)
+            console.print(file_table)
+
+        # Docker containers
+        if system_state.get("docker"):
+            docker_table = Table(title="Docker Containers", show_header=True)
+            docker_table.add_column("Container", style="cyan")
+            docker_table.add_column("State")
+            docker_table.add_column("Status")
+
+            for name, info in system_state["docker"].items():
+                state_color = "green" if info["state"] == "running" else "yellow"
+                docker_table.add_row(
+                    name, f"[{state_color}]{info['state']}[/{state_color}]", info.get("status", "")
+                )
+            console.print(docker_table)
+
+        # Groups
+        if system_state.get("groups"):
+            group_table = Table(title="System Groups", show_header=True)
+            group_table.add_column("Group", style="cyan")
+            group_table.add_column("GID")
+            group_table.add_column("Members")
+
+            for name, info in system_state["groups"].items():
+                members = ", ".join(info["members"]) if info["members"] else "[dim]No members[/dim]"
+                group_table.add_row(name, info["gid"], members)
+            console.print(group_table)
 
     # Summary
     console.print("\n[bold]Summary:[/bold]")
@@ -349,11 +532,10 @@ def fix_detected_issues(
         if component == "Docker" and "not running" in details:
             if interactive:
                 if not Confirm.ask(
-                    "[yellow]Docker is not running. Start Docker daemon?[/yellow]",
-                    default=True
+                    "[yellow]Docker is not running. Start Docker daemon?[/yellow]", default=True
                 ):
                     continue
-            
+
             console.print("Starting Docker daemon...")
             try:
                 run_command(["sudo", "systemctl", "start", "docker"], check=False)
@@ -369,23 +551,23 @@ def fix_detected_issues(
     for _status, component, details in warnings:
         if "Image not built" in details and component.startswith("ai-agents-sandbox/"):
             missing_images.append(component)
-    
+
     if missing_images:
         if interactive:
             images_list = "\n  • ".join(missing_images)
             if not Confirm.ask(
                 f"[yellow]The following Docker images are missing:[/yellow]\n  • {images_list}\n\n"
                 f"[cyan]Build missing images?[/cyan]",
-                default=True
+                default=True,
             ):
                 missing_images = []
-        
+
         if missing_images:
             console.print("\n[cyan]Building missing Docker images...[/cyan]")
             for image in missing_images:
                 # Map image names to build commands
                 image_name = image.split("/")[-1]  # Get the last part after '/'
-                
+
                 if image_name == "devcontainer":
                     console.print(f"Building {image}...")
                     try:
@@ -402,7 +584,7 @@ def fix_detected_issues(
                             console.print(f"[red]Failed to build {image}[/red]")
                     except Exception as e:
                         console.print(f"[red]Error building {image}: {e}[/red]")
-                
+
                 elif image_name in ["tinyproxy", "docker-dind"]:
                     console.print(f"Building {image}...")
                     try:
@@ -438,10 +620,10 @@ def fix_detected_issues(
                 if not Confirm.ask(
                     "[yellow]The local-ai-team group (GID 3000) is missing. Create it?[/yellow]\n"
                     "[dim]This requires sudo access[/dim]",
-                    default=True
+                    default=True,
                 ):
                     continue
-            
+
             console.print("Creating local-ai-team group...")
             console.print("[yellow]This requires sudo access[/yellow]")
             try:
@@ -461,10 +643,10 @@ def fix_detected_issues(
                     if not Confirm.ask(
                         f"[yellow]Add user '{username}' to local-ai-team group?[/yellow]\n"
                         f"[dim]This requires sudo access and logout/login[/dim]",
-                        default=True
+                        default=True,
                     ):
                         continue
-                
+
                 console.print(f"Adding {username} to local-ai-team group...")
                 console.print("[yellow]This requires sudo access[/yellow]")
                 try:
@@ -485,21 +667,21 @@ def fix_detected_issues(
         if "Directory does not exist" in details:
             dir_name = component
             dir_path = (
-                home / ".ai_agents_sandbox" / dir_name
-                if dir_name != ".ai_agents_sandbox"
-                else home / ".ai_agents_sandbox"
+                home / ".ai-sbx" / dir_name
+                if dir_name != ".ai-sbx"
+                else home / ".ai-sbx"
             )
             missing_dirs.append((dir_name, dir_path))
-    
+
     if missing_dirs and interactive:
         dirs_list = "\n  • ".join([str(path) for _, path in missing_dirs])
         if not Confirm.ask(
             f"[yellow]The following directories are missing:[/yellow]\n  • {dirs_list}\n\n"
             f"[cyan]Create missing directories?[/cyan]",
-            default=True
+            default=True,
         ):
             missing_dirs = []
-    
+
     for dir_name, dir_path in missing_dirs:
         console.print(f"Creating directory: {dir_path}")
         try:
@@ -515,10 +697,10 @@ def fix_detected_issues(
             if interactive:
                 if not Confirm.ask(
                     "[yellow]Global configuration is not initialized. Initialize it?[/yellow]",
-                    default=True
+                    default=True,
                 ):
                     continue
-            
+
             console.print("Initializing global configuration...")
             try:
                 config = GlobalConfig()

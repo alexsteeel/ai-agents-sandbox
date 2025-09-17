@@ -8,25 +8,30 @@ from rich.panel import Panel
 from rich.text import Text
 
 from ai_sbx import __version__
-from ai_sbx.commands import init, notify, worktree, image
+from ai_sbx.commands import image, notify, worktree
+from ai_sbx.commands import init as init_module
 from ai_sbx.utils import AliasedGroup, logger
 
 console = Console()
 
 
-@click.group(cls=AliasedGroup, aliases={
-    'wt': 'worktree',
-    'w': 'worktree',
-    'img': 'image',
-    'images': 'image',
-    'i': 'init',
-    'd': 'doctor',
-    'dr': 'doctor',
-    'n': 'notify',
-    'u': 'upgrade',
-    'up': 'upgrade',
-    'h': 'help',
-}, invoke_without_command=True)
+@click.group(
+    cls=AliasedGroup,
+    aliases={
+        "wt": "worktree",
+        "w": "worktree",
+        "img": "image",
+        "images": "image",
+        "i": "init",
+        "d": "doctor",
+        "dr": "doctor",
+        "n": "notify",
+        "u": "upgrade",
+        "up": "upgrade",
+        "h": "help",
+    },
+    invoke_without_command=True,
+)
 @click.option("--version", "-v", is_flag=True, help="Show version and exit")
 @click.option("--verbose", is_flag=True, help="Enable verbose output")
 @click.pass_context
@@ -71,32 +76,44 @@ def show_welcome() -> None:
 
 
 # Create init subcommand group
-@cli.group(cls=AliasedGroup, aliases={
-    'g': 'global',
-    'p': 'project',
-    'proj': 'project',
-    'wt': 'worktree',
-    'w': 'worktree',
-})
+@cli.group(
+    cls=AliasedGroup,
+    aliases={
+        "g": "global",
+        "p": "project",
+        "proj": "project",
+        "wt": "worktree",
+        "w": "worktree",
+    },
+)
 def init() -> None:
     """Initialize AI Agents Sandbox components."""
     pass
 
 
 @init.command(name="global")
-@click.pass_context  
-def init_global(ctx: click.Context) -> None:
-    """Initialize global AI Agents Sandbox installation.
-    
-    This performs system-wide setup including:
-    - Building Docker images
-    - Creating shared directories
-    - Setting up Docker registry proxy
+@click.option("--wizard", is_flag=True, help="Run interactive setup wizard with custom registry configuration")
+@click.option("--force", is_flag=True, help="Overwrite existing configuration")
+@click.pass_context
+def init_global(ctx: click.Context, wizard: bool, force: bool) -> None:
+    """Initialize global AI Agents Sandbox configuration.
+
+    Sets up system-wide configuration including:
+
+    \b
+    • Building Docker images
+    • Creating system groups and directories
+    • Configuring Docker registry proxy
+    • Optional: Custom registry configuration (with --wizard)
+
+    The command provides detailed reporting of all system changes made
+    to your system, including directories, files, groups, and containers.
     """
-    from ai_sbx.commands.init import run_global_init
+    from ai_sbx.commands.init import init_global as init_global_impl
+
     console = ctx.obj["console"]
     verbose = ctx.obj.get("verbose", False)
-    run_global_init(console, verbose=verbose)
+    init_global_impl(console, wizard=wizard, force=force, verbose=verbose)
 
 
 @init.command(name="project")
@@ -106,23 +123,33 @@ def init_global(ctx: click.Context) -> None:
 @click.option(
     "--base-image",
     type=click.Choice(["base", "dotnet", "golang"]),
-    help="Development environment to use"
+    help="Development environment to use",
 )
 @click.option(
     "--ide",
     type=click.Choice(["vscode", "pycharm", "rider", "goland", "devcontainer"]),
-    help="Preferred IDE"
+    help="Preferred IDE",
 )
 @click.pass_context
-def init_project(ctx: click.Context, path: str, force: bool, wizard: bool, base_image: str, ide: str) -> None:
+def init_project(
+    ctx: click.Context, path: str, force: bool, wizard: bool, base_image: str, ide: str
+) -> None:
     """Initialize a project with AI Agents Sandbox.
 
     Creates .devcontainer directory with all necessary configuration files.
     Run this in your repository root before creating worktrees.
+
+    \b
+    Features:
+    • Network isolation with proxy filtering
+    • Claude settings detection and integration
+    • IDE-specific configurations (VS Code, PyCharm, etc.)
+    • Custom registry support
     """
+    from pathlib import Path
+
     from ai_sbx.commands.init import init_project as init_project_impl
     from ai_sbx.config import BaseImage, IDE
-    from pathlib import Path
 
     console = ctx.obj["console"]
     verbose = ctx.obj.get("verbose", False)
@@ -140,7 +167,7 @@ def init_project(ctx: click.Context, path: str, force: bool, wizard: bool, base_
         base_image=base_image,
         ide=ide,
         force=force,
-        verbose=verbose
+        verbose=verbose,
     )
 
 
@@ -154,6 +181,7 @@ def init_worktree(ctx: click.Context, path: str) -> None:
     Sets up the development environment inside the container.
     """
     from ai_sbx.commands.init import run_worktree_init
+
     console = ctx.obj["console"]
     verbose = ctx.obj.get("verbose", False)
     run_worktree_init(console, path, verbose=verbose)
@@ -169,6 +197,7 @@ def init_update(ctx: click.Context, path: str) -> None:
     This is useful after editing ai-sbx.yaml manually.
     """
     from ai_sbx.commands.init import run_update_env
+
     console = ctx.obj["console"]
     verbose = ctx.obj.get("verbose", False)
     run_update_env(console, path, verbose=verbose)
@@ -193,9 +222,9 @@ def version(ctx: click.Context) -> None:
 def help(ctx: click.Context) -> None:
     """Show help information and command overview."""
     console = ctx.obj["console"]
-    
+
     console.print("\n[bold cyan]AI Agents Sandbox - Command Overview[/bold cyan]\n")
-    
+
     help_text = """
 [bold yellow]Initialization Commands:[/bold yellow]
   [cyan]ai-sbx init global[/cyan]      - One-time setup (builds images, creates groups, starts proxy)
@@ -227,7 +256,7 @@ def help(ctx: click.Context) -> None:
   5. Open in IDE (VS Code/PyCharm)
 """
     console.print(help_text)
-    
+
     console.print("\n[dim]For detailed help on any command, use: ai-sbx COMMAND --help[/dim]\n")
 
 
@@ -237,24 +266,22 @@ def help(ctx: click.Context) -> None:
 @click.option("--verbose", is_flag=True, help="Show verbose diagnostic details")
 @click.option("--non-interactive", is_flag=True, help="Run without prompts")
 @click.pass_context
-def doctor(ctx: click.Context, check: bool, fix: bool, verbose: bool, non_interactive: bool) -> None:
+def doctor(
+    ctx: click.Context, check: bool, fix: bool, verbose: bool, non_interactive: bool
+) -> None:
     """Diagnose and fix common issues with the AI Agents Sandbox setup.
-    
+
     When run without flags, enters interactive mode with prompts for options."""
     from ai_sbx.commands.doctor import run_doctor
 
     console = ctx.obj["console"]
     verbose_flag = ctx.obj.get("verbose", False) or verbose
-    
+
     # Determine if we're in interactive mode
     interactive = not non_interactive and not (check or fix or verbose)
 
     run_doctor(
-        console, 
-        check_only=check, 
-        fix_issues=fix, 
-        verbose=verbose_flag,
-        interactive=interactive
+        console, check_only=check, fix_issues=fix, verbose=verbose_flag, interactive=interactive
     )
 
 

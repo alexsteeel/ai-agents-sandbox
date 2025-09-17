@@ -1,4 +1,6 @@
 {
+  "DISABLE_TELEMETRY": true,
+  "defaultOpenMode": "container",
   "hooks": {
     "SubagentStop": [
       {

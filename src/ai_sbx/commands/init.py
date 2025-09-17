@@ -2,6 +2,7 @@
 
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -13,16 +14,14 @@ from rich.table import Table
 
 from ai_sbx.config import (
     IDE,
-    GlobalConfig,
     BaseImage,
+    GlobalConfig,
     ProjectConfig,
     get_global_config_path,
     load_project_config,
     save_project_config,
 )
 from ai_sbx.templates import TemplateManager
-from rich.console import Console
-
 from ai_sbx.utils import (
     add_user_to_group,
     create_directory,
@@ -44,7 +43,7 @@ from ai_sbx.utils import (
 @click.pass_context
 def init_global_cmd(ctx: click.Context, wizard: bool, force: bool) -> None:
     """Initialize global AI Agents Sandbox configuration.
-    
+
     Sets up system-wide configuration including groups and directories.
     This should be run once after installation.
     """
@@ -59,7 +58,7 @@ def init_global_cmd(ctx: click.Context, wizard: bool, force: bool) -> None:
 @click.option(
     "--base-image",
     type=click.Choice([v.value for v in BaseImage]),
-    help="Development environment to use (base, dotnet, golang)"
+    help="Development environment to use (base, dotnet, golang)",
 )
 @click.option("--ide", type=click.Choice([i.value for i in IDE]), help="Preferred IDE")
 @click.option("--force", is_flag=True, help="Overwrite existing configuration")
@@ -73,16 +72,16 @@ def init_project_cmd(
     force: bool,
 ) -> None:
     """Initialize a project for AI Agents Sandbox.
-    
+
     Creates .devcontainer configuration in the project directory.
     Run this in your repository root before creating worktrees.
     """
     console: Console = ctx.obj["console"]
     verbose: bool = ctx.obj.get("verbose", False)
-    
+
     if path is None:
         path = find_project_root() or Path.cwd()
-    
+
     init_project(
         console,
         path,
@@ -104,20 +103,18 @@ def init_container_cmd(
     skip_proxy: bool,
 ) -> None:
     """Initialize container environment.
-    
+
     This command is called automatically by devcontainer during startup.
     It sets up permissions and environment variables.
     """
     console: Console = ctx.obj["console"]
     verbose: bool = ctx.obj.get("verbose", False)
-    
+
     if not path:
         path = Path.cwd()
-    
+
     # Call the actual implementation
     project_setup_impl(console, path, skip_proxy, verbose)
-
-
 
 
 def init_global(
@@ -129,6 +126,18 @@ def init_global(
     """Initialize global AI Agents Sandbox configuration."""
     console.print("\n[bold cyan]AI Agents Sandbox - Global Initialization[/bold cyan]\n")
 
+    # Track all changes made to the system
+    system_changes = {
+        "directories_created": [],
+        "files_created": [],
+        "files_modified": [],
+        "groups_created": [],
+        "user_modifications": [],
+        "docker_images_built": [],
+        "docker_containers_started": [],
+        "errors": [],
+    }
+
     # Check if already initialized
     config_path = get_global_config_path()
     if config_path.exists() and not force:
@@ -138,6 +147,16 @@ def init_global(
 
     # Load or create config
     config = GlobalConfig.load() if config_path.exists() else GlobalConfig()
+
+    # Ask user whether to use defaults or run wizard
+    if not wizard:  # If wizard not explicitly requested via --wizard flag
+        console.print("\n[cyan]AI Agents Sandbox Global Configuration[/cyan]\n")
+        use_defaults = prompt_yes_no(
+            "Use default configuration settings? (Choose 'No' to customize)",
+            default=True
+        )
+        if not use_defaults:
+            wizard = True  # Switch to wizard mode
 
     if wizard:
         # Interactive configuration
@@ -154,7 +173,7 @@ def init_global(
                 "default_base_image",
                 message="Select default base image",
                 choices=[(v.value.capitalize(), v.value) for v in BaseImage],
-                default=config.default_environment.value,
+                default=config.default_base_image.value,
             ),
             inquirer.Text(
                 "group_name",
@@ -176,43 +195,144 @@ def init_global(
             config.group_name = answers["group_name"]
             config.group_gid = int(answers["group_gid"])
 
+        # Custom Registry Configuration
+        console.print("\n[cyan]Custom Registry Configuration (Optional)[/cyan]")
+        console.print("[dim]You can configure custom Docker registries for caching.[/dim]")
+        console.print(
+            "[dim]This is useful for corporate environments with private registries.[/dim]\n"
+        )
+
+        if prompt_yes_no("Do you want to configure custom registries?", default=False):
+            console.print()
+            registry_input = inquirer.prompt(
+                [
+                    inquirer.Text(
+                        "custom_registries",
+                        message="Enter your custom registry URLs (comma-separated, e.g., proget.company.com,registry.local)",
+                        default="",
+                    )
+                ]
+            )
+
+            if registry_input and registry_input["custom_registries"]:
+                # Parse registry URLs
+                registries = [
+                    r.strip() for r in registry_input["custom_registries"].split(",") if r.strip()
+                ]
+                if registries:
+                    config.docker.custom_registries = registries
+                    console.print(
+                        f"[green]✓ Configured {len(registries)} custom registries[/green]"
+                    )
+
+                    # Ask about custom docker-registry-proxy image
+                    console.print(
+                        "\n[dim]If your registry uses self-signed or internal CA certificates,[/dim]"
+                    )
+                    console.print(
+                        "[dim]you may need a custom docker-registry-proxy image with embedded CA certs.[/dim]\n"
+                    )
+
+                    if prompt_yes_no(
+                        "Do you have a custom docker-registry-proxy image with CA certificates?",
+                        default=False,
+                    ):
+                        custom_image_input = inquirer.prompt(
+                            [
+                                inquirer.Text(
+                                    "custom_proxy_image",
+                                    message="Enter the custom image name (e.g., myregistry/docker-registry-proxy:custom)",
+                                    default="",
+                                )
+                            ]
+                        )
+
+                        if custom_image_input and custom_image_input["custom_proxy_image"]:
+                            # Store custom proxy image in build_args
+                            config.docker.build_args["DOCKER_REGISTRY_PROXY_IMAGE"] = (
+                                custom_image_input["custom_proxy_image"]
+                            )
+                            console.print(
+                                f"[green]✓ Custom proxy image configured: {custom_image_input['custom_proxy_image']}[/green]"
+                            )
+
     # Build Docker images first
     console.print("\n[bold]Step 1: Building Docker images...[/bold]")
     from ai_sbx.commands.image import _image_exists
-    
+
     # Check if images already exist
     required_images = [
         "ai-agents-sandbox/tinyproxy-base",
         "ai-agents-sandbox/tinyproxy",
-        "ai-agents-sandbox/docker-dind", 
+        "ai-agents-sandbox/docker-dind",
         "ai-agents-sandbox/devcontainer",
     ]
-    
+
     missing_images = [img for img in required_images if not _image_exists(img, "1.0.0")]
-    
+
     if missing_images:
         console.print(f"[yellow]Found {len(missing_images)} missing images. Building...[/yellow]")
         # Use subprocess to call ai-sbx image build
-        import subprocess
         try:
             result = subprocess.run(
-                ["ai-sbx", "image", "build"],
-                capture_output=not verbose,
-                text=True,
-                check=True
+                ["ai-sbx", "image", "build"], capture_output=not verbose, text=True, check=True
             )
             console.print("[green]✓ Docker images built successfully[/green]")
+            system_changes["docker_images_built"].extend(missing_images)
         except subprocess.CalledProcessError as e:
             console.print("[red]✗ Failed to build Docker images[/red]")
+            system_changes["errors"].append(f"Failed to build Docker images: {e}")
             if not verbose and e.stderr:
                 console.print(f"[dim]{e.stderr}[/dim]")
             console.print("\n[yellow]Try running: ai-sbx image build --verbose[/yellow]")
             sys.exit(1)
     else:
         console.print("[green]✓ All required Docker images already exist[/green]")
-    
+
+    # Copy docker-proxy resources to system location
+    console.print("\n[bold]Step 2: Installing docker-proxy resources...[/bold]")
+
+    import ai_sbx
+
+    package_dir = Path(ai_sbx.__file__).parent
+    source_proxy_dir = package_dir / "resources" / "docker-proxy"
+    target_proxy_dir = Path.home() / ".ai-sbx" / "share" / "docker-proxy"
+    source_compose_base = package_dir / "docker-compose.base.yaml"
+    target_compose_base = Path.home() / ".ai-sbx" / "share" / "docker-compose.base.yaml"
+
+    try:
+        # Create target directory
+        if not target_proxy_dir.exists():
+            target_proxy_dir.mkdir(parents=True, exist_ok=True)
+            system_changes["directories_created"].append(str(target_proxy_dir))
+
+        # Copy docker-compose.yaml for docker-proxy
+        source_compose = source_proxy_dir / "docker-compose.yaml"
+        target_compose = target_proxy_dir / "docker-compose.yaml"
+        if source_compose.exists() and (not target_compose.exists() or force):
+            import shutil
+            shutil.copy2(str(source_compose), str(target_compose))
+            console.print("[green]✓ Docker proxy compose file installed[/green]")
+            system_changes[
+                "files_created" if not target_compose.exists() else "files_modified"
+            ].append(str(target_compose))
+
+        # Copy docker-compose.base.yaml
+        if source_compose_base.exists() and (not target_compose_base.exists() or force):
+            import shutil
+            shutil.copy2(str(source_compose_base), str(target_compose_base))
+            console.print("[green]✓ Base compose file installed[/green]")
+            system_changes[
+                "files_created" if not target_compose_base.exists() else "files_modified"
+            ].append(str(target_compose_base))
+
+    except Exception as e:
+        console.print(f"[yellow]⚠ Could not install docker-proxy resources: {e}[/yellow]")
+        if verbose:
+            console.print(f"[dim]Error details: {e}[/dim]")
+
     # Initialize system with progress display
-    console.print("\n[bold]Step 2: Setting up system configuration...[/bold]")
+    console.print("\n[bold]Step 3: Setting up system configuration...[/bold]")
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -222,6 +342,9 @@ def init_global(
         task = progress.add_task("Creating system group...", total=None)
         if ensure_group_exists(config.group_name, config.group_gid, verbose=verbose):
             progress.update(task, description="[green]✓[/green] System group created")
+            system_changes["groups_created"].append(
+                f"{config.group_name} (GID: {config.group_gid})"
+            )
         else:
             progress.update(task, description="[red]✗[/red] Failed to create group")
             console.print("\n[red]Some operations require sudo access.[/red]")
@@ -234,6 +357,9 @@ def init_global(
             task = progress.add_task(f"Adding {username} to group...", total=None)
             if add_user_to_group(username, config.group_name, verbose=verbose):
                 progress.update(task, description="[green]✓[/green] User added to group")
+                system_changes["user_modifications"].append(
+                    f"Added {username} to group {config.group_name}"
+                )
             else:
                 progress.update(task, description="[yellow]⚠[/yellow] Could not add user to group")
 
@@ -244,16 +370,20 @@ def init_global(
 
         # Create directories with appropriate permissions
         for dir_path, mode in [
-            (home / ".ai_agents_sandbox" / "notifications", 0o775),  # Group writable
-            (home / ".ai_agents_sandbox" / "projects", 0o755),
+            (home / ".ai-sbx" / "notifications", 0o775),  # Group writable
+            (home / ".ai-sbx" / "projects", 0o755),
             (config_path.parent, 0o755),
         ]:
             if not create_directory(dir_path, mode=mode):
                 dirs_created = False
+                system_changes["errors"].append(f"Failed to create directory: {dir_path}")
                 break
+            else:
+                if not dir_path.exists():
+                    system_changes["directories_created"].append(str(dir_path))
 
         # Set group ownership for notifications directory if group exists
-        notifications_dir = home / ".ai_agents_sandbox" / "notifications"
+        notifications_dir = home / ".ai-sbx" / "notifications"
         if notifications_dir.exists():
             try:
                 run_command(
@@ -269,41 +399,81 @@ def init_global(
         else:
             progress.update(task, description="[yellow]⚠[/yellow] Some directories not created")
 
+        # Create docker-proxy .env file if custom registries are configured
+        if config.docker.custom_registries:
+            task = progress.add_task(
+                "Configuring docker-proxy for custom registries...", total=None
+            )
+            try:
+                # Ensure docker-proxy directory exists
+                proxy_dir = Path.home() / ".ai-sbx" / "share" / "docker-proxy"
+                if not proxy_dir.exists():
+                    proxy_dir.mkdir(parents=True, exist_ok=True)
+                    system_changes["directories_created"].append(str(proxy_dir))
+
+                # Create .env content
+                env_content = "# Custom Docker Registry Configuration\n"
+                env_content += (
+                    f"ADDITIONAL_REGISTRIES={' '.join(config.docker.custom_registries)}\n"
+                )
+                env_content += f"REGISTRY_WHITELIST={','.join(config.docker.custom_registries)}\n"
+
+                # Add custom proxy image if configured
+                custom_proxy_image = config.docker.build_args.get("DOCKER_REGISTRY_PROXY_IMAGE")
+                if custom_proxy_image:
+                    env_content += "\n# Custom docker-registry-proxy image (with CA certificates)\n"
+                    env_content += f"DOCKER_REGISTRY_PROXY_IMAGE={custom_proxy_image}\n"
+
+                # Write .env file
+                env_file = proxy_dir / ".env"
+                env_file.write_text(env_content)
+                env_file.chmod(0o644)
+                system_changes["files_created"].append(str(env_file))
+
+                progress.update(
+                    task,
+                    description="[green]✓[/green] Docker proxy configured for custom registries",
+                )
+                console.print(f"[dim]Registry configuration saved to {env_file}[/dim]")
+            except Exception as e:
+                progress.update(
+                    task, description="[yellow]⚠[/yellow] Could not configure docker proxy"
+                )
+                if verbose:
+                    console.print(f"[red]Error: {e}[/red]")
+
         # Save configuration
         task = progress.add_task("Saving configuration...", total=None)
         config.save()
+        system_changes["files_created" if not config_path.exists() else "files_modified"].append(
+            str(config_path)
+        )
         progress.update(task, description="[green]✓[/green] Configuration saved")
-    
+
     # Start Docker registry proxy
     console.print("\n[bold]Step 3: Starting Docker registry proxy...[/bold]")
     try:
         # Check if proxy is already running
         result = subprocess.run(
-            ["docker", "ps", "--format", "{{.Names}}"],
-            capture_output=True,
-            text=True,
-            check=False
+            ["docker", "ps", "--format", "{{.Names}}"], capture_output=True, text=True, check=False
         )
-        
+
         if "ai-sbx-docker-proxy" not in result.stdout:
-            # Find docker-proxy compose file in package
-            from pathlib import Path
-            import ai_sbx
+            # Use system location for docker-proxy
+            proxy_compose = Path.home() / ".ai-sbx" / "share" / "docker-proxy" / "docker-compose.yaml"
 
-            package_dir = Path(ai_sbx.__file__).parent
-            proxy_compose = package_dir / "resources" / "docker-proxy" / "docker-compose.yaml"
-
-            if not proxy_compose.exists():
-                proxy_compose = None
-            
-            if proxy_compose:
+            if proxy_compose.exists():
                 console.print("[dim]Starting docker-registry-proxy for image caching...[/dim]")
+                # Change to the directory containing docker-compose.yaml so .env file is loaded
                 subprocess.run(
-                    ["docker", "compose", "-f", str(proxy_compose), "up", "-d"],
+                    ["docker", "compose", "up", "-d"],
                     capture_output=True,
-                    check=False
+                    check=False,
+                    cwd=proxy_compose.parent,
                 )
                 console.print("[green]✓ Docker registry proxy started[/green]")
+                system_changes["docker_containers_started"].append("ai-sbx-docker-proxy")
+                system_changes["docker_containers_started"].append("ai-sbx-tinyproxy-registry")
             else:
                 console.print("[yellow]⚠ Could not find docker-proxy configuration[/yellow]")
         else:
@@ -314,17 +484,66 @@ def init_global(
     # Display summary
     console.print("\n[bold green]Global initialization complete![/bold green]\n")
 
-    table = Table(title="Configuration Summary", show_header=False)
-    table.add_column("Setting", style="cyan")
-    table.add_column("Value")
+    # Configuration Summary Table
+    config_table = Table(title="Configuration Summary", show_header=False)
+    config_table.add_column("Setting", style="cyan")
+    config_table.add_column("Value")
 
-    table.add_row("Config Path", str(config_path))
-    table.add_row("Group Name", config.group_name)
-    table.add_row("Group GID", str(config.group_gid))
-    table.add_row("Default IDE", config.default_ide.value)
-    table.add_row("Default Base Image", config.default_base_image.value)
+    config_table.add_row("Config Path", str(config_path))
+    config_table.add_row("Group Name", config.group_name)
+    config_table.add_row("Group GID", str(config.group_gid))
+    config_table.add_row("Default IDE", config.default_ide.value)
+    config_table.add_row("Default Base Image", config.default_base_image.value)
+    if config.docker.custom_registries:
+        config_table.add_row("Custom Registries", ", ".join(config.docker.custom_registries))
+    if config.docker.build_args.get("DOCKER_REGISTRY_PROXY_IMAGE"):
+        config_table.add_row(
+            "Custom Proxy Image", config.docker.build_args["DOCKER_REGISTRY_PROXY_IMAGE"]
+        )
 
-    console.print(table)
+    console.print(config_table)
+
+    # System Changes Report
+    console.print("\n[bold]System Changes Report[/bold]")
+
+    changes_table = Table(show_header=True)
+    changes_table.add_column("Change Type", style="cyan")
+    changes_table.add_column("Details")
+
+    if system_changes["directories_created"]:
+        changes_table.add_row(
+            "Directories Created", "\n".join(system_changes["directories_created"])
+        )
+
+    if system_changes["files_created"]:
+        changes_table.add_row("Files Created", "\n".join(system_changes["files_created"]))
+
+    if system_changes["files_modified"]:
+        changes_table.add_row("Files Modified", "\n".join(system_changes["files_modified"]))
+
+    if system_changes["groups_created"]:
+        changes_table.add_row("Groups Created", "\n".join(system_changes["groups_created"]))
+
+    if system_changes["user_modifications"]:
+        changes_table.add_row("User Modifications", "\n".join(system_changes["user_modifications"]))
+
+    if system_changes["docker_images_built"]:
+        changes_table.add_row(
+            "Docker Images Built", "\n".join(system_changes["docker_images_built"])
+        )
+
+    if system_changes["docker_containers_started"]:
+        changes_table.add_row(
+            "Containers Started", "\n".join(system_changes["docker_containers_started"])
+        )
+
+    if system_changes["errors"]:
+        changes_table.add_row("[red]Errors[/red]", "\n".join(system_changes["errors"]))
+
+    if any(system_changes[k] for k in system_changes if k != "errors"):
+        console.print(changes_table)
+    else:
+        console.print("[dim]No new changes made to the system (already configured)[/dim]")
 
     if username:
         console.print(
@@ -363,6 +582,7 @@ def init_project(
 
         # Load the template
         import yaml
+
         with open(template_file) as f:
             template_data = yaml.safe_load(f)
 
@@ -562,13 +782,13 @@ def init_project(
             if has_claude_settings:
                 console.print("[green]✓ Found Claude settings on your host system[/green]")
                 if has_agents:
-                    console.print(f"  • Agents directory")
+                    console.print("  • Agents directory")
                 if has_commands:
-                    console.print(f"  • Commands directory")
+                    console.print("  • Commands directory")
                 if has_hooks:
-                    console.print(f"  • Hooks directory")
+                    console.print("  • Hooks directory")
                 if has_settings:
-                    console.print(f"  • Settings file")
+                    console.print("  • Settings file")
 
                 claude_questions = [
                     inquirer.Confirm(
@@ -584,9 +804,13 @@ def init_project(
                     if mount_claude_settings:
                         # Store this preference in the config
                         config.environment["MOUNT_CLAUDE_SETTINGS"] = "true"
-                        console.print("[dim]Settings will be mounted readonly and copied on container startup[/dim]")
+                        console.print(
+                            "[dim]Settings will be mounted readonly and copied on container startup[/dim]"
+                        )
         else:
-            console.print("[dim]No Claude settings found on host system (using minimal defaults)[/dim]")
+            console.print(
+                "[dim]No Claude settings found on host system (using minimal defaults)[/dim]"
+            )
 
         # Step 3: IDE Selection
         console.print("\n[bold]Step 3: IDE/Editor Selection[/bold]")
@@ -654,7 +878,9 @@ def init_project(
         # Step 4: Network & Proxy Configuration
         console.print("\n[bold]Step 4: Network & Proxy Configuration[/bold]")
         console.print("[dim]Network isolation is always enabled for security[/dim]")
-        console.print("[dim]Containers can only access whitelisted domains through proxy filtering[/dim]")
+        console.print(
+            "[dim]Containers can only access whitelisted domains through proxy filtering[/dim]"
+        )
 
         # Always enable proxy for security
         config.proxy.enabled = True
@@ -668,7 +894,10 @@ def init_project(
                 "upstream",
                 message="Upstream proxy URL (e.g., socks5://host.gateway:8888, http://host.gateway:3128, or empty)",
                 default=config.proxy.upstream or "",
-                validate=lambda _, x: x == "" or x.startswith("http://") or x.startswith("socks5://") or "Must start with http:// or socks5://",
+                validate=lambda _, x: x == ""
+                or x.startswith("http://")
+                or x.startswith("socks5://")
+                or "Must start with http:// or socks5://",
             ),
         ]
 
@@ -686,7 +915,11 @@ def init_project(
                 inquirer.Text(
                     "no_proxy",
                     message="Domains to bypass upstream proxy (space-separated)",
-                    default=" ".join(config.proxy.no_proxy) if config.proxy.no_proxy else "github.com gitlab.com",
+                    default=(
+                        " ".join(config.proxy.no_proxy)
+                        if config.proxy.no_proxy
+                        else "github.com gitlab.com"
+                    ),
                 ),
             ]
 
@@ -723,7 +956,9 @@ def init_project(
         ]
 
         security_answers = inquirer.prompt(security_questions)
-        create_secure_init = security_answers.get("create_secure_init", False) if security_answers else False
+        create_secure_init = (
+            security_answers.get("create_secure_init", False) if security_answers else False
+        )
     else:
         custom_dockerfile = False
         create_secure_init = False
@@ -765,7 +1000,7 @@ def init_project(
         progress.update(task, description="[green]✓[/green] Configuration saved")
 
         # Create custom Dockerfile if requested
-        if 'custom_dockerfile' in locals() and custom_dockerfile:
+        if "custom_dockerfile" in locals() and custom_dockerfile:
             task = progress.add_task("Creating custom Dockerfile...", total=None)
             dockerfile_path = devcontainer_dir / "Dockerfile"
 
@@ -823,36 +1058,43 @@ USER claude
                 import yaml
 
                 if override_file.exists():
-                    with open(override_file, 'r') as f:
+                    with open(override_file) as f:
                         override_config = yaml.safe_load(f) or {}
                 else:
                     override_config = {}
 
                 # Ensure structure exists
-                if 'services' not in override_config:
-                    override_config['services'] = {}
-                if 'devcontainer' not in override_config['services']:
-                    override_config['services']['devcontainer'] = {}
-                elif override_config['services']['devcontainer'] is None:
-                    override_config['services']['devcontainer'] = {}
+                if "services" not in override_config:
+                    override_config["services"] = {}
+                if "devcontainer" not in override_config["services"]:
+                    override_config["services"]["devcontainer"] = {}
+                elif override_config["services"]["devcontainer"] is None:
+                    override_config["services"]["devcontainer"] = {}
 
                 # Add build context
-                override_config['services']['devcontainer']['build'] = {
-                    'context': '.',
-                    'dockerfile': 'Dockerfile'
+                override_config["services"]["devcontainer"]["build"] = {
+                    "context": ".",
+                    "dockerfile": "Dockerfile",
                 }
 
                 # Write updated configuration
-                with open(override_file, 'w') as f:
+                with open(override_file, "w") as f:
                     yaml.safe_dump(override_config, f, default_flow_style=False, sort_keys=False)
 
-                progress.update(task, description="[green]✓[/green] Updated override.user.yaml for custom Dockerfile")
+                progress.update(
+                    task,
+                    description="[green]✓[/green] Updated override.user.yaml for custom Dockerfile",
+                )
             except ImportError:
-                progress.update(task, description="[yellow]⚠[/yellow] Could not update override.user.yaml")
-                console.print("[yellow]Please manually add build configuration to override.user.yaml[/yellow]")
+                progress.update(
+                    task, description="[yellow]⚠[/yellow] Could not update override.user.yaml"
+                )
+                console.print(
+                    "[yellow]Please manually add build configuration to override.user.yaml[/yellow]"
+                )
 
         # Create secure.init.sh if requested
-        if 'create_secure_init' in locals() and create_secure_init:
+        if "create_secure_init" in locals() and create_secure_init:
             task = progress.add_task("Creating secure.init.sh...", total=None)
             secure_init_path = devcontainer_dir / "secure.init.sh"
 
@@ -904,20 +1146,25 @@ echo "Secure initialization complete!"
             if config_file.exists():
                 try:
                     import yaml
-                    with open(config_file, 'r') as f:
+
+                    with open(config_file) as f:
                         yaml_config = yaml.safe_load(f)
 
                     # Add initialization script to config
-                    if 'initialization' not in yaml_config:
-                        yaml_config['initialization'] = {}
-                    yaml_config['initialization']['script'] = './secure.init.sh'
+                    if "initialization" not in yaml_config:
+                        yaml_config["initialization"] = {}
+                    yaml_config["initialization"]["script"] = "./secure.init.sh"
 
-                    with open(config_file, 'w') as f:
+                    with open(config_file, "w") as f:
                         yaml.safe_dump(yaml_config, f, default_flow_style=False, sort_keys=False)
 
-                    progress.update(task, description="[green]✓[/green] Updated ai-sbx.yaml with secure.init.sh")
-                except Exception as e:
-                    console.print(f"[yellow]Note: Please add './secure.init.sh' to your initialization scripts[/yellow]")
+                    progress.update(
+                        task, description="[green]✓[/green] Updated ai-sbx.yaml with secure.init.sh"
+                    )
+                except Exception:
+                    console.print(
+                        "[yellow]Note: Please add './secure.init.sh' to your initialization scripts[/yellow]"
+                    )
 
         # Set permissions
         task = progress.add_task("Setting permissions...", total=None)
@@ -953,7 +1200,7 @@ echo "Secure initialization complete!"
     table.add_row("Project Path", str(config.path))
     table.add_row("IDE", config.preferred_ide.value)
     table.add_row("Base Image", config.base_image.value)
-    if 'custom_dockerfile' in locals() and custom_dockerfile:
+    if "custom_dockerfile" in locals() and custom_dockerfile:
         table.add_row("Custom Dockerfile", "Created")
     table.add_row("Network Isolation", "Enabled (always on)")
     if config.proxy.upstream:
@@ -962,7 +1209,7 @@ echo "Secure initialization complete!"
         table.add_row("Bypass Domains", ", ".join(config.proxy.no_proxy))
     if config.proxy.whitelist_domains:
         table.add_row("Extra Whitelist", ", ".join(config.proxy.whitelist_domains))
-    if 'create_secure_init' in locals() and create_secure_init:
+    if "create_secure_init" in locals() and create_secure_init:
         table.add_row("Initialization Script", "secure.init.sh created")
 
     console.print(table)
@@ -971,9 +1218,11 @@ echo "Secure initialization complete!"
     console.print("\n[bold]Next steps:[/bold]")
     console.print("1. Verify images: [cyan]ai-sbx image verify[/cyan]")
     console.print("2. [bold yellow]IMPORTANT:[/bold yellow] Commit the .devcontainer folder:")
-    console.print("   [cyan]git add .devcontainer && git commit -m \"Add devcontainer configuration\"[/cyan]")
+    console.print(
+        '   [cyan]git add .devcontainer && git commit -m "Add devcontainer configuration"[/cyan]'
+    )
     console.print("   [dim]This is required for worktrees to access the configuration[/dim]")
-    console.print("3. Create worktree: [cyan]ai-sbx worktree create \"task name\"[/cyan]")
+    console.print('3. Create worktree: [cyan]ai-sbx worktree create "task name"[/cyan]')
 
     if config.preferred_ide == IDE.VSCODE:
         console.print(f"4. Open in VS Code: [cyan]code {project_path}[/cyan]")
@@ -981,10 +1230,9 @@ echo "Secure initialization complete!"
     elif config.preferred_ide == IDE.PYCHARM:
         console.print("4. Open in PyCharm: Settings → Python Interpreter → Docker Compose")
     elif config.preferred_ide == IDE.DEVCONTAINER:
-        console.print(f"4. Open with DevContainer CLI: [cyan]devcontainer open {project_path}[/cyan]")
-
-
-import subprocess
+        console.print(
+            f"4. Open with DevContainer CLI: [cyan]devcontainer open {project_path}[/cyan]"
+        )
 
 
 def project_setup_impl(
@@ -994,24 +1242,24 @@ def project_setup_impl(
     verbose: bool = False,
 ) -> None:
     """Setup project permissions and environment for Docker.
-    
+
     This command sets up the necessary permissions and environment variables
     for running the project with Docker. It's automatically called by
     devcontainer when starting up.
     """
-    
+
     # Use current directory if no path provided
     if not path:
         path = Path.cwd()
-    
+
     path = path.resolve()
-    
+
     console.print(f"Setting up project: [cyan]{path.name}[/cyan]")
-    
+
     # Check if we're in a git worktree and handle mounts
     is_worktree = False
     parent_git_dir = None
-    
+
     # Check if this is a git worktree by looking for .git file (not directory)
     git_file = path / ".git"
     if git_file.is_file():
@@ -1021,31 +1269,27 @@ def project_setup_impl(
             if gitdir_content.startswith("gitdir:"):
                 gitdir_path = gitdir_content.replace("gitdir:", "").strip()
                 is_worktree = True
-                
+
                 # Extract parent git directory (remove /worktrees/... part)
                 if "/worktrees/" in gitdir_path:
                     parent_git_dir = gitdir_path.split("/worktrees/")[0]
                     console.print(f"[dim]Detected git worktree, parent: {parent_git_dir}[/dim]")
         except Exception as e:
-            logger.debug(f"Error reading .git file: {e}")
-    
+            console.print(f"[dim]Error reading .git file: {e}[/dim]", verbose=True)
+
     if is_worktree and not parent_git_dir:
         # Fallback method using git worktree list
         try:
             result = subprocess.run(
-                ["git", "worktree", "list"],
-                cwd=path,
-                capture_output=True,
-                text=True,
-                check=True
+                ["git", "worktree", "list"], cwd=path, capture_output=True, text=True, check=True
             )
             for line in result.stdout.splitlines():
                 if str(path) in line:
                     is_worktree = True
                     break
-        except:
+        except Exception:
             pass
-    
+
     # Create .env file if it doesn't exist
     env_file = path / ".devcontainer" / ".env"
     if not env_file.exists():
@@ -1056,47 +1300,47 @@ PROJECT_DIR={path}
 COMPOSE_PROJECT_NAME={path.name}
 """
         env_file.write_text(env_content)
-        console.print(f"[green]✓[/green] Created .env file")
+        console.print("[green]✓[/green] Created .env file")
     else:
-        console.print(f"[dim].env file already exists[/dim]")
-    
+        console.print("[dim].env file already exists[/dim]")
+
     # Handle git worktree mount configuration
     if is_worktree and parent_git_dir:
         override_file = path / ".devcontainer" / "override.user.yaml"
-        
+
         try:
             import yaml
-            
+
             # Load existing override file or create new structure
             if override_file.exists():
-                with open(override_file, 'r') as f:
+                with open(override_file) as f:
                     override_config = yaml.safe_load(f) or {}
             else:
                 override_config = {}
-            
+
             # Ensure structure exists
-            if 'services' not in override_config:
-                override_config['services'] = {}
-            if 'devcontainer' not in override_config['services']:
-                override_config['services']['devcontainer'] = {}
-            if 'volumes' not in override_config['services']['devcontainer']:
-                override_config['services']['devcontainer']['volumes'] = []
-            
+            if "services" not in override_config:
+                override_config["services"] = {}
+            if "devcontainer" not in override_config["services"]:
+                override_config["services"]["devcontainer"] = {}
+            if "volumes" not in override_config["services"]["devcontainer"]:
+                override_config["services"]["devcontainer"]["volumes"] = []
+
             # Add parent git mount if not already present
             mount_entry = f"{parent_git_dir}:{parent_git_dir}"
-            volumes = override_config['services']['devcontainer']['volumes']
-            
+            volumes = override_config["services"]["devcontainer"]["volumes"]
+
             if mount_entry not in volumes:
                 volumes.append(mount_entry)
-                
+
                 # Write updated configuration
-                with open(override_file, 'w') as f:
+                with open(override_file, "w") as f:
                     yaml.safe_dump(override_config, f, default_flow_style=False, sort_keys=False)
-                
-                console.print(f"[green]✓[/green] Added git worktree mount to override.user.yaml")
+
+                console.print("[green]✓[/green] Added git worktree mount to override.user.yaml")
             else:
-                console.print(f"[dim]Git worktree mount already configured[/dim]")
-            
+                console.print("[dim]Git worktree mount already configured[/dim]")
+
             # Check if we need to configure git safe.directory in running container
             # This is needed when the container is already running and we just added the mount
             try:
@@ -1106,32 +1350,44 @@ COMPOSE_PROJECT_NAME={path.name}
                     ["docker", "ps", "--format", "{{.Names}}"],
                     capture_output=True,
                     text=True,
-                    check=False
+                    check=False,
                 )
                 if container_name in result.stdout:
                     # Configure git safe.directory in the running container
                     subprocess.run(
-                        ["docker", "exec", container_name, "git", "config", "--global", "--add", "safe.directory", "/workspace"],
+                        [
+                            "docker",
+                            "exec",
+                            container_name,
+                            "git",
+                            "config",
+                            "--global",
+                            "--add",
+                            "safe.directory",
+                            "/workspace",
+                        ],
                         capture_output=True,
-                        check=False
+                        check=False,
                     )
-                    console.print(f"[green]✓[/green] Configured git safe.directory in container")
+                    console.print("[green]✓[/green] Configured git safe.directory in container")
             except Exception:
                 pass  # Ignore errors, this is optional
-                
+
         except ImportError:
-            console.print(f"[yellow]⚠[/yellow] PyYAML not available - cannot configure git worktree mount")
-            console.print(f"[dim]Manual configuration needed in override.user.yaml:[/dim]")
-            console.print(f"[dim]  volumes:[/dim]")
+            console.print(
+                "[yellow]⚠[/yellow] PyYAML not available - cannot configure git worktree mount"
+            )
+            console.print("[dim]Manual configuration needed in override.user.yaml:[/dim]")
+            console.print("[dim]  volumes:[/dim]")
             console.print(f'[dim]    - "{parent_git_dir}:{parent_git_dir}"[/dim]')
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] Could not configure git worktree mount: {e}")
-    
+
     # Set permissions
     try:
         # Get global config for group name
         global_config = GlobalConfig.load()
-        
+
         # Set group permissions on entire project directory (best-effort, ignore failures)
         run_command(
             ["chgrp", "-R", global_config.group_name, str(path)],
@@ -1149,15 +1405,15 @@ COMPOSE_PROJECT_NAME={path.name}
             check=False,
             capture_output=True,
         )
-        
+
         # Make scripts executable
         for script in (path / ".devcontainer").glob("*.sh"):
             script.chmod(0o755)
-        
-        console.print(f"[green]✓[/green] Permissions configured")
+
+        console.print("[green]✓[/green] Permissions configured")
     except Exception as e:
         console.print(f"[yellow]⚠[/yellow] Could not set all permissions: {e}")
-    
+
     # Start docker-proxy if not running (unless skipped)
     if not skip_proxy:
         try:
@@ -1166,20 +1422,26 @@ COMPOSE_PROJECT_NAME={path.name}
                 ["docker", "ps", "--format", "{{.Names}}"],
                 capture_output=True,
                 text=True,
-                check=False
+                check=False,
             )
             if "ai-sbx-docker-proxy" not in result.stdout:
                 console.print("[dim]Starting docker-proxy...[/dim]")
                 subprocess.run(
-                    ["docker", "compose", "-f", "/usr/local/share/ai-agents-sandbox/docker-proxy/docker-compose.yaml", "up", "-d"],
+                    [
+                        "docker",
+                        "compose",
+                        "-f",
+                        "/usr/local/share/ai-agents-sandbox/docker-proxy/docker-compose.yaml",
+                        "up",
+                        "-d",
+                    ],
                     capture_output=True,
-                    check=False
+                    check=False,
                 )
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] Could not start docker-proxy: {e}")
-    
-    console.print("[green]✓[/green] Project setup complete")
 
+    console.print("[green]✓[/green] Project setup complete")
 
 
 # Wrapper functions for CLI
@@ -1188,10 +1450,14 @@ def run_global_init(console: Console, verbose: bool = False) -> None:
     init_global(console, wizard=False, force=False, verbose=verbose)
 
 
-def run_project_init(console: Console, path: str, force: bool = False, verbose: bool = False) -> None:
+def run_project_init(
+    console: Console, path: str, force: bool = False, verbose: bool = False
+) -> None:
     """Run project initialization."""
     project_path = Path(path).resolve()
-    init_project(console, project_path, wizard=False, base_image=None, ide=None, force=force, verbose=verbose)
+    init_project(
+        console, project_path, wizard=False, base_image=None, ide=None, force=force, verbose=verbose
+    )
 
 
 def run_worktree_init(console: Console, path: str, verbose: bool = False) -> None:

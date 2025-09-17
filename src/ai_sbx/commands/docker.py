@@ -33,7 +33,7 @@ def docker() -> None:
 @click.option(
     "--environment",
     type=click.Choice([v.value for v in BaseImage]),
-    help="Development environment to build (base, dotnet, golang)"
+    help="Development environment to build (base, dotnet, golang)",
 )
 @click.option("--all", is_flag=True, help="Build all image environments including support images")
 @click.option("--no-cache", is_flag=True, help="Build without using cache")
@@ -83,7 +83,7 @@ def build(
     if not is_docker_running():
         console.print("[red]Docker is not running. Please start Docker first.[/red]")
         sys.exit(1)
-    
+
     # Verify mode - just check if images exist
     if verify:
         return _verify_images(console, environment, all, tag)
@@ -119,37 +119,48 @@ def build(
 
         # Build order: supporting images first, then base, then environments
         images_to_build = []
-        
+
         # Always build supporting images first
         if all or any(v for v in environments_to_build):
-            images_to_build.extend([
-                ("tinyproxy-base", "images/tinyproxy-base", "ai-agents-sandbox/tinyproxy-base"),
-                ("tinyproxy", "images/tinyproxy", "ai-agents-sandbox/tinyproxy"),
-                ("tinyproxy-registry", "images/tinyproxy-registry", "ai-agents-sandbox/tinyproxy-registry"),
-                ("docker-dind", "images/docker-dind", "ai-agents-sandbox/docker-dind"),
-            ])
-        
+            images_to_build.extend(
+                [
+                    ("tinyproxy-base", "images/tinyproxy-base", "ai-agents-sandbox/tinyproxy-base"),
+                    ("tinyproxy", "images/tinyproxy", "ai-agents-sandbox/tinyproxy"),
+                    (
+                        "tinyproxy-registry",
+                        "images/tinyproxy-registry",
+                        "ai-agents-sandbox/tinyproxy-registry",
+                    ),
+                    ("docker-dind", "images/docker-dind", "ai-agents-sandbox/docker-dind"),
+                ]
+            )
+
         # Add environment images
         for environment in environments_to_build:
             spec = _get_environment_image_spec(environment)
             if spec:
                 name, dockerfile_dir, image_repo = spec
                 images_to_build.append((name, dockerfile_dir, image_repo))
-        
+
         # Build all images
         for name, dockerfile_dir, image_repo in images_to_build:
             task = progress.add_task(f"Building {name}...", total=None)
-            
+
             # Check if dockerfile directory exists
             if not Path(dockerfile_dir).exists():
-                progress.update(task, description=f"[yellow]⚠[/yellow] Skipped {name} (directory not found)")
+                progress.update(
+                    task, description=f"[yellow]⚠[/yellow] Skipped {name} (directory not found)"
+                )
                 continue
-            
+
             # Check if image exists and skip if not forcing
             if not force and _image_exists(image_repo, tag):
-                progress.update(task, description=f"[yellow]⚠[/yellow] {name} already exists (use --force to rebuild)")
+                progress.update(
+                    task,
+                    description=f"[yellow]⚠[/yellow] {name} already exists (use --force to rebuild)",
+                )
                 continue
-            
+
             if _build_image(
                 image_repo,
                 dockerfile_dir,
@@ -413,7 +424,7 @@ def exec(ctx: click.Context, service: str, command: tuple[str, ...]) -> None:
 @click.pass_context
 def ps(ctx: click.Context) -> None:
     """List running containers for the current project.
-    
+
     Uses Docker's Go template format '{{json .}}' to output JSON lines,
     where each line is a separate JSON object representing a container.
     This format is more reliable than the plain 'json' format option.
@@ -562,28 +573,32 @@ def _image_exists(image_name: str, tag: str) -> bool:
             ["docker", "image", "inspect", f"{image_name}:{tag}"],
             capture_output=True,
             text=True,
-            check=False
+            check=False,
         )
         return result.returncode == 0
     except Exception:
         return False
 
 
-def _verify_images(console: Console, environment: Optional[str], all_images: bool, tag: str) -> None:
+def _verify_images(
+    console: Console, environment: Optional[str], all_images: bool, tag: str
+) -> None:
     """Verify that Docker images exist."""
     console.print("\n[bold cyan]Verifying Docker images[/bold cyan]\n")
-    
+
     images_to_check = []
-    
+
     # Add support images if checking all
     if all_images:
-        images_to_check.extend([
-            ("tinyproxy-base", "ai-agents-sandbox/tinyproxy-base"),
-            ("tinyproxy", "ai-agents-sandbox/tinyproxy"),
-            ("tinyproxy-registry", "ai-agents-sandbox/tinyproxy-registry"),
-            ("docker-dind", "ai-agents-sandbox/docker-dind"),
-        ])
-    
+        images_to_check.extend(
+            [
+                ("tinyproxy-base", "ai-agents-sandbox/tinyproxy-base"),
+                ("tinyproxy", "ai-agents-sandbox/tinyproxy"),
+                ("tinyproxy-registry", "ai-agents-sandbox/tinyproxy-registry"),
+                ("docker-dind", "ai-agents-sandbox/docker-dind"),
+            ]
+        )
+
     # Add environment images
     if all_images:
         for v in BaseImage:
@@ -603,11 +618,11 @@ def _verify_images(console: Console, environment: Optional[str], all_images: boo
         if spec:
             name, _, image_repo = spec
             images_to_check.append((name, image_repo))
-    
+
     # Check each image
     missing = []
     found = []
-    
+
     for name, image_repo in images_to_check:
         if _image_exists(image_repo, tag):
             # Get image size
@@ -616,7 +631,7 @@ def _verify_images(console: Console, environment: Optional[str], all_images: boo
                     ["docker", "image", "inspect", f"{image_repo}:{tag}", "--format={{.Size}}"],
                     capture_output=True,
                     text=True,
-                    check=True
+                    check=True,
                 )
                 size_bytes = int(result.stdout.strip())
                 size_mb = size_bytes / (1024 * 1024)
@@ -625,13 +640,13 @@ def _verify_images(console: Console, environment: Optional[str], all_images: boo
                 found.append((name, image_repo, "unknown"))
         else:
             missing.append((name, image_repo))
-    
+
     # Display results
     if found:
         console.print("[green]✓ Found images:[/green]")
         for name, repo, size in found:
             console.print(f"  • {repo}:{tag} ({size})")
-    
+
     if missing:
         console.print("\n[red]✗ Missing images:[/red]")
         for name, repo in missing:
@@ -730,17 +745,17 @@ def _get_environment_image_spec(environment: BaseImage) -> Optional[tuple[str, s
         BaseImage.BASE: (
             "devcontainer-base",
             "images/devcontainer-base",
-            "ai-agents-sandbox/devcontainer"
+            "ai-agents-sandbox/devcontainer",
         ),
         BaseImage.DOTNET: (
             "devcontainer-dotnet",
             "images/devcontainer-dotnet",
-            "ai-agents-sandbox/devcontainer-dotnet"
+            "ai-agents-sandbox/devcontainer-dotnet",
         ),
         BaseImage.GOLANG: (
             "devcontainer-golang",
             "images/devcontainer-golang",
-            "ai-agents-sandbox/devcontainer-golang"
+            "ai-agents-sandbox/devcontainer-golang",
         ),
     }
     return mapping.get(environment)

@@ -75,10 +75,10 @@ services:
       - docker-certs-client:/certs/client:ro
       
       # User configuration volumes
-      - ${HOME}/.ai_agents_sandbox:/host/.ai_agents_sandbox:ro
+      - ${HOME}/.ai-sbx:/host/.ai-sbx:ro
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
       - ${HOME}/.claude/projects/:/home/claude/.claude/projects
-      - ${HOME}/.ai_agents_sandbox/notifications:/home/claude/.ai_agents_sandbox/notifications
+      - ${HOME}/.ai-sbx/notifications:/home/claude/.ai-sbx/notifications
 
       # Persistent state volumes
       - cache:/home/claude/.cache

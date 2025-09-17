@@ -139,11 +139,11 @@ check_home_directory() {
     echo ""
     echo "Checking home subdirectories:"
     
-    # .ai_agents_sandbox directory
-    if [[ -d "$home/.ai_agents_sandbox" ]]; then
-        check_directory_permissions "$home/.ai_agents_sandbox" "$EXPECTED_USER" "$EXPECTED_USER" ".ai_agents_sandbox directory"
+    # .ai-sbx directory
+    if [[ -d "$home/.ai-sbx" ]]; then
+        check_directory_permissions "$home/.ai-sbx" "$EXPECTED_USER" "$EXPECTED_USER" ".ai-sbx directory"
     else
-        echo -e "${YELLOW}⚠${NC} .ai_agents_sandbox directory does not exist"
+        echo -e "${YELLOW}⚠${NC} .ai-sbx directory does not exist"
     fi
     
     # Check for important files

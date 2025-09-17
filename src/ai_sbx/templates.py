@@ -5,7 +5,7 @@ from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, Template
 
-from ai_sbx.config import ProjectConfig, get_default_whitelist_domains, BaseImage
+from ai_sbx.config import BaseImage, ProjectConfig, get_default_whitelist_domains
 from ai_sbx.utils import logger
 
 
@@ -148,7 +148,7 @@ services:
     "name": "{{ config.name }} - AI Agents Sandbox",
     "dockerComposeFile": [
         "local.project.yaml",
-        "/usr/local/share/ai-agents-sandbox/docker-compose.base.yaml",
+        "${HOME}/.ai-sbx/share/docker-compose.base.yaml",
         "override.user.yaml"
     ],
     "service": "devcontainer",

@@ -192,7 +192,7 @@ cython_debug/
 .ruff_cache/
 
 # AI Agents Sandbox runtime data
-.ai_agents_sandbox/
+.ai-sbx/
 
 # PyPI configuration file
 .pypirc

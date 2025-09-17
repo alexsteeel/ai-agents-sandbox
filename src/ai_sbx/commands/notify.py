@@ -25,10 +25,10 @@ def notify(ctx: click.Context, test: bool, daemon: bool) -> None:
     Examples:
         # Start notification watcher
         ai-sbx notify
-        
+
         # Send test notification
         ai-sbx notify --test
-        
+
         # Run as daemon
         ai-sbx notify -d
     """
@@ -41,7 +41,7 @@ def notify(ctx: click.Context, test: bool, daemon: bool) -> None:
 
     if daemon:
         # Fork to background (Unix-only)
-        if not hasattr(os, 'fork'):
+        if not hasattr(os, "fork"):
             console.print("[red]Daemon mode not supported on Windows[/red]")
             console.print("Run without -d flag: [cyan]ai-sbx notify[/cyan]")
             sys.exit(1)
@@ -63,7 +63,7 @@ def notify(ctx: click.Context, test: bool, daemon: bool) -> None:
 def send_test_notification(console: Console) -> None:
     """Send a test notification."""
     home = get_user_home()
-    notifications_dir = home / ".ai_agents_sandbox" / "notifications"
+    notifications_dir = home / ".ai-sbx" / "notifications"
 
     if not notifications_dir.exists():
         console.print("[red]Notifications directory does not exist[/red]")
@@ -86,7 +86,7 @@ def send_test_notification(console: Console) -> None:
 def start_notification_watcher(console: Console, verbose: bool) -> None:
     """Start the notification watcher."""
     home = get_user_home()
-    notifications_dir = home / ".ai_agents_sandbox" / "notifications"
+    notifications_dir = home / ".ai-sbx" / "notifications"
 
     if not notifications_dir.exists():
         console.print("[red]Notifications directory does not exist[/red]")

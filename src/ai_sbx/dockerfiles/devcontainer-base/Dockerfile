@@ -73,9 +73,9 @@ ENV DEVCONTAINER=true
 
 # Create workspace and config directories and set permissions
 # Pre-create config.json to prevent it being created as root later
-RUN mkdir -p /workspace /home/$USERNAME/.ai_agents_sandbox /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker && \
+RUN mkdir -p /workspace /home/$USERNAME/.ai-sbx /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker && \
   echo '{}' > /home/$USERNAME/.docker/config.json && \
-  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.ai_agents_sandbox /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker
+  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.ai-sbx /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker
 
 WORKDIR /workspace
 
