@@ -256,7 +256,6 @@ def remove(
 
     if not worktrees:
         console.print("[yellow]No worktrees found to remove[/yellow]")
-        console.print("[dim]The main repository cannot be removed[/dim]")
         return
 
     # Filter worktrees to remove
@@ -907,7 +906,7 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = F
         from ai_sbx.utils import check_docker_images, prompt_build_images
 
         # Get the image tag from environment or use default
-        image_tag = os.environ.get("IMAGE_TAG", "1.0.3")
+        image_tag = os.environ.get("IMAGE_TAG", "1.0.0")
         required_images = [
             f"ai-agents-sandbox/devcontainer:{image_tag}",
             f"ai-agents-sandbox/tinyproxy:{image_tag}",
@@ -940,10 +939,44 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = F
             console.print("Starting DevContainer...")
             console.print("[dim]This may take a few moments...[/dim]")
 
-            # Use subprocess.run directly for interactive output
-            result = subprocess.run(
-                ["devcontainer", "up", "--workspace-folder", "."], cwd=worktree_path
-            )
+            # Check if devcontainer CLI works (quick test with timeout)
+            devcontainer_works = False
+            try:
+                test_result = subprocess.run(
+                    ["timeout", "2", "devcontainer", "--version"],
+                    capture_output=True,
+                    text=True,
+                    cwd=worktree_path,
+                )
+                if test_result.returncode == 0 and test_result.stdout.strip():
+                    devcontainer_works = True
+            except Exception:
+                pass
+
+            if devcontainer_works:
+                # Use devcontainer CLI if it works
+                result = subprocess.run(
+                    ["devcontainer", "up", "--workspace-folder", "."], cwd=worktree_path
+                )
+            else:
+                # Fallback to docker-compose
+                console.print(
+                    "[yellow]DevContainer CLI not responding, using docker-compose directly[/yellow]"
+                )
+                devcontainer_dir = worktree_path / ".devcontainer"
+                result = subprocess.run(
+                    [
+                        "docker",
+                        "compose",
+                        "-f",
+                        "docker-compose.base.yaml",
+                        "-f",
+                        "docker-compose.override.yaml",
+                        "up",
+                        "-d",
+                    ],
+                    cwd=devcontainer_dir,
+                )
 
             if result.returncode != 0:
                 console.print(
@@ -958,9 +991,16 @@ def _open_ide(worktree_path: Path, ide: IDE, console: Console, verbose: bool = F
             console.print("[cyan]Opening shell in DevContainer...[/cyan]")
             console.print("[dim]Type 'exit' to leave the container[/dim]\n")
 
-            subprocess.run(
-                ["devcontainer", "exec", "--workspace-folder", ".", "/bin/zsh"], cwd=worktree_path
-            )
+            if devcontainer_works:
+                subprocess.run(
+                    ["devcontainer", "exec", "--workspace-folder", ".", "/bin/zsh"], cwd=worktree_path
+                )
+            else:
+                # Use docker exec directly
+                project_name = worktree_path.name
+                subprocess.run(
+                    ["docker", "exec", "-it", f"{project_name}-devcontainer-1", "/bin/zsh"]
+                )
 
             os.chdir(original_cwd)
             console.print("\n[green]DevContainer session ended[/green]")

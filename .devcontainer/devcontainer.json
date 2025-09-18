@@ -1,9 +1,6 @@
 {
   "name": "${localWorkspaceFolderBasename} - Claude Code Sandbox",
-  "dockerComposeFile": ["local.project.yaml",
-    "/usr/local/share/ai-agents-sandbox/docker-compose.base.yaml",
-    "override.user.yaml",
-  ],
+  "dockerComposeFile": ["docker-compose.base.yaml", "docker-compose.override.yaml"],
   "service": "devcontainer",
   "workspaceFolder": "/workspace",
   "shutdownAction": "stopCompose",

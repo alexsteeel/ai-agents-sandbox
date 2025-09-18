@@ -63,8 +63,7 @@ class TemplateManager:
             "Dockerfile": self._generate_dockerfile(config),
             ".env": self._generate_env_file(config),
             ".gitignore": self._generate_gitignore(),
-            "local.project.yaml": "services: {}\n",  # Empty local overrides
-            "override.user.yaml": self._generate_user_override(config),
+            "docker-compose.override.yaml": self._generate_user_override(config),
             "init-project.sh": self._generate_init_script(config),
             "ai-sbx.yaml.template": self._generate_config_template(config),
         }
@@ -97,9 +96,8 @@ class TemplateManager:
 .env
 .user.env
 
-# Generated docker-compose file (should not exist, using dockerComposeFile array in devcontainer.json)
-docker-compose.yaml
-docker-compose.yml
+# Copied base compose file (do not edit, regenerate with ai-sbx init worktree)
+docker-compose.base.yaml
 
 # Local project configuration (contains machine-specific paths)
 ai-sbx.yaml
@@ -107,11 +105,11 @@ ai-sbx.yaml
 # Security-sensitive initialization script (contains secrets/credentials)
 secure.init.sh
 
-# NOTE: override.user.yaml is NOT ignored - it contains common project overrides
+# NOTE: docker-compose.override.yaml is NOT ignored - it contains common project overrides
 """
 
     def _generate_user_override(self, config: ProjectConfig) -> str:
-        """Generate override.user.yaml with common project overrides."""
+        """Generate docker-compose.override.yaml with common project overrides."""
         # Check if Claude settings should be mounted
         mount_claude = config.environment.get("MOUNT_CLAUDE_SETTINGS") == "true"
 
@@ -120,7 +118,15 @@ secure.init.sh
 # Add project-specific configuration here
 
 services:
-  devcontainer:"""
+  tinyproxy-devcontainer:
+    environment:
+      # Add your project-specific domains here (comma or space separated)
+      USER_WHITELIST_DOMAINS: ""  # e.g. "api.example.com,cdn.example.com"
+
+  devcontainer:
+    build:
+      context: .
+      dockerfile: Dockerfile"""
 
         if mount_claude:
             base_content += """
@@ -146,11 +152,7 @@ services:
         """Generate devcontainer.json content."""
         template = """{
     "name": "{{ config.name }} - AI Agents Sandbox",
-    "dockerComposeFile": [
-        "local.project.yaml",
-        "${HOME}/.ai-sbx/share/docker-compose.base.yaml",
-        "override.user.yaml"
-    ],
+    "dockerComposeFile": ["docker-compose.base.yaml", "docker-compose.override.yaml"],
     "service": "devcontainer",
     "workspaceFolder": "/workspace",
     "shutdownAction": "stopCompose",

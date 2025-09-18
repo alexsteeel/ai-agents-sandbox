@@ -95,7 +95,7 @@ During project setup, if you have `~/.claude/` on your host:
 During `ai-sbx init global --wizard`:
 - Configure custom Docker registries for caching (e.g., proget.company.com)
 - Specify custom docker-registry-proxy image with embedded CA certificates
-- Automatically creates `.env` file at `/usr/local/share/ai-agents-sandbox/docker-proxy/.env`
+- Automatically creates `.env` file at `~/.ai-sbx/docker-proxy/.env`
 
 Example configuration:
 ```bash
@@ -128,7 +128,7 @@ The doctor command now reports:
 
 **Need upstream proxy:** Configure in `.devcontainer/ai-sbx.yaml`, run `ai-sbx init update`
 
-**Custom registry issues:** Check `/usr/local/share/ai-agents-sandbox/docker-proxy/.env` exists and contains your registries
+**Custom registry issues:** Check `~/.ai-sbx/docker-proxy/.env` exists and contains your registries
 
 ## Project Structure
 

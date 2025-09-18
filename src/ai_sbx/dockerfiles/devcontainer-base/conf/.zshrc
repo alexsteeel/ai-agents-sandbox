@@ -28,4 +28,4 @@ source $ZSH/oh-my-zsh.sh
 
 # Aliases for Claude and Codex
 alias claude='claude --dangerously-skip-permissions'
-alias codex='codex --dangerously-skip-permissions'
+alias codex='codex --profile gpt-5-codex'

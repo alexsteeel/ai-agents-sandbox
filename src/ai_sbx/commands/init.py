@@ -1052,8 +1052,8 @@ USER claude
             dockerfile_path.write_text(dockerfile_content)
             progress.update(task, description="[green]✓[/green] Custom Dockerfile created")
 
-            # Update override.user.yaml to use the custom Dockerfile
-            override_file = devcontainer_dir / "override.user.yaml"
+            # Update docker-compose.override.yaml to use the custom Dockerfile
+            override_file = devcontainer_dir / "docker-compose.override.yaml"
             try:
                 import yaml
 
@@ -1083,14 +1083,14 @@ USER claude
 
                 progress.update(
                     task,
-                    description="[green]✓[/green] Updated override.user.yaml for custom Dockerfile",
+                    description="[green]✓[/green] Updated docker-compose.override.yaml for custom Dockerfile",
                 )
             except ImportError:
                 progress.update(
-                    task, description="[yellow]⚠[/yellow] Could not update override.user.yaml"
+                    task, description="[yellow]⚠[/yellow] Could not update docker-compose.override.yaml"
                 )
                 console.print(
-                    "[yellow]Please manually add build configuration to override.user.yaml[/yellow]"
+                    "[yellow]Please manually add build configuration to docker-compose.override.yaml[/yellow]"
                 )
 
         # Create secure.init.sh if requested
@@ -1304,9 +1304,19 @@ COMPOSE_PROJECT_NAME={path.name}
     else:
         console.print("[dim].env file already exists[/dim]")
 
+    # Copy docker-compose.base.yaml to project
+    devcontainer_dir = path / ".devcontainer"
+    compose_base = devcontainer_dir / "docker-compose.base.yaml"
+    base_source = Path.home() / ".ai-sbx" / "share" / "docker-compose.base.yaml"
+
+    if not compose_base.exists() and base_source.exists():
+        import shutil
+        shutil.copy2(base_source, compose_base)
+        console.print("[green]✓[/green] Copied docker-compose.base.yaml")
+
     # Handle git worktree mount configuration
     if is_worktree and parent_git_dir:
-        override_file = path / ".devcontainer" / "override.user.yaml"
+        override_file = path / ".devcontainer" / "docker-compose.override.yaml"
 
         try:
             import yaml
@@ -1337,7 +1347,7 @@ COMPOSE_PROJECT_NAME={path.name}
                 with open(override_file, "w") as f:
                     yaml.safe_dump(override_config, f, default_flow_style=False, sort_keys=False)
 
-                console.print("[green]✓[/green] Added git worktree mount to override.user.yaml")
+                console.print("[green]✓[/green] Added git worktree mount to docker-compose.override.yaml")
             else:
                 console.print("[dim]Git worktree mount already configured[/dim]")
 
@@ -1377,7 +1387,7 @@ COMPOSE_PROJECT_NAME={path.name}
             console.print(
                 "[yellow]⚠[/yellow] PyYAML not available - cannot configure git worktree mount"
             )
-            console.print("[dim]Manual configuration needed in override.user.yaml:[/dim]")
+            console.print("[dim]Manual configuration needed in docker-compose.override.yaml:[/dim]")
             console.print("[dim]  volumes:[/dim]")
             console.print(f'[dim]    - "{parent_git_dir}:{parent_git_dir}"[/dim]')
         except Exception as e:
@@ -1431,7 +1441,7 @@ COMPOSE_PROJECT_NAME={path.name}
                         "docker",
                         "compose",
                         "-f",
-                        "/usr/local/share/ai-agents-sandbox/docker-proxy/docker-compose.yaml",
+                        str(Path.home() / ".ai-sbx" / "docker-proxy" / "docker-compose.yaml"),
                         "up",
                         "-d",
                     ],
