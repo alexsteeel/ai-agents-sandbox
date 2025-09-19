@@ -18,7 +18,7 @@ cp .env.example .env
 # Edit .env as needed
 
 # Initialize (first time only)
-./init-project.sh /path/to/your-project
+./init.sh /path/to/your-project
 
 # Start services
 docker compose up -d
@@ -30,7 +30,7 @@ The devcontainer can also be started using the DevContainer CLI:
 devcontainer up --workspace-folder .
 ```
 
-**Note**: The `init-project.sh` script accepts the project directory as an argument, which is automatically passed by `devcontainer.json` during initialization.
+**Note**: The `init.sh` script accepts the project directory as an argument, which is automatically passed by `devcontainer.json` during initialization.
 
 ## Configuration Files
 
@@ -126,7 +126,7 @@ One-time setup script that performs critical host setup:
 
 Run once per project:
 ```bash
-./init-project.sh /absolute/path/to/project
+./init.sh /absolute/path/to/project
 ```
 
 This script MUST be run before starting the devcontainer to ensure proper permissions.

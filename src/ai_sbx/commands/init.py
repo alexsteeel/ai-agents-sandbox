@@ -2,7 +2,6 @@
 
 import subprocess
 import sys
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -711,6 +710,12 @@ def init_project(
         console.print("\n[bold]Step 2: Development Environment[/bold]")
         console.print("[dim]Choose the base image that matches your technology stack[/dim]")
 
+        # Determine default selection based on existing config
+        default_base_image = config.base_image.value if config.base_image.value != "custom" else "base"
+        # If reconfiguring and has custom Docker image, default to "custom_image"
+        if existing_config and "CUSTOM_DOCKER_IMAGE" in existing_config.environment:
+            default_base_image = "custom_image"
+
         env_questions = [
             inquirer.List(
                 "base_image",
@@ -720,8 +725,9 @@ def init_project(
                     (".NET (Base + C#/.NET SDK)", "dotnet"),
                     ("Go (Base + Go compiler)", "golang"),
                     ("Custom (create your own Dockerfile)", "custom"),
+                    ("Custom Docker Image (use existing image:tag)", "custom_image"),
                 ],
-                default=config.base_image.value if config.base_image.value != "custom" else "base",
+                default=default_base_image,
             ),
         ]
 
@@ -731,7 +737,40 @@ def init_project(
             return
 
         custom_dockerfile = False
-        if env_answers["base_image"] == "custom":
+        custom_docker_image = None
+
+        if env_answers["base_image"] == "custom_image":
+            # User wants to use a custom Docker image
+            console.print("\n[dim]Enter the Docker image name with tag (e.g., myregistry/myimage:1.0)[/dim]")
+
+            # Auto-fill with existing custom image if reconfiguring
+            default_custom_image = ""
+            if existing_config and "CUSTOM_DOCKER_IMAGE" in existing_config.environment:
+                default_custom_image = existing_config.environment["CUSTOM_DOCKER_IMAGE"]
+                console.print(f"[dim]Current custom image: {default_custom_image}[/dim]")
+
+            image_questions = [
+                inquirer.Text(
+                    "custom_image",
+                    message="Docker image:tag",
+                    default=default_custom_image,
+                    validate=lambda _, x: ":" in x or "Image must include a tag (e.g., image:tag)",
+                ),
+            ]
+
+            image_answers = inquirer.prompt(image_questions)
+            if not image_answers:
+                console.print("[red]Setup cancelled.[/red]")
+                return
+
+            custom_docker_image = image_answers["custom_image"]
+            # Store the custom image in config environment
+            config.environment["CUSTOM_DOCKER_IMAGE"] = custom_docker_image
+            # Set base_image to base as a fallback
+            config.base_image = BaseImage("base")
+            console.print(f"[green]✓ Will use custom image: {custom_docker_image}[/green]")
+
+        elif env_answers["base_image"] == "custom":
             # User selected custom, so they definitely want a Dockerfile
             custom_dockerfile = True
             console.print("\n[dim]A custom Dockerfile will be created for you to modify[/dim]")
@@ -755,6 +794,46 @@ def init_project(
                 config.base_image = BaseImage(custom_answers["custom_base"])
         else:
             config.base_image = BaseImage(env_answers["base_image"])
+
+        # Step 2.4: Ask about custom Docker-in-Docker image
+        console.print("\n[bold]Step 2.4: Docker-in-Docker Configuration[/bold]")
+        console.print("[dim]Docker-in-Docker allows running Docker commands inside the container[/dim]")
+
+        # Auto-fill with existing custom dind image if reconfiguring
+        default_custom_dind = ""
+        if existing_config and "CUSTOM_DIND_IMAGE" in existing_config.environment:
+            default_custom_dind = existing_config.environment["CUSTOM_DIND_IMAGE"]
+
+        dind_questions = [
+            inquirer.Confirm(
+                "use_custom_dind",
+                message="Use a custom Docker-in-Docker image?",
+                default=bool(default_custom_dind),
+            ),
+        ]
+
+        dind_answers = inquirer.prompt(dind_questions)
+        if dind_answers and dind_answers.get("use_custom_dind"):
+            if default_custom_dind:
+                console.print(f"[dim]Current custom DinD image: {default_custom_dind}[/dim]")
+
+            dind_image_questions = [
+                inquirer.Text(
+                    "custom_dind",
+                    message="Docker-in-Docker image:tag",
+                    default=default_custom_dind or "docker:dind",
+                    validate=lambda _, x: ":" in x or "Image must include a tag (e.g., docker:dind)",
+                ),
+            ]
+
+            dind_image_answers = inquirer.prompt(dind_image_questions)
+            if dind_image_answers and dind_image_answers["custom_dind"]:
+                config.environment["CUSTOM_DIND_IMAGE"] = dind_image_answers["custom_dind"]
+                console.print(f"[green]✓ Will use custom DinD image: {dind_image_answers['custom_dind']}[/green]")
+        elif existing_config and "CUSTOM_DIND_IMAGE" in existing_config.environment:
+            # User said no to custom dind, but had one before - remove it
+            if "CUSTOM_DIND_IMAGE" in config.environment:
+                del config.environment["CUSTOM_DIND_IMAGE"]
 
         # Step 2.5: Check for Claude settings on host
         console.print("\n[bold]Step 2.5: Claude Code Settings[/bold]")
@@ -947,18 +1026,64 @@ def init_project(
         console.print("\n[bold]Step 5: Security & Initialization[/bold]")
         console.print("[dim]Configure additional security and initialization options[/dim]")
 
-        security_questions = [
-            inquirer.Confirm(
-                "create_secure_init",
-                message="Create secure.init.sh for custom initialization?",
-                default=False,
-            ),
-        ]
+        # Check if init.secure.sh already exists
+        secure_init_path = devcontainer_dir / "init.secure.sh"
+        init_secure_exists = secure_init_path.exists()
+
+        if init_secure_exists:
+            # File exists - ask whether to keep or replace
+            security_questions = [
+                inquirer.List(
+                    "init_secure_action",
+                    message="init.secure.sh already exists. What would you like to do?",
+                    choices=[
+                        ("Keep existing file (no changes)", "keep"),
+                        ("Replace with new template", "replace"),
+                        ("View existing file first", "view"),
+                    ],
+                    default="keep",
+                ),
+            ]
+        else:
+            # File doesn't exist - ask whether to create
+            security_questions = [
+                inquirer.Confirm(
+                    "create_secure_init",
+                    message="Create init.secure.sh for custom initialization?",
+                    default=False,
+                ),
+            ]
 
         security_answers = inquirer.prompt(security_questions)
-        create_secure_init = (
-            security_answers.get("create_secure_init", False) if security_answers else False
-        )
+
+        # Handle the response
+        create_secure_init = False
+        if security_answers:
+            if init_secure_exists:
+                if security_answers.get("init_secure_action") == "view":
+                    # Show the existing file content
+                    console.print("\n[cyan]Current init.secure.sh content:[/cyan]")
+                    console.print("[dim]" + "-" * 60 + "[/dim]")
+                    with open(secure_init_path) as f:
+                        console.print(f.read())
+                    console.print("[dim]" + "-" * 60 + "[/dim]\n")
+
+                    # Ask again after viewing
+                    replace_questions = [
+                        inquirer.Confirm(
+                            "replace_after_view",
+                            message="Replace with new template?",
+                            default=False,
+                        ),
+                    ]
+                    replace_answers = inquirer.prompt(replace_questions)
+                    if replace_answers and replace_answers.get("replace_after_view"):
+                        create_secure_init = True
+                elif security_answers.get("init_secure_action") == "replace":
+                    create_secure_init = True
+                # "keep" means create_secure_init stays False
+            else:
+                create_secure_init = security_answers.get("create_secure_init", False)
     else:
         custom_dockerfile = False
         create_secure_init = False
@@ -987,6 +1112,7 @@ def init_project(
             devcontainer_dir,
             config,
             force=force,
+            custom_dockerfile=custom_dockerfile if "custom_dockerfile" in locals() else False,
         )
 
         if files_created:
@@ -994,154 +1120,61 @@ def init_project(
         else:
             progress.update(task, description="[yellow]⚠[/yellow] Some files already exist")
 
+        # Copy docker-compose.base.yaml from global share
+        task = progress.add_task("Copying docker-compose.base.yaml...", total=None)
+        compose_base = devcontainer_dir / "docker-compose.base.yaml"
+        base_source = Path.home() / ".ai-sbx" / "share" / "docker-compose.base.yaml"
+
+        if base_source.exists():
+            if not compose_base.exists() or force:
+                import shutil
+                shutil.copy2(base_source, compose_base)
+                progress.update(task, description="[green]✓[/green] Copied docker-compose.base.yaml")
+            else:
+                progress.update(task, description="[yellow]⚠[/yellow] docker-compose.base.yaml already exists")
+        else:
+            progress.update(task, description="[red]✗[/red] docker-compose.base.yaml not found in global share")
+            console.print("[yellow]Run 'ai-sbx init global' first to set up global resources[/yellow]")
+
         # Save project config
         task = progress.add_task("Saving project configuration...", total=None)
         save_project_config(config)
         progress.update(task, description="[green]✓[/green] Configuration saved")
 
-        # Create custom Dockerfile if requested
-        if "custom_dockerfile" in locals() and custom_dockerfile:
-            task = progress.add_task("Creating custom Dockerfile...", total=None)
-            dockerfile_path = devcontainer_dir / "Dockerfile"
-
-            # Determine the base image name
-            base_image_tag = config.docker.image_tag
-            base_image_prefix = config.docker.image_prefix
-            base_image_name = f"{base_image_prefix}/devcontainer"
-            if config.base_image == BaseImage.DOTNET:
-                base_image_name = f"{base_image_prefix}/devcontainer-dotnet"
-            elif config.base_image == BaseImage.GOLANG:
-                base_image_name = f"{base_image_prefix}/devcontainer-golang"
-
-            # Build Dockerfile content
-            dockerfile_content = f"""# Custom Dockerfile extending {config.base_image.value} base image
-FROM {base_image_name}:{base_image_tag}
-
-# Switch to root for system-level changes
-USER root
-
-# Add your custom packages and configurations here
-# Example: Install additional tools
-# RUN apt-get update && apt-get install -y \\
-#     your-package \\
-#     && rm -rf /var/lib/apt/lists/*
-
-# Example: Install Python packages globally
-# RUN pip install --no-cache-dir \\
-#     pandas \\
-#     numpy
-
-# Example: Install Node packages globally
-# RUN npm install -g \\
-#     typescript \\
-#     @angular/cli
-
-# Example: Copy custom configuration files
-# COPY ./custom-config /home/claude/.config
-"""
-
-            # Add footer
-            dockerfile_content += """
-# Switch back to non-root user
-USER claude
-
-# Set any additional environment variables
-# ENV MY_CUSTOM_VAR="value"
-"""
-
-            dockerfile_path.write_text(dockerfile_content)
-            progress.update(task, description="[green]✓[/green] Custom Dockerfile created")
-
-            # Update docker-compose.override.yaml to use the custom Dockerfile
-            override_file = devcontainer_dir / "docker-compose.override.yaml"
-            try:
-                import yaml
-
-                if override_file.exists():
-                    with open(override_file) as f:
-                        override_config = yaml.safe_load(f) or {}
-                else:
-                    override_config = {}
-
-                # Ensure structure exists
-                if "services" not in override_config:
-                    override_config["services"] = {}
-                if "devcontainer" not in override_config["services"]:
-                    override_config["services"]["devcontainer"] = {}
-                elif override_config["services"]["devcontainer"] is None:
-                    override_config["services"]["devcontainer"] = {}
-
-                # Add build context
-                override_config["services"]["devcontainer"]["build"] = {
-                    "context": ".",
-                    "dockerfile": "Dockerfile",
-                }
-
-                # Write updated configuration
-                with open(override_file, "w") as f:
-                    yaml.safe_dump(override_config, f, default_flow_style=False, sort_keys=False)
-
-                progress.update(
-                    task,
-                    description="[green]✓[/green] Updated docker-compose.override.yaml for custom Dockerfile",
-                )
-            except ImportError:
-                progress.update(
-                    task, description="[yellow]⚠[/yellow] Could not update docker-compose.override.yaml"
-                )
-                console.print(
-                    "[yellow]Please manually add build configuration to docker-compose.override.yaml[/yellow]"
-                )
-
-        # Create secure.init.sh if requested
+        # Create init.secure.sh if requested
         if "create_secure_init" in locals() and create_secure_init:
-            task = progress.add_task("Creating secure.init.sh...", total=None)
-            secure_init_path = devcontainer_dir / "secure.init.sh"
+            task = progress.add_task("Creating init.secure.sh...", total=None)
+            secure_init_path = devcontainer_dir / "init.secure.sh"
 
             secure_init_content = """#!/bin/bash
-# secure.init.sh - Custom initialization script for the devcontainer
-# This script runs during container startup with non-root privileges
+# Custom initialization script for the devcontainer
+# Runs during container startup as 'claude' user (non-root)
 
 set -e  # Exit on error
 
-echo "Running secure initialization..."
+echo "Running project initialization..."
 
-# Add your custom initialization commands here
-# Note: This runs as the 'claude' user, not root
+# Add your custom initialization commands below:
 
-# Example: Set up project-specific environment
-# export PROJECT_ENV="development"
+# Install dependencies
+# pip install --user -r requirements.txt
+# npm install
 
-# Example: Create necessary directories
-# mkdir -p ~/project-data
-
-# Example: Install project dependencies
-# if [ -f "requirements.txt" ]; then
-#     pip install --user -r requirements.txt
-# fi
-
-# Example: Run setup scripts
-# if [ -f "./scripts/setup.sh" ]; then
-#     ./scripts/setup.sh
-# fi
-
-# Example: Configure git for this project
+# Set up git
 # git config user.name "Your Name"
 # git config user.email "your.email@example.com"
 
-# Example: Set up pre-commit hooks
-# if [ -f ".pre-commit-config.yaml" ]; then
-#     pre-commit install
-# fi
+# Run project setup
+# ./scripts/setup.sh
 
-echo "Secure initialization complete!"
+echo "Initialization complete!"
 """
 
             secure_init_path.write_text(secure_init_content)
             secure_init_path.chmod(0o755)
-            progress.update(task, description="[green]✓[/green] secure.init.sh created")
+            progress.update(task, description="[green]✓[/green] init.secure.sh created")
 
-            # Update ai-sbx.yaml to include the secure.init.sh
+            # Update ai-sbx.yaml to include the init.secure.sh
             config_file = devcontainer_dir / "ai-sbx.yaml"
             if config_file.exists():
                 try:
@@ -1153,17 +1186,17 @@ echo "Secure initialization complete!"
                     # Add initialization script to config
                     if "initialization" not in yaml_config:
                         yaml_config["initialization"] = {}
-                    yaml_config["initialization"]["script"] = "./secure.init.sh"
+                    yaml_config["initialization"]["script"] = "./init.secure.sh"
 
                     with open(config_file, "w") as f:
                         yaml.safe_dump(yaml_config, f, default_flow_style=False, sort_keys=False)
 
                     progress.update(
-                        task, description="[green]✓[/green] Updated ai-sbx.yaml with secure.init.sh"
+                        task, description="[green]✓[/green] Updated ai-sbx.yaml with init.secure.sh"
                     )
                 except Exception:
                     console.print(
-                        "[yellow]Note: Please add './secure.init.sh' to your initialization scripts[/yellow]"
+                        "[yellow]Note: Please add './init.secure.sh' to your initialization scripts[/yellow]"
                     )
 
         # Set permissions
@@ -1202,6 +1235,10 @@ echo "Secure initialization complete!"
     table.add_row("Base Image", config.base_image.value)
     if "custom_dockerfile" in locals() and custom_dockerfile:
         table.add_row("Custom Dockerfile", "Created")
+    if "CUSTOM_DOCKER_IMAGE" in config.environment:
+        table.add_row("Custom Image", config.environment["CUSTOM_DOCKER_IMAGE"])
+    if "CUSTOM_DIND_IMAGE" in config.environment:
+        table.add_row("Custom DinD Image", config.environment["CUSTOM_DIND_IMAGE"])
     table.add_row("Network Isolation", "Enabled (always on)")
     if config.proxy.upstream:
         table.add_row("Upstream Proxy", config.proxy.upstream)
@@ -1210,7 +1247,7 @@ echo "Secure initialization complete!"
     if config.proxy.whitelist_domains:
         table.add_row("Extra Whitelist", ", ".join(config.proxy.whitelist_domains))
     if "create_secure_init" in locals() and create_secure_init:
-        table.add_row("Initialization Script", "secure.init.sh created")
+        table.add_row("Initialization Script", "init.secure.sh created")
 
     console.print(table)
 

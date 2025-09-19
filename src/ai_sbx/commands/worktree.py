@@ -142,7 +142,7 @@ def create(
         console.print(f"[red]Failed to create worktree: {e}[/red]")
         return
 
-    # Copy secure.init.sh if it exists (for credentials not in git)
+    # Copy init.secure.sh if it exists (for credentials not in git)
     _copy_secure_init(project_root, worktree_path, console)
 
     # Determine if we should create task folder
@@ -683,12 +683,12 @@ def _generate_branch_name(description: str) -> str:
 
 
 def _copy_secure_init(project_root: Path, worktree_path: Path, console: Console) -> None:
-    """Copy secure.init.sh if it exists (for credentials not in git)."""
-    secure_init_src = project_root / ".devcontainer" / "secure.init.sh"
-    secure_init_dest = worktree_path / ".devcontainer" / "secure.init.sh"
+    """Copy init.secure.sh if it exists (for credentials not in git)."""
+    secure_init_src = project_root / ".devcontainer" / "init.secure.sh"
+    secure_init_dest = worktree_path / ".devcontainer" / "init.secure.sh"
 
     if secure_init_src.exists():
-        console.print("[cyan]Found secure.init.sh, copying to worktree...[/cyan]")
+        console.print("[cyan]Found init.secure.sh, copying to worktree...[/cyan]")
 
         # Ensure .devcontainer directory exists
         secure_init_dest.parent.mkdir(parents=True, exist_ok=True)
@@ -700,9 +700,9 @@ def _copy_secure_init(project_root: Path, worktree_path: Path, console: Console)
         if os.access(secure_init_src, os.X_OK):
             os.chmod(secure_init_dest, os.stat(secure_init_src).st_mode)
 
-        console.print("[green]✓[/green] Copied secure.init.sh (contains credentials)")
+        console.print("[green]✓[/green] Copied init.secure.sh (contains credentials)")
     else:
-        logger.debug("No secure.init.sh found")
+        logger.debug("No init.secure.sh found")
 
 
 def _create_task_structure(

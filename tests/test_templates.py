@@ -85,10 +85,10 @@ class TestTemplateManager:
             assert (output_dir / ".gitignore").exists()
             assert (output_dir / "local.project.yaml").exists()
             assert (output_dir / "override.user.yaml").exists()
-            assert (output_dir / "init-project.sh").exists()
+            assert (output_dir / "init.sh").exists()
 
             # Check init script is executable
-            init_script = output_dir / "init-project.sh"
+            init_script = output_dir / "init.sh"
             assert init_script.stat().st_mode & 0o111  # Check executable bit
 
             # Check some content

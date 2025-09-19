@@ -3,10 +3,10 @@
 # This file contains credentials and sensitive data - NEVER commit to git!
 #
 # To use:
-# 1. Copy this file to secure.init.sh
+# 1. Copy this file to init.secure.sh
 # 2. Add your credentials and sensitive configuration
 # 3. The file will be automatically copied to new worktrees
-# 4. secure.init.sh is in .gitignore and won't be committed
+# 4. init.secure.sh is in .gitignore and won't be committed
 
 echo "Running secure initialization..."
 

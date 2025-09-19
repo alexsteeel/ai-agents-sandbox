@@ -44,6 +44,7 @@ class TemplateManager:
         output_dir: Path,
         config: ProjectConfig,
         force: bool = False,
+        custom_dockerfile: bool = False,
     ) -> bool:
         """Generate all project files from templates.
 
@@ -51,6 +52,7 @@ class TemplateManager:
             output_dir: Output directory (.devcontainer)
             config: Project configuration
             force: Overwrite existing files
+            custom_dockerfile: Whether to create a custom Dockerfile
 
         Returns:
             True if all files were created successfully
@@ -60,13 +62,16 @@ class TemplateManager:
         # Files to generate (NOT docker-compose.yaml!)
         files = {
             "devcontainer.json": self._generate_devcontainer_json(config),
-            "Dockerfile": self._generate_dockerfile(config),
             ".env": self._generate_env_file(config),
             ".gitignore": self._generate_gitignore(),
             "docker-compose.override.yaml": self._generate_user_override(config),
-            "init-project.sh": self._generate_init_script(config),
+            "init.sh": self._generate_init_script(config),
             "ai-sbx.yaml.template": self._generate_config_template(config),
         }
+
+        # Only add Dockerfile if not using a custom image
+        if custom_dockerfile or not config.environment.get("CUSTOM_DOCKER_IMAGE"):
+            files["Dockerfile"] = self._generate_dockerfile(config)
 
         for filename, content in files.items():
             file_path = output_dir / filename
@@ -103,7 +108,7 @@ docker-compose.base.yaml
 ai-sbx.yaml
 
 # Security-sensitive initialization script (contains secrets/credentials)
-secure.init.sh
+init.secure.sh
 
 # NOTE: docker-compose.override.yaml is NOT ignored - it contains common project overrides
 """
@@ -112,18 +117,75 @@ secure.init.sh
         """Generate docker-compose.override.yaml with common project overrides."""
         # Check if Claude settings should be mounted
         mount_claude = config.environment.get("MOUNT_CLAUDE_SETTINGS") == "true"
+        # Check if custom Docker image is specified
+        custom_image = config.environment.get("CUSTOM_DOCKER_IMAGE")
+        # Check if custom DinD image is specified
+        custom_dind_image = config.environment.get("CUSTOM_DIND_IMAGE")
 
         base_content = """# Common Project Docker Compose Overrides
 # This file is committed to git and shared across the team
 # Add project-specific configuration here
 
-services:
+services:"""
+
+        # Add custom DinD image if specified
+        if custom_dind_image:
+            base_content += f"""
+  docker:
+    # Using custom Docker-in-Docker image
+    image: {custom_dind_image}
+
   tinyproxy-devcontainer:
+    image: ai-agents-sandbox/tinyproxy:1.0.0"""
+        else:
+            base_content += """
+  tinyproxy-devcontainer:
+    image: ai-agents-sandbox/tinyproxy:1.0.0"""
+
+        # Add proxy configuration if present
+        if config.proxy and config.proxy.enabled:
+            base_content += """
+    environment:"""
+
+            # Add whitelist domains
+            if config.proxy.whitelist_domains:
+                domains_str = " ".join(config.proxy.whitelist_domains)
+                base_content += f"""
+      USER_WHITELIST_DOMAINS: "{domains_str}" """
+            else:
+                base_content += """
+      # Add your project-specific domains here (comma or space separated)
+      USER_WHITELIST_DOMAINS: ""  # e.g. "api.example.com,cdn.example.com" """
+
+            # Add upstream proxy if configured
+            if config.proxy.upstream:
+                base_content += f"""
+      UPSTREAM_PROXY: "{config.proxy.upstream}" """
+
+            # Add no_proxy domains if configured
+            if config.proxy.no_proxy:
+                no_proxy_str = ",".join(config.proxy.no_proxy)
+                base_content += f"""
+      NO_UPSTREAM: "{no_proxy_str}" """
+        else:
+            base_content += """
     environment:
       # Add your project-specific domains here (comma or space separated)
-      USER_WHITELIST_DOMAINS: ""  # e.g. "api.example.com,cdn.example.com"
+      USER_WHITELIST_DOMAINS: ""  # e.g. "api.example.com,cdn.example.com" """
 
-  devcontainer:
+        base_content += """
+
+  devcontainer:"""
+
+        if custom_image:
+            # Use the custom image directly, no build needed
+            base_content += f"""
+    # Using custom Docker image (no Dockerfile needed)
+    image: {custom_image}"""
+        else:
+            # Use build configuration for standard images or custom Dockerfile
+            base_content += """
+    # Building from Dockerfile
     build:
       context: .
       dockerfile: Dockerfile"""
@@ -158,7 +220,7 @@ services:
     "shutdownAction": "stopCompose",
     "containerUser": "claude",
     "updateRemoteUserUID": false,
-    "initializeCommand": ".devcontainer/init-project.sh \\"${localWorkspaceFolder}\\"",
+    "initializeCommand": ".devcontainer/init.sh \\"${localWorkspaceFolder}\\"",
     "postCreateCommand": "/home/claude/scripts/non-root-post-create.sh",
     "containerEnv": {
         "TERM": "xterm-256color",
@@ -306,13 +368,13 @@ ADDITIONAL_REGISTRIES={{ ' '.join(config.docker.custom_registries) }}
         return "\n".join(content) + "\n"
 
     def _generate_init_script(self, config: ProjectConfig) -> str:
-        """Generate init-project.sh script content."""
+        """Generate init.sh script content."""
         template = """#!/bin/bash
 # AI Agents Sandbox - Project Initialization Script
 # This script is called automatically by VS Code when opening the project
 #
 # Example of manual usage:
-#   .devcontainer/init-project.sh /path/to/project
+#   .devcontainer/init.sh /path/to/project
 
 PROJECT_DIR="${1:-$(pwd)}"
 
