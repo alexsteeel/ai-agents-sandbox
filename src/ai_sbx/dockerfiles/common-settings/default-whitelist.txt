@@ -46,3 +46,22 @@ maven.aliyun.com
 # Powerlevel10k gitstatusd mirrors and GitHub release assets
 gitee.com
 objects.githubusercontent.com
+
+# MCP Context7 server
+mcp.context7.com
+
+# Google Gemini API and services
+gemini.google.com
+generativelanguage.googleapis.com
+aiplatform.googleapis.com
+vertexai.googleapis.com
+google.com
+googleapis.com
+gstatic.com
+us-docker.pkg.dev
+
+# CodeRabbit AI services
+coderabbit.ai
+api.coderabbit.ai
+cli.coderabbit.ai
+app.coderabbit.ai

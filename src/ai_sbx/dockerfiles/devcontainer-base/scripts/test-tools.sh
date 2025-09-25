@@ -243,8 +243,8 @@ check_editor_tools() {
 # Function to check Claude-specific tools
 check_claude_tools() {
     echo ""
-    echo "=== Claude-Specific Tools ==="
-    
+    echo "=== AI Assistant Tools ==="
+
     # Check claude CLI
     if command -v claude >/dev/null 2>&1; then
         local claude_version=$(claude --version 2>&1 | head -n1 || echo "installed")
@@ -252,6 +252,37 @@ check_claude_tools() {
         ((TESTS_PASSED++))
     else
         echo -e "${YELLOW}⚠${NC} claude: not found (may not be installed yet)"
+    fi
+
+    # Check gemini CLI
+    if command -v gemini >/dev/null 2>&1; then
+        local gemini_version=$(gemini --version 2>&1 | head -n1 || echo "installed")
+        echo -e "${GREEN}✓${NC} gemini: $gemini_version"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${YELLOW}⚠${NC} gemini: not found (may not be installed yet)"
+    fi
+
+    # Check coderabbit CLI
+    if command -v coderabbit >/dev/null 2>&1; then
+        local coderabbit_version=$(coderabbit --version 2>&1 | head -n1 || echo "installed")
+        echo -e "${GREEN}✓${NC} coderabbit: $coderabbit_version"
+        ((TESTS_PASSED++))
+    elif command -v cr >/dev/null 2>&1; then
+        local cr_version=$(cr --version 2>&1 | head -n1 || echo "installed")
+        echo -e "${GREEN}✓${NC} coderabbit (cr): $cr_version"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${YELLOW}⚠${NC} coderabbit: not found (may not be installed yet)"
+    fi
+
+    # Check codex CLI
+    if command -v codex >/dev/null 2>&1; then
+        local codex_version=$(codex --version 2>&1 | head -n1 || echo "installed")
+        echo -e "${GREEN}✓${NC} codex: $codex_version"
+        ((TESTS_PASSED++))
+    else
+        echo -e "${YELLOW}⚠${NC} codex: not found (may not be installed yet)"
     fi
     
     # Check Claude configuration directory (.claude, not .ai_agents_sandbox)

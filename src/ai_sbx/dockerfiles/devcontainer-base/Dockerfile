@@ -170,6 +170,14 @@ RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
 # Install Codex CLI
 RUN npm install -g @openai/codex
 
+# Install Gemini CLI
+# https://github.com/google-gemini/gemini-cli
+RUN npm install -g @google/gemini-cli
+
+# Install CodeRabbit CLI
+# https://docs.coderabbit.ai/cli/overview
+RUN curl -fsSL https://cli.coderabbit.ai/install.sh | sh || true
+
 # Install tmux plugins
 RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
 
