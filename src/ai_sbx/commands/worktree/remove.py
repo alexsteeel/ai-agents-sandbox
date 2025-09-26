@@ -229,7 +229,6 @@ def remove(
                         verbose=verbose,
                         check=False,
                         capture_output=True,
-                        text=True,
                     )
 
                     if list_result.stdout:
@@ -266,7 +265,6 @@ def remove(
                                     verbose=verbose,
                                     check=False,
                                     capture_output=True,
-                                    text=True,
                                 )
                                 if volume_result.stdout:
                                     volume_names = volume_result.stdout.strip().split("\n")

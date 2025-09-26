@@ -126,7 +126,7 @@ def init_global(
     console.print("\n[bold cyan]AI Agents Sandbox - Global Initialization[/bold cyan]\n")
 
     # Track all changes made to the system
-    system_changes = {
+    system_changes: dict[str, list[str]] = {
         "directories_created": [],
         "files_created": [],
         "files_modified": [],
@@ -1333,7 +1333,8 @@ def project_setup_impl(
                     parent_git_dir = gitdir_path.split("/worktrees/")[0]
                     console.print(f"[dim]Detected git worktree, parent: {parent_git_dir}[/dim]")
         except Exception as e:
-            console.print(f"[dim]Error reading .git file: {e}[/dim]", verbose=True)
+            if verbose:
+                console.print(f"[dim]Error reading .git file: {e}[/dim]")
 
     if is_worktree and not parent_git_dir:
         # Fallback method using git worktree list

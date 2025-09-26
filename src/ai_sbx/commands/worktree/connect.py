@@ -163,8 +163,11 @@ def connect(ctx: click.Context, name: Optional[str], ide: Optional[str]) -> None
 
         if answers["action"] == "ide":
             # Open with preferred IDE
-            console.print(f"\n[cyan]Opening {preferred_ide.value}...[/cyan]")
-            open_ide(path, preferred_ide, console, verbose)
+            if preferred_ide:
+                console.print(f"\n[cyan]Opening {preferred_ide.value}...[/cyan]")
+                open_ide(path, preferred_ide, console, verbose)
+            else:
+                console.print("[yellow]No preferred IDE set[/yellow]")
         elif answers["action"] == "ide_select":
             # Select IDE and remember choice
             detected = detect_available_ides()

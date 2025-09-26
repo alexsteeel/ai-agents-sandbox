@@ -1,5 +1,7 @@
 """Doctor command for diagnosing and fixing AI Agents Sandbox issues."""
 
+from typing import Any, Optional
+
 from rich.console import Console
 from rich.prompt import Confirm
 from rich.table import Table
@@ -26,7 +28,7 @@ def run_doctor(
     console.print("\n[bold cyan]AI Agents Sandbox - System Diagnostics[/bold cyan]\n")
 
     # Track all system state information
-    system_state = {
+    system_state: dict[str, dict[str, Any]] = {
         "directories": {},
         "files": {},
         "docker": {},
@@ -115,7 +117,7 @@ def run_doctor(
         console.print("\n[yellow]Run with --fix to attempt automatic fixes[/yellow]")
 
 
-def analyze_system_state(console: Console, system_state: dict, verbose: bool) -> None:
+def analyze_system_state(console: Console, system_state: dict[str, Any], verbose: bool) -> None:
     """Analyze and populate system state information."""
     home = get_user_home()
 
@@ -389,8 +391,8 @@ def display_results(
     console: Console,
     issues: list[tuple[str, str, str]],
     warnings: list[tuple[str, str, str]],
-    ok_results: list[tuple[str, str, str]] = None,
-    system_state: dict = None,
+    ok_results: Optional[list[tuple[str, str, str]]] = None,
+    system_state: Optional[dict[str, Any]] = None,
 ) -> None:
     """Display diagnostic results."""
     ok_results = ok_results or []

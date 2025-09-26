@@ -245,7 +245,7 @@ def get_user_home() -> Path:
     if username and username != "root":
         # Try system user database for portability
         try:
-            import pwd  # type: ignore
+            import pwd
 
             return Path(pwd.getpwnam(username).pw_dir)
         except Exception:
@@ -480,7 +480,7 @@ def get_docker_info() -> Optional[dict[str, Any]]:
         if result.returncode == 0:
             import json
 
-            info = json.loads(result.stdout)  # type: ignore[no-any-return]
+            info = json.loads(result.stdout)
             # Treat presence of server errors as not running
             if isinstance(info, dict):
                 server_errors = info.get("ServerErrors")
@@ -489,7 +489,7 @@ def get_docker_info() -> Optional[dict[str, Any]]:
                     return None
                 if not server_version:
                     return None
-            return info  # type: ignore[return-value]
+            return info
 
     except Exception:
         pass
@@ -567,11 +567,11 @@ def prompt_build_images(
 class AliasedGroup(click.Group):
     """Click group that supports command aliases."""
 
-    def __init__(self, *args, aliases: Optional[dict[str, str]] = None, **kwargs):
+    def __init__(self, *args: Any, aliases: Optional[dict[str, str]] = None, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.aliases = aliases or {}
 
-    def get_command(self, ctx, cmd_name):
+    def get_command(self, ctx: click.Context, cmd_name: str) -> Optional[click.Command]:
         # First try the command as-is
         rv = click.Group.get_command(self, ctx, cmd_name)
         if rv is not None:
@@ -591,11 +591,11 @@ class AliasedGroup(click.Group):
 
         ctx.fail(f"Too many matches: {', '.join(sorted(matches))}")
 
-    def format_epilog(self, ctx, formatter):
+    def format_epilog(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         """Format the epilog to include aliases."""
         if self.aliases:
             # Group aliases by target command
-            command_to_aliases = {}
+            command_to_aliases: dict[str, list[str]] = {}
             for alias, command in self.aliases.items():
                 if command not in command_to_aliases:
                     command_to_aliases[command] = []
@@ -612,7 +612,9 @@ class AliasedGroup(click.Group):
         # Call parent's format_epilog if it exists
         super().format_epilog(ctx, formatter)
 
-    def resolve_command(self, ctx, args):
+    def resolve_command(
+        self, ctx: click.Context, args: list[str]
+    ) -> tuple[str, click.Command, list[str]]:
         # Override to show both command and aliases in help
         cmd_name, cmd, args = super().resolve_command(ctx, args)
         return cmd_name, cmd, args

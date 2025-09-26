@@ -725,7 +725,7 @@ def _push_images(environments: list[BaseImage], tag: str, console: Console, verb
         spec = _get_environment_image_spec(environment)
         if spec is None:
             continue
-        image_repo, _ = spec
+        _, _, image_repo = spec
         image_name = f"{image_repo}:{tag}"
 
         try:
