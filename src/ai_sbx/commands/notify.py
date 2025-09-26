@@ -296,7 +296,7 @@ def stop(ctx: click.Context) -> None:
                         # Kill the daemon process
                         run_command(["kill", pid], check=False)
                         stopped_count += 1
-                    except:
+                    except Exception:
                         pass
 
             if stopped_count > 0:

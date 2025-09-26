@@ -636,7 +636,7 @@ def _verify_images(
                 size_bytes = int(result.stdout.strip())
                 size_mb = size_bytes / (1024 * 1024)
                 found.append((name, image_repo, f"{size_mb:.1f}MB"))
-            except:
+            except Exception:
                 found.append((name, image_repo, "unknown"))
         else:
             missing.append((name, image_repo))

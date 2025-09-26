@@ -9,7 +9,6 @@ from rich.text import Text
 
 from ai_sbx import __version__
 from ai_sbx.commands import image, notify, worktree
-from ai_sbx.commands import init as init_module
 from ai_sbx.utils import AliasedGroup, logger
 
 console = Console()
@@ -153,7 +152,7 @@ def init_project(
     from pathlib import Path
 
     from ai_sbx.commands.init import init_project as init_project_impl
-    from ai_sbx.config import BaseImage, IDE
+    from ai_sbx.config import IDE, BaseImage
 
     console = ctx.obj["console"]
     verbose = ctx.obj.get("verbose", False)

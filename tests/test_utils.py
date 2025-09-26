@@ -1,6 +1,7 @@
 """Tests for utility functions."""
 
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -33,7 +34,7 @@ class TestRunCommand:
 
     def test_run_command_with_error(self):
         """Test running a command that fails."""
-        with pytest.raises(Exception):
+        with pytest.raises(subprocess.CalledProcessError):
             run_command(["false"], check=True)
 
     def test_run_command_no_check(self):

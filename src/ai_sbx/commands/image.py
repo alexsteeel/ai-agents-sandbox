@@ -274,7 +274,7 @@ def _build_image(
         if verbose:
             result = subprocess.run(cmd, check=True)
         else:
-            result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            result = subprocess.run(cmd, capture_output=True, check=True)
 
         # Also tag as latest
         subprocess.run(

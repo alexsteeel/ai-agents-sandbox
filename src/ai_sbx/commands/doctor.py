@@ -1,6 +1,5 @@
 """Doctor command for diagnosing and fixing AI Agents Sandbox issues."""
 
-from pathlib import Path
 
 from rich.console import Console
 from rich.prompt import Confirm

@@ -6,7 +6,7 @@ import platform
 import shutil
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import click
 from rich.console import Console
@@ -422,7 +422,7 @@ def detect_ide() -> list[str]:
             if ide in ides:
                 break
 
-    return sorted(list(set(ides)))  # Remove duplicates and sort
+    return sorted(set(ides))  # Remove duplicates and sort
 
 
 def format_size(size: float) -> str:
@@ -567,7 +567,7 @@ def prompt_build_images(
 class AliasedGroup(click.Group):
     """Click group that supports command aliases."""
 
-    def __init__(self, *args, aliases: Optional[Dict[str, str]] = None, **kwargs):
+    def __init__(self, *args, aliases: Optional[dict[str, str]] = None, **kwargs):
         super().__init__(*args, **kwargs)
         self.aliases = aliases or {}
 
