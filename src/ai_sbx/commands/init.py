@@ -151,8 +151,7 @@ def init_global(
     if not wizard:  # If wizard not explicitly requested via --wizard flag
         console.print("\n[cyan]AI Agents Sandbox Global Configuration[/cyan]\n")
         use_defaults = prompt_yes_no(
-            "Use default configuration settings? (Choose 'No' to customize)",
-            default=True
+            "Use default configuration settings? (Choose 'No' to customize)", default=True
         )
         if not use_defaults:
             wizard = True  # Switch to wizard mode
@@ -310,6 +309,7 @@ def init_global(
         target_compose = target_proxy_dir / "docker-compose.yaml"
         if source_compose.exists() and (not target_compose.exists() or force):
             import shutil
+
             shutil.copy2(str(source_compose), str(target_compose))
             console.print("[green]✓ Docker proxy compose file installed[/green]")
             system_changes[
@@ -319,6 +319,7 @@ def init_global(
         # Copy docker-compose.base.yaml
         if source_compose_base.exists() and (not target_compose_base.exists() or force):
             import shutil
+
             shutil.copy2(str(source_compose_base), str(target_compose_base))
             console.print("[green]✓ Base compose file installed[/green]")
             system_changes[
@@ -459,7 +460,9 @@ def init_global(
 
         if "ai-sbx-docker-proxy" not in result.stdout:
             # Use system location for docker-proxy
-            proxy_compose = Path.home() / ".ai-sbx" / "share" / "docker-proxy" / "docker-compose.yaml"
+            proxy_compose = (
+                Path.home() / ".ai-sbx" / "share" / "docker-proxy" / "docker-compose.yaml"
+            )
 
             if proxy_compose.exists():
                 console.print("[dim]Starting docker-registry-proxy for image caching...[/dim]")
@@ -711,7 +714,9 @@ def init_project(
         console.print("[dim]Choose the base image that matches your technology stack[/dim]")
 
         # Determine default selection based on existing config
-        default_base_image = config.base_image.value if config.base_image.value != "custom" else "base"
+        default_base_image = (
+            config.base_image.value if config.base_image.value != "custom" else "base"
+        )
         # If reconfiguring and has custom Docker image, default to "custom_image"
         if existing_config and "CUSTOM_DOCKER_IMAGE" in existing_config.environment:
             default_base_image = "custom_image"
@@ -741,7 +746,9 @@ def init_project(
 
         if env_answers["base_image"] == "custom_image":
             # User wants to use a custom Docker image
-            console.print("\n[dim]Enter the Docker image name with tag (e.g., myregistry/myimage:1.0)[/dim]")
+            console.print(
+                "\n[dim]Enter the Docker image name with tag (e.g., myregistry/myimage:1.0)[/dim]"
+            )
 
             # Auto-fill with existing custom image if reconfiguring
             default_custom_image = ""
@@ -797,7 +804,9 @@ def init_project(
 
         # Step 2.4: Ask about custom Docker-in-Docker image
         console.print("\n[bold]Step 2.4: Docker-in-Docker Configuration[/bold]")
-        console.print("[dim]Docker-in-Docker allows running Docker commands inside the container[/dim]")
+        console.print(
+            "[dim]Docker-in-Docker allows running Docker commands inside the container[/dim]"
+        )
 
         # Auto-fill with existing custom dind image if reconfiguring
         default_custom_dind = ""
@@ -822,14 +831,17 @@ def init_project(
                     "custom_dind",
                     message="Docker-in-Docker image:tag",
                     default=default_custom_dind or "docker:dind",
-                    validate=lambda _, x: ":" in x or "Image must include a tag (e.g., docker:dind)",
+                    validate=lambda _, x: ":" in x
+                    or "Image must include a tag (e.g., docker:dind)",
                 ),
             ]
 
             dind_image_answers = inquirer.prompt(dind_image_questions)
             if dind_image_answers and dind_image_answers["custom_dind"]:
                 config.environment["CUSTOM_DIND_IMAGE"] = dind_image_answers["custom_dind"]
-                console.print(f"[green]✓ Will use custom DinD image: {dind_image_answers['custom_dind']}[/green]")
+                console.print(
+                    f"[green]✓ Will use custom DinD image: {dind_image_answers['custom_dind']}[/green]"
+                )
         elif existing_config and "CUSTOM_DIND_IMAGE" in existing_config.environment:
             # User said no to custom dind, but had one before - remove it
             if "CUSTOM_DIND_IMAGE" in config.environment:
@@ -1128,13 +1140,22 @@ def init_project(
         if base_source.exists():
             if not compose_base.exists() or force:
                 import shutil
+
                 shutil.copy2(base_source, compose_base)
-                progress.update(task, description="[green]✓[/green] Copied docker-compose.base.yaml")
+                progress.update(
+                    task, description="[green]✓[/green] Copied docker-compose.base.yaml"
+                )
             else:
-                progress.update(task, description="[yellow]⚠[/yellow] docker-compose.base.yaml already exists")
+                progress.update(
+                    task, description="[yellow]⚠[/yellow] docker-compose.base.yaml already exists"
+                )
         else:
-            progress.update(task, description="[red]✗[/red] docker-compose.base.yaml not found in global share")
-            console.print("[yellow]Run 'ai-sbx init global' first to set up global resources[/yellow]")
+            progress.update(
+                task, description="[red]✗[/red] docker-compose.base.yaml not found in global share"
+            )
+            console.print(
+                "[yellow]Run 'ai-sbx init global' first to set up global resources[/yellow]"
+            )
 
         # Save project config
         task = progress.add_task("Saving project configuration...", total=None)
@@ -1348,6 +1369,7 @@ COMPOSE_PROJECT_NAME={path.name}
 
     if not compose_base.exists() and base_source.exists():
         import shutil
+
         shutil.copy2(base_source, compose_base)
         console.print("[green]✓[/green] Copied docker-compose.base.yaml")
 
@@ -1384,7 +1406,9 @@ COMPOSE_PROJECT_NAME={path.name}
                 with open(override_file, "w") as f:
                     yaml.safe_dump(override_config, f, default_flow_style=False, sort_keys=False)
 
-                console.print("[green]✓[/green] Added git worktree mount to docker-compose.override.yaml")
+                console.print(
+                    "[green]✓[/green] Added git worktree mount to docker-compose.override.yaml"
+                )
             else:
                 console.print("[dim]Git worktree mount already configured[/dim]")
 
@@ -1435,23 +1459,46 @@ COMPOSE_PROJECT_NAME={path.name}
         # Get global config for group name
         global_config = GlobalConfig.load()
 
-        # Set group permissions on entire project directory (best-effort, ignore failures)
-        run_command(
-            ["chgrp", "-R", global_config.group_name, str(path)],
-            check=False,
-            capture_output=True,
-        )
-        run_command(
-            ["chmod", "-R", "g+rw", str(path)],
-            check=False,
-            capture_output=True,
-        )
-        # Set SGID on directories so new files inherit the group
-        run_command(
-            ["find", str(path), "-type", "d", "-exec", "chmod", "g+s", "{}", "+"],
-            check=False,
-            capture_output=True,
-        )
+        # IMPORTANT: Only set permissions on project files, not on mounted volumes
+        # Skip setting permissions if we're inside a container (where path would be /workspace)
+        # and avoid changing ownership of mounted directories like ~/.claude/projects
+
+        # Check if we're running inside the container
+        in_container = Path("/.dockerenv").exists() or Path("/workspace").samefile(path)
+
+        if in_container:
+            console.print("[dim]Skipping recursive permission changes (running in container)[/dim]")
+            # Only set permissions on the .devcontainer directory itself
+            devcontainer_path = path / ".devcontainer"
+            if devcontainer_path.exists():
+                run_command(
+                    ["chgrp", global_config.group_name, str(devcontainer_path)],
+                    check=False,
+                    capture_output=True,
+                )
+                run_command(
+                    ["chmod", "g+rw", str(devcontainer_path)],
+                    check=False,
+                    capture_output=True,
+                )
+        else:
+            # We're on the host, safe to set permissions recursively
+            run_command(
+                ["chgrp", "-R", global_config.group_name, str(path)],
+                check=False,
+                capture_output=True,
+            )
+            run_command(
+                ["chmod", "-R", "g+rw", str(path)],
+                check=False,
+                capture_output=True,
+            )
+            # Set SGID on directories so new files inherit the group
+            run_command(
+                ["find", str(path), "-type", "d", "-exec", "chmod", "g+s", "{}", "+"],
+                check=False,
+                capture_output=True,
+            )
 
         # Make scripts executable
         for script in (path / ".devcontainer").glob("*.sh"):

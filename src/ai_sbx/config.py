@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
+
 # No longer using platformdirs, using ~/.ai-sbx for all global files
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict

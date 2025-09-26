@@ -666,11 +666,7 @@ def fix_detected_issues(
     for _status, component, details in warnings:
         if "Directory does not exist" in details:
             dir_name = component
-            dir_path = (
-                home / ".ai-sbx" / dir_name
-                if dir_name != ".ai-sbx"
-                else home / ".ai-sbx"
-            )
+            dir_path = home / ".ai-sbx" / dir_name if dir_name != ".ai-sbx" else home / ".ai-sbx"
             missing_dirs.append((dir_name, dir_path))
 
     if missing_dirs and interactive:

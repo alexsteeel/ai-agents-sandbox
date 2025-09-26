@@ -1,146 +1,146 @@
-# AI Agents Sandbox
+<project>
+  <context>
+    Secure Docker environments for AI-assisted coding with network isolation.
+  </context>
 
-Secure Docker environments for AI-assisted coding with network isolation.
+  <quick-start>
+    <installation>
+      <command>pip install -e .</command>
+      <command>ai-sbx init global --wizard</command>
+      <alternative>ai-sbx init global</alternative>
+    </installation>
 
-## Quick Start
+    <project-setup>
+      <command>cd /your/project</command>
+      <command>ai-sbx init project</command>
+      <wizard-features>
+        <feature>Detect Claude settings (~/.claude/) and offer to include them</feature>
+        <feature>Configure network isolation and proxy</feature>
+        <feature>Create .devcontainer for your IDE</feature>
+      </wizard-features>
+    </project-setup>
 
-### 1. Install
-```bash
-pip install -e .
-ai-sbx init global --wizard  # Interactive setup with custom registry option
-# OR
-ai-sbx init global  # Basic setup (builds images, creates groups)
-```
+    <task-workflow>
+      <command>ai-sbx worktree create "implement user authentication"</command>
+      <ide-integration>Open in IDE (VS Code: "Reopen in Container", PyCharm: Docker Compose interpreter)</ide-integration>
+      <cleanup>ai-sbx worktree remove</cleanup>
+    </task-workflow>
+  </quick-start>
 
-### 2. Setup Project
-```bash
-cd /your/project
-ai-sbx init project
+  <commands>
+    <command name="init global --wizard">Interactive setup with detailed reporting</command>
+    <command name="init project">Setup project with devcontainer</command>
+    <command name="worktree create">Create task workspace</command>
+    <command name="worktree list">List workspaces</command>
+    <command name="worktree remove">Remove workspace</command>
+    <command name="doctor --verbose">Detailed system analysis</command>
+    <command name="doctor --fix">Fix common issues</command>
+  </commands>
 
-# Interactive wizard will:
-# - Detect your Claude settings (~/.claude/) and offer to include them
-# - Configure network isolation and proxy
-# - Create .devcontainer for your IDE
-```
+  <init-global-reporting>
+    <report-item>Directories created with full paths</report-item>
+    <report-item>Files created or modified</report-item>
+    <report-item>Docker images built</report-item>
+    <report-item>System groups created</report-item>
+    <report-item>User modifications</report-item>
+    <report-item>Docker containers started</report-item>
+    <report-item>Any errors encountered</report-item>
+  </init-global-reporting>
 
-### 3. Work on Tasks
-```bash
-# Create isolated workspace for a task
-ai-sbx worktree create "implement user authentication"
+  <security>
+    <built-in-protections>
+      <protection>Non-root container (user: claude)</protection>
+      <protection>Network isolation (internal network)</protection>
+      <protection>Proxy filtering (whitelisted domains only)</protection>
+      <protection>No SSH, sudo, or passwords</protection>
+    </built-in-protections>
 
-# Open in your IDE (VS Code: "Reopen in Container", PyCharm: Docker Compose interpreter)
-# Work on the task...
+    <restrictions>
+      <restriction>Never add sudo or root access</restriction>
+      <restriction>Never disable network isolation</restriction>
+      <restriction>Never bypass proxy settings</restriction>
+    </restrictions>
+  </security>
 
-# Clean up when done
-ai-sbx worktree remove
-```
+  <ide-setup>
+    <vscode>
+      <instruction>Open folder → "Reopen in Container" when prompted</instruction>
+    </vscode>
 
-## Key Commands
+    <pycharm>
+      <instruction>Settings → Python Interpreter → Add → Docker Compose</instruction>
+      <setting name="service">devcontainer</setting>
+      <setting name="python-path">/usr/local/bin/python</setting>
+    </pycharm>
 
-```bash
-ai-sbx init global --wizard # Interactive setup with detailed reporting
-ai-sbx init project         # Setup project with devcontainer
-ai-sbx worktree create      # Create task workspace
-ai-sbx worktree list        # List workspaces
-ai-sbx worktree remove      # Remove workspace
-ai-sbx doctor --verbose     # Detailed system analysis
-ai-sbx doctor --fix         # Fix common issues
-```
+    <claude-code>
+      <command>claude --dangerously-skip-permissions</command>
+    </claude-code>
+  </ide-setup>
 
-### Init Global Reporting
+  <claude-settings>
+    <detection>During project setup, detects ~/.claude/ on host</detection>
+    <features>
+      <feature>CLI detects agents, commands, and hooks</feature>
+      <feature>Option to mount them readonly in container</feature>
+      <feature>Settings copied on container startup (originals safe)</feature>
+    </features>
+  </claude-settings>
 
-The `init global` command now provides detailed reporting of all system changes:
-- Directories created with full paths
-- Files created or modified
-- Docker images built
-- System groups created
-- User modifications
-- Docker containers started
-- Any errors encountered
+  <custom-registry>
+    <configuration-time>During ai-sbx init global --wizard</configuration-time>
+    <capabilities>
+      <capability>Configure custom Docker registries for caching</capability>
+      <capability>Specify custom docker-registry-proxy image with CA certificates</capability>
+      <capability>Automatically creates .env file at ~/.ai-sbx/docker-proxy/.env</capability>
+    </capabilities>
 
-This helps you understand exactly what changes are made to your system.
+    <example>
+      <registries>registry1.company.com,registry2.local</registries>
+      <proxy-image>myregistry/docker-registry-proxy:custom-ca</proxy-image>
+    </example>
+  </custom-registry>
 
-## Security Features
+  <diagnostics>
+    <command>ai-sbx doctor --verbose</command>
+    <reports>
+      <report>AI Agents Sandbox directories with permissions and sizes</report>
+      <report>Configuration files status</report>
+      <report>Docker containers state</report>
+      <report>System groups and members</report>
+      <report>Detailed issue analysis</report>
+    </reports>
+  </diagnostics>
 
-✅ **Built-in Protection:**
-- Non-root container (user: claude)
-- Network isolation (internal network)
-- Proxy filtering (whitelisted domains only)
-- No SSH, sudo, or passwords
+  <troubleshooting>
+    <issue problem="Container can't access a site">
+      <solution>Add domain to .devcontainer/ai-sbx.yaml whitelist</solution>
+      <solution>Run ai-sbx init update</solution>
+    </issue>
 
-⚠️ **Never:**
-- Add sudo or root access
-- Disable network isolation
-- Bypass proxy settings
+    <issue problem="IDE can't connect">
+      <solution>Check Docker is running: docker ps</solution>
+    </issue>
 
-## IDE Setup
+    <issue problem="Need upstream proxy">
+      <solution>Configure in .devcontainer/ai-sbx.yaml</solution>
+      <solution>Run ai-sbx init update</solution>
+    </issue>
 
-**VS Code:** Open folder → "Reopen in Container" when prompted
+    <issue problem="Custom registry issues">
+      <solution>Check ~/.ai-sbx/docker-proxy/.env exists and contains your registries</solution>
+    </issue>
+  </troubleshooting>
 
-**PyCharm:** Settings → Python Interpreter → Add → Docker Compose
-- Service: `devcontainer`
-- Python path: `/usr/local/bin/python`
+  <project-structure>
+    <directory path=".devcontainer">
+      <file name="ai-sbx.yaml">Your configuration (edit this)</file>
+      <file name=".env">Auto-generated (don't edit)</file>
+      <file name="docker-compose.yaml">Container setup</file>
+    </directory>
+  </project-structure>
 
-**Claude Code:** `claude --dangerously-skip-permissions`
-
-## Claude Settings
-
-During project setup, if you have `~/.claude/` on your host:
-- The CLI detects your agents, commands, and hooks
-- Choose to mount them (readonly) in the container
-- Settings are copied on container startup (keeping originals safe)
-
-## Custom Registry Configuration (Enterprise/Corporate Networks)
-
-During `ai-sbx init global --wizard`:
-- Configure custom Docker registries for caching (e.g., proget.company.com)
-- Specify custom docker-registry-proxy image with embedded CA certificates
-- Automatically creates `.env` file at `~/.ai-sbx/docker-proxy/.env`
-
-Example configuration:
-```bash
-# Custom registries (comma-separated)
-registry1.company.com,registry2.local
-
-# Custom proxy image with CA certificates
-myregistry/docker-registry-proxy:custom-ca
-```
-
-## Enhanced Diagnostics
-
-**Detailed system analysis:**
-```bash
-ai-sbx doctor --verbose  # Shows all system state, directories, files, containers
-```
-
-The doctor command now reports:
-- All AI Agents Sandbox directories with permissions and sizes
-- Configuration files status
-- Docker containers state
-- System groups and members
-- Detailed issue analysis
-
-## Troubleshooting
-
-**Container can't access a site:** Add domain to `.devcontainer/ai-sbx.yaml` whitelist, run `ai-sbx init update`
-
-**IDE can't connect:** Check Docker is running: `docker ps`
-
-**Need upstream proxy:** Configure in `.devcontainer/ai-sbx.yaml`, run `ai-sbx init update`
-
-**Custom registry issues:** Check `~/.ai-sbx/docker-proxy/.env` exists and contains your registries
-
-## Project Structure
-
-```
-your-project/
-├── .devcontainer/
-│   ├── ai-sbx.yaml         # Your configuration (edit this)
-│   ├── .env                # Auto-generated (don't edit)
-│   └── docker-compose.yaml # Container setup
-└── your code...
-```
-
----
-
-For detailed documentation, see [docs/](docs/) directory.
+  <documentation>
+    <reference>For detailed documentation, see docs/ directory</reference>
+  </documentation>
+</project>

@@ -46,6 +46,7 @@ ai-sbx init project      # Setup project with devcontainer
 ai-sbx worktree create   # Create task workspace (opens IDE)
 ai-sbx worktree list     # List workspaces
 ai-sbx worktree remove   # Remove workspace
+ai-sbx notify            # Watch for container notifications (run on host)
 ai-sbx doctor --fix      # Fix common issues
 ```
 

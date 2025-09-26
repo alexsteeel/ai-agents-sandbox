@@ -31,9 +31,9 @@ class TestGlobalConfig:
         assert config.user_uid == 1001
         assert config.default_ide == IDE.VSCODE
         # Check if default_variant exists, otherwise check default_base_image
-        if hasattr(config, 'default_variant'):
+        if hasattr(config, "default_variant"):
             assert config.default_variant == BaseImage.BASE
-        elif hasattr(config, 'default_base_image'):
+        elif hasattr(config, "default_base_image"):
             assert config.default_base_image == BaseImage.BASE
 
     def test_save_and_load(self):

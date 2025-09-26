@@ -25,5 +25,42 @@ else
     chmod 755 /home/claude/.codex
 fi
 
+# Ensure Claude defaults are copied on every container start
+# This handles cases where the container is recreated or ~/.claude is missing
+if [ -d /home/claude/claude-defaults ]; then
+    # Create both .claude directories if they don't exist
+    mkdir -p /home/claude/.claude
+    mkdir -p /workspace/.claude
+
+    # Copy all files from claude-defaults to ~/.claude, preserving structure
+    # Using cp -n to not overwrite existing files
+    cp -rn /home/claude/claude-defaults/* /home/claude/.claude/ 2>/dev/null || true
+
+    # Ensure hooks are executable
+    if [ -d /home/claude/.claude/hooks ]; then
+        chmod +x /home/claude/.claude/hooks/*.sh 2>/dev/null || true
+    fi
+
+    # Always ensure critical files exist (settings.local.json and notify.sh)
+    if [ ! -f /home/claude/.claude/settings.local.json ] && [ -f /home/claude/claude-defaults/settings.local.json ]; then
+        cp /home/claude/claude-defaults/settings.local.json /home/claude/.claude/
+        echo "Restored settings.local.json to ~/.claude"
+    fi
+
+    if [ ! -f /home/claude/.claude/hooks/notify.sh ] && [ -f /home/claude/claude-defaults/hooks/notify.sh ]; then
+        mkdir -p /home/claude/.claude/hooks
+        cp /home/claude/claude-defaults/hooks/notify.sh /home/claude/.claude/hooks/
+        chmod +x /home/claude/.claude/hooks/notify.sh
+        echo "Restored notify.sh hook to ~/.claude"
+    fi
+
+    # Also copy settings.local.json to /workspace/.claude
+    if [ -f /home/claude/claude-defaults/settings.local.json ]; then
+        mkdir -p /workspace/.claude
+        cp /home/claude/claude-defaults/settings.local.json /workspace/.claude/
+        echo "Copied settings.local.json to /workspace/.claude"
+    fi
+fi
+
 # Execute the original command
 exec "$@"

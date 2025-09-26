@@ -101,16 +101,14 @@ class TemplateManager:
 .env
 .user.env
 
-# Copied base compose file (do not edit, regenerate with ai-sbx init worktree)
-docker-compose.base.yaml
-
 # Local project configuration (contains machine-specific paths)
 ai-sbx.yaml
 
 # Security-sensitive initialization script (contains secrets/credentials)
 init.secure.sh
 
-# NOTE: docker-compose.override.yaml is NOT ignored - it contains common project overrides
+# NOTE: docker-compose.base.yaml is tracked - uses environment variables for system-specific paths
+# NOTE: docker-compose.override.yaml is tracked - contains common project overrides
 """
 
     def _generate_user_override(self, config: ProjectConfig) -> str:

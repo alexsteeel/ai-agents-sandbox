@@ -20,6 +20,8 @@ console = Console()
     aliases={
         "wt": "worktree",
         "w": "worktree",
+        "workspace": "worktree",
+        "ws": "worktree",
         "img": "image",
         "images": "image",
         "i": "init",
@@ -92,7 +94,9 @@ def init() -> None:
 
 
 @init.command(name="global")
-@click.option("--wizard", is_flag=True, help="Run interactive setup wizard with custom registry configuration")
+@click.option(
+    "--wizard", is_flag=True, help="Run interactive setup wizard with custom registry configuration"
+)
 @click.option("--force", is_flag=True, help="Overwrite existing configuration")
 @click.pass_context
 def init_global(ctx: click.Context, wizard: bool, force: bool) -> None:
@@ -204,7 +208,7 @@ def init_update(ctx: click.Context, path: str) -> None:
 
 
 # Add other commands
-cli.add_command(worktree.worktree)
+cli.add_command(worktree)
 cli.add_command(image.image)
 cli.add_command(notify.notify)
 
