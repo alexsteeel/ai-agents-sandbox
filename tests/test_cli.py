@@ -158,7 +158,7 @@ class TestWorktreeCommand:
             # Should fail or show error message
             assert result.exit_code != 0 or "Not in a git repository" in result.output
 
-    @patch("ai_sbx.commands.worktree.utils.list_worktrees")
+    @patch("ai_sbx.commands.worktree.list.get_worktrees")
     def test_worktree_list(self, mock_list):
         """Test worktree list command."""
         mock_list.return_value = [
@@ -176,7 +176,7 @@ class TestWorktreeCommand:
             "Path" in result.output or "Branch" in result.output or "test-branch" in result.output
         )
 
-    @patch("ai_sbx.commands.worktree.utils.list_worktrees")
+    @patch("ai_sbx.commands.worktree.list.get_worktrees")
     def test_worktree_remove_interactive(self, mock_list):
         """Test worktree remove interactive mode."""
         mock_list.return_value = []
