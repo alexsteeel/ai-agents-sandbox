@@ -83,9 +83,9 @@ class TestTemplateManager:
             assert (output_dir / "Dockerfile").exists()
             assert (output_dir / ".env").exists()
             assert (output_dir / ".gitignore").exists()
-            assert (output_dir / "local.project.yaml").exists()
-            assert (output_dir / "override.user.yaml").exists()
+            assert (output_dir / "docker-compose.override.yaml").exists()
             assert (output_dir / "init.sh").exists()
+            assert (output_dir / "ai-sbx.yaml.template").exists()
 
             # Check init script is executable
             init_script = output_dir / "init.sh"

@@ -6,7 +6,7 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from rich.console import Console
 
@@ -192,14 +192,14 @@ def prompt_ide_selection(
     config = load_project_config(project_root)
     preferred_ide = config.preferred_ide if config else None
 
-    choices = [(name, ide) for ide, name in available_ides]
+    choices: list[tuple[str, Optional[IDE]]] = [(name, ide) for ide, name in available_ides]
     choices.append(("Skip (open manually later)", None))
 
     # Find the default choice based on preferred IDE
     default_choice = choices[-1][0]  # Default to "Skip" if preferred not found
     if preferred_ide:
-        for name, ide in choices:
-            if ide == preferred_ide:
+        for name, choice_ide in choices:
+            if choice_ide is not None and choice_ide == preferred_ide:
                 default_choice = name
                 break
 
@@ -217,7 +217,11 @@ def prompt_ide_selection(
         if not answers or not answers["ide"]:
             return None
 
-        selected_ide = answers["ide"]
+        selected_ide: Optional[IDE] = answers["ide"]
+
+        # Check if the user selected "Skip"
+        if selected_ide is None:
+            return None
 
         # Ask if user wants to save preference (unless it's devcontainer)
         if selected_ide != IDE.DEVCONTAINER:
@@ -425,7 +429,7 @@ def get_main_worktree_path() -> Optional[Path]:
         return None
 
 
-def list_worktrees(exclude_current: bool = True) -> list[dict]:
+def list_worktrees(exclude_current: bool = True) -> list[dict[str, Any]]:
     """Get list of git worktrees.
 
     Args:
@@ -440,7 +444,7 @@ def list_worktrees(exclude_current: bool = True) -> list[dict]:
         )
 
         worktrees = []
-        current = {}
+        current: dict[str, Any] = {}
         main_path = get_main_worktree_path()
 
         for line in result.stdout.splitlines():

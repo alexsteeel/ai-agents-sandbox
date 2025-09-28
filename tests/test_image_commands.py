@@ -114,13 +114,12 @@ class TestImageListCommand:
         """Set up test fixtures."""
         self.runner = CliRunner()
 
-    @patch("ai_sbx.utils.run_command")
-    def test_list_images(self, mock_run):
+    @patch("ai_sbx.commands.image._image_exists")
+    @patch("ai_sbx.utils.is_docker_running")
+    def test_list_images(self, mock_docker_running, mock_image_exists):
         """Test listing images."""
-        mock_run.return_value = Mock(
-            returncode=0,
-            stdout='[{"Repository": "ai-agents-sandbox/devcontainer", "Tag": "1.0.0", "ID": "abc123", "Size": "1.2GB"}]',
-        )
+        mock_docker_running.return_value = True
+        mock_image_exists.return_value = True
 
         result = self.runner.invoke(cli, ["image", "list"])
 

@@ -489,7 +489,7 @@ def get_docker_info() -> Optional[dict[str, Any]]:
                     return None
                 if not server_version:
                     return None
-            return info
+            return dict(info) if isinstance(info, dict) else None
 
     except Exception:
         pass
@@ -617,4 +617,6 @@ class AliasedGroup(click.Group):
     ) -> tuple[str, click.Command, list[str]]:
         # Override to show both command and aliases in help
         cmd_name, cmd, args = super().resolve_command(ctx, args)
+        if cmd_name is None or cmd is None:
+            raise click.UsageError("Command not found")
         return cmd_name, cmd, args

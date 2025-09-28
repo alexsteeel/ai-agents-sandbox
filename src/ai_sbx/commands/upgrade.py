@@ -121,7 +121,9 @@ def get_latest_version(verbose: bool = False) -> Optional[str]:
             import json
 
             data = json.loads(result.stdout)
-            return data.get("info", {}).get("version")
+            info = data.get("info", {})
+            version = info.get("version") if isinstance(info, dict) else None
+            return str(version) if version else None
 
     except Exception as e:
         if verbose:
