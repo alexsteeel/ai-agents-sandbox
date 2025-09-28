@@ -172,7 +172,9 @@ class TestWorktreeCommand:
         result = self.runner.invoke(cli, ["worktree", "list"])
         assert result.exit_code == 0
         # Check for table headers or content
-        assert "Path" in result.output or "Branch" in result.output or "test-branch" in result.output
+        assert (
+            "Path" in result.output or "Branch" in result.output or "test-branch" in result.output
+        )
 
     @patch("ai_sbx.commands.worktree.utils.list_worktrees")
     def test_worktree_remove_interactive(self, mock_list):
