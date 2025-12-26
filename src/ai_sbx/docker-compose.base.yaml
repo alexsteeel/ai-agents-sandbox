@@ -33,6 +33,27 @@ services:
       - ai-sbx-internal  # Internal network only - no direct internet access
       - ai-sbx-proxy-internal # Common docker proxy internal network
 
+  # DNS proxy for internal network
+  # Bridges DNS queries from internal network to external DNS servers
+  # This allows containers on internal network to resolve DNS without direct internet access
+  # Uses host's DNS servers by default (supports corporate/VPN DNS)
+  dns-proxy:
+    image: alpine:latest
+    command: >
+      sh -c "apk add --no-cache dnsmasq &&
+             dnsmasq -k --no-daemon
+             --no-resolv
+             --server=host.gateway
+             --log-queries
+             --log-facility=-"
+    extra_hosts:
+      - "host.gateway:host-gateway"
+    restart: unless-stopped
+    networks:
+      ai-sbx-internal:
+        ipv4_address: 172.28.0.53  # Static IP for DNS (port 53 reference)
+      ai-sbx-external:
+
   # Main proxy for devcontainer - supports upstream proxy
   tinyproxy-devcontainer:
     image: ai-agents-sandbox/tinyproxy:${IMAGE_TAG:-1.0.0}
@@ -53,6 +74,10 @@ services:
   # Development container
   devcontainer:
     user: claude
+    # Use internal DNS proxy for name resolution
+    # This allows DNS to work while keeping container on internal network only
+    dns:
+      - 172.28.0.53
     environment:
       <<: *devcontainer-proxy-env
       # Project-specific environment
@@ -68,6 +93,7 @@ services:
       # Claude Code configuration
       CLAUDE_CONFIG_DIR: /home/claude/.claude
       NODE_OPTIONS: --max-old-space-size=4096
+      COPY_CLAUDE_SETTINGS: "true"
     volumes:
       # Core volumes
       - ${PROJECT_DIR:-..}:/workspace
@@ -77,8 +103,12 @@ services:
       # User configuration volumes
       - ${HOME}/.ai-sbx:/host/.ai-sbx:ro
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
-      - ${HOME}/.claude/projects/:/home/claude/.claude/projects:ro
+      - ${HOME}/.claude:/host/.claude:ro
+      - ${HOME}/.claude/projects/:/home/claude/.claude/projects
       - ${HOME}/.ai-sbx/notifications:/home/claude/.ai-sbx/notifications
+
+      # Mount task manager data (read-write)
+      - ${HOME}/.md-task-mcp:/home/claude/.md-task-mcp:rw
 
       # Persistent state volumes
       - cache:/home/claude/.cache
@@ -91,10 +121,11 @@ services:
       - "${CODEX_PORT:-1455}:1455"
     working_dir: /workspace
     networks:
-      - ai-sbx-internal
+      - ai-sbx-internal  # Internal network only - no direct internet access
     depends_on:
       - docker  # For Docker CLI access
-      - tinyproxy-devcontainer  # ONLY its own proxy, NOT tinyproxy-dind
+      - tinyproxy-devcontainer  # HTTP/HTTPS proxy
+      - dns-proxy  # DNS resolution
     # Allow custom command override
     command: ${DEVCONTAINER_COMMAND:-sleep infinity}
 
@@ -124,6 +155,9 @@ networks:
     name: ${PROJECT_NAME:-project}-ai-sbx-internal
     driver: bridge
     internal: true  # Critical: blocks direct internet access
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
   ai-sbx-external:
     name: ${PROJECT_NAME:-project}-ai-sbx-external
     driver: bridge

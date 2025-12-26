@@ -63,19 +63,22 @@ services:
       # Claude Code configuration
       CLAUDE_CONFIG_DIR: /home/claude/.claude
       NODE_OPTIONS: --max-old-space-size=4096
+      COPY_CLAUDE_SETTINGS: "true"
 
     volumes:
       # Core volumes
       - ${PROJECT_DIR:-..}:/workspace
-
-
       - docker-certs-client:/certs/client:ro
       
       # User configuration volumes
       - ${HOME}/.ai-sbx:/host/.ai-sbx:ro
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
-      - ${HOME}/.claude/projects/:/home/claude/.claude/projects:ro
+      - ${HOME}/.claude:/host/.claude:ro
+      - ${HOME}/.claude/projects/:/home/claude/.claude/projects
       - ${HOME}/.ai-sbx/notifications:/home/claude/.ai-sbx/notifications
+
+      # Mount task manager data (read-write)
+      - ${HOME}/.md-task-mcp:/home/claude/.md-task-mcp:rw
 
       # Persistent state volumes
       - cache:/home/claude/.cache

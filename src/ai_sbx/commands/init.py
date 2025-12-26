@@ -1455,6 +1455,48 @@ COMPOSE_PROJECT_NAME={path.name}
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] Could not configure git worktree mount: {e}")
 
+    # Fix Docker volume permissions for claude-code-config volume and mounted directories
+    # These are created with root ownership by Docker, but container runs as claude user
+    try:
+        # Check if container is running
+        container_name = f"{path.name}-devcontainer-1"
+        result = subprocess.run(
+            ["docker", "ps", "--format", "{{.Names}}"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if container_name in result.stdout:
+            # Directories to fix ownership for
+            dirs_to_fix = [
+                "/home/claude/.claude",
+                "/home/claude/.md-task-mcp",
+            ]
+            for dir_path in dirs_to_fix:
+                fix_result = subprocess.run(
+                    [
+                        "docker",
+                        "exec",
+                        "-u",
+                        "root",
+                        container_name,
+                        "chown",
+                        "-R",
+                        "claude:local-ai-team",
+                        dir_path,
+                    ],
+                    capture_output=True,
+                    check=False,
+                )
+                if fix_result.returncode == 0:
+                    console.print(f"[green]✓[/green] Fixed {dir_path} permissions")
+                elif verbose:
+                    stderr_msg = fix_result.stderr.decode() if fix_result.stderr else ""
+                    console.print(f"[dim]Could not fix {dir_path} permissions: {stderr_msg}[/dim]")
+    except Exception as e:
+        if verbose:
+            console.print(f"[dim]Could not fix volume permissions: {e}[/dim]")
+
     # Set permissions
     try:
         # Get global config for group name

@@ -10,7 +10,6 @@ from ai_sbx.utils import find_project_root, logger, prompt_yes_no, run_command
 
 from .utils import (
     copy_secure_init,
-    create_task_structure,
     detect_available_ides,
     generate_branch_name,
     get_preferred_ide,
@@ -25,11 +24,6 @@ from .utils import (
 @click.option("--branch", help="Custom branch name")
 @click.option("--ide", type=click.Choice(["vscode", "devcontainer", "pycharm", "rider", "goland"]))
 @click.option("--no-open", is_flag=True, help="Don't open IDE after creation")
-@click.option(
-    "--with-task-folder/--no-task-folder",
-    default=None,
-    help="Create task folder (prompts if not specified)",
-)
 @click.pass_context
 def create(
     ctx: click.Context,
@@ -37,7 +31,6 @@ def create(
     branch: Optional[str],
     ide: Optional[str],
     no_open: bool,
-    with_task_folder: Optional[bool],
 ) -> None:
     """Create a new worktree for a development task.
 
@@ -228,38 +221,22 @@ def create(
     # Copy init.secure.sh if it exists (for credentials not in git)
     copy_secure_init(project_root, worktree_path, console)
 
-    # Determine if we should create task folder
-    if with_task_folder is None:
-        # Not specified on command line, ask the user
-        create_task_folder = prompt_yes_no(
-            "Create task folder with requirements template?", default=True
-        )
-    else:
-        # Use command line flag value
-        create_task_folder = with_task_folder
-
-    if create_task_folder:
-        # Create task folder structure
-        create_task_structure(worktree_path, branch, description, console)
-
     # Determine preferred IDE
     preferred_ide = None
     if ide:
         preferred_ide = IDE(ide)
     else:
         # Load preference from .user.env
-        preferred_ide = get_preferred_ide(project_root)
+        saved_preference = get_preferred_ide(project_root)
 
-        # If no preference, detect available IDEs
-        if not preferred_ide:
-            detected = detect_available_ides()
-            if detected:
-                # If multiple IDEs available, prompt user
-                if len(detected) > 1 and not no_open:
-                    preferred_ide = prompt_ide_selection(detected, project_root, console)
-                elif len(detected) == 1:
-                    preferred_ide = detected[0][0]
-                    save_preferred_ide(project_root, preferred_ide, console)
+        # Detect available IDEs
+        detected = detect_available_ides()
+        if detected and not no_open:
+            # Always prompt if we have IDEs available (pass saved preference as default)
+            preferred_ide = prompt_ide_selection(detected, project_root, console, saved_preference)
+        elif saved_preference:
+            # If no_open is set, just use the saved preference
+            preferred_ide = saved_preference
 
     # Open IDE if requested
     opened_ide = False

@@ -27,5 +27,6 @@ source $ZSH/oh-my-zsh.sh
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
 # Aliases for Claude and Codex
-alias claude='claude --dangerously-skip-permissions'
-alias codex='codex --profile gpt-5-codex'
+# Disable auto-update to preserve pinned version (proxy regression in 2.0.48+)
+alias claude='CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 claude --dangerously-skip-permissions'
+alias codex='codex'

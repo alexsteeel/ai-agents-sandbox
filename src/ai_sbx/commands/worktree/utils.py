@@ -4,7 +4,6 @@ import os
 import re
 import shutil
 import subprocess
-from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
@@ -50,53 +49,6 @@ def copy_secure_init(project_root: Path, worktree_path: Path, console: Console) 
         console.print("[green]✓[/green] Copied init.secure.sh (contains credentials)")
     else:
         logger.debug("No init.secure.sh found")
-
-
-def create_task_structure(
-    worktree_path: Path, branch_name: str, description: str, console: Console
-) -> None:
-    """Create task directory structure matching original shell script."""
-    try:
-        # Create tasks/{branch-name} directory structure
-        task_dir = worktree_path / "tasks" / branch_name
-        task_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create initial requirements file
-        requirements_file = task_dir / "initial_requirements.md"
-        requirements_file.write_text(
-            f"""# Task: {description}
-
-## Task ID: {branch_name}
-
-## Created: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-## Initial Requirements
-
-[Describe the task requirements here]
-
-## Acceptance Criteria
-
-- [ ] Criteria 1
-- [ ] Criteria 2
-- [ ] Criteria 3
-
-## Technical Approach
-
-[Describe the technical approach]
-
-## Notes
-
-[Additional notes]
-"""
-        )
-
-        console.print(f"[green]✓[/green] Task folder created: tasks/{branch_name}")
-        console.print("[green]✓[/green] Initial requirements file created")
-        logger.debug(f"Created task structure at {task_dir}")
-
-    except Exception as e:
-        logger.warning(f"Could not create task structure: {e}")
-        console.print(f"[yellow]Warning: Failed to create task structure: {e}[/yellow]")
 
 
 def detect_available_ides() -> list[tuple[IDE, str]]:
@@ -172,7 +124,10 @@ def save_preferred_ide(project_root: Path, ide: IDE, console: Console) -> None:
 
 
 def prompt_ide_selection(
-    available_ides: list[tuple[IDE, str]], project_root: Path, console: Console
+    available_ides: list[tuple[IDE, str]],
+    project_root: Path,
+    console: Console,
+    saved_preference: Optional[IDE] = None,
 ) -> Optional[IDE]:
     """Prompt user to select an IDE."""
     import sys
@@ -188,18 +143,14 @@ def prompt_ide_selection(
         console.print("\nYou can open the project manually or specify --ide option")
         return None
 
-    # Load project configuration to get preferred IDE
-    config = load_project_config(project_root)
-    preferred_ide = config.preferred_ide if config else None
-
     choices: list[tuple[str, Optional[IDE]]] = [(name, ide) for ide, name in available_ides]
     choices.append(("Skip (open manually later)", None))
 
-    # Find the default choice based on preferred IDE
+    # Find the default choice based on saved preference
     default_choice = choices[-1][0]  # Default to "Skip" if preferred not found
-    if preferred_ide:
+    if saved_preference:
         for name, choice_ide in choices:
-            if choice_ide is not None and choice_ide == preferred_ide:
+            if choice_ide is not None and choice_ide == saved_preference:
                 default_choice = name
                 break
 

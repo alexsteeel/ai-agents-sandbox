@@ -73,9 +73,10 @@ ENV DEVCONTAINER=true
 
 # Create workspace and config directories and set permissions
 # Pre-create config.json to prevent it being created as root later
-RUN mkdir -p /workspace /home/$USERNAME/.ai-sbx /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker && \
+# Note: .claude directory permissions are fixed by ai-sbx init worktree (uses docker exec -u root)
+RUN mkdir -p /workspace /home/$USERNAME/.ai-sbx /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker /home/$USERNAME/.claude && \
   echo '{}' > /home/$USERNAME/.docker/config.json && \
-  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.ai-sbx /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker
+  chown -R $USERNAME:$USERNAME /workspace /home/$USERNAME/.ai-sbx /home/$USERNAME/.codex /home/$USERNAME/.cache /home/$USERNAME/.docker /home/$USERNAME/.claude
 
 WORKDIR /workspace
 
@@ -108,6 +109,11 @@ RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 # Install Python linting and formatting tools globally using uv
 RUN uv pip install --system --break-system-packages --no-cache ruff black
 
+# Install md-task-mcp (markdown-based task management MCP server)
+# https://github.com/alexsteeel/md-task-mcp
+RUN uv pip install --system --break-system-packages --no-cache \
+    git+https://github.com/alexsteeel/md-task-mcp.git
+
 # Install shfmt
 ENV SHFMT_VERSION=3.7.0
 RUN set -eux; \
@@ -129,6 +135,22 @@ RUN set -eux; \
     wget -O /usr/local/bin/yq \
       "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${YQ_ARCH}"; \
     chmod +x /usr/local/bin/yq
+
+# Install Google Chrome (actual Chrome, not Chromium - needed for Playwright MCP)
+RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+    && apt-get update \
+    && apt-get install -y google-chrome-stable \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install Playwright system dependencies and browsers
+# https://playwright.dev/docs/intro
+# Must run as root for msedge installation
+RUN npx playwright install-deps chromium firefox msedge \
+    && npx playwright install chromium firefox msedge \
+    && mkdir -p /home/$USERNAME/.cache \
+    && mv /root/.cache/ms-playwright /home/$USERNAME/.cache/ \
+    && chown -R $USERNAME:$USERNAME /home/$USERNAME/.cache/ms-playwright
 
 # Set up non-root user
 USER $USERNAME
@@ -159,13 +181,17 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
 # Install tmux plugin manager
 RUN git clone https://github.com/tmux-plugins/tpm /home/$USERNAME/.tmux/plugins/tpm
 
-# Install Claude Code and related tools/mcp servers etc
+# Install Claude Code and related tools
 # https://github.com/anthropics/claude-code
 # https://github.com/ryoppippi/ccusage
-# https://github.com/upstash/context7
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} \
-    && npm install -g ccusage \
-    && claude mcp add context7 -- npx -y @upstash/context7-mcp
+    && npm install -g ccusage
+
+# Install MCP server packages (registered in entrypoint.sh on container startup)
+# https://github.com/upstash/context7
+# https://github.com/microsoft/playwright-mcp
+RUN npm install -g @upstash/context7-mcp \
+    && npm install -g @playwright/mcp
 
 # Install Codex CLI
 RUN npm install -g @openai/codex
@@ -177,6 +203,11 @@ RUN npm install -g @google/gemini-cli
 # Install CodeRabbit CLI
 # https://docs.coderabbit.ai/cli/overview
 RUN curl -fsSL https://cli.coderabbit.ai/install.sh | sh || true
+
+# Install Playwright test framework globally
+# https://playwright.dev/
+# Note: Browser binaries installed earlier as root
+RUN npm install -g @playwright/test
 
 # Install tmux plugins
 RUN /home/$USERNAME/.tmux/plugins/tpm/bin/install_plugins || true
