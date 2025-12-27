@@ -79,9 +79,9 @@ if [ -d /home/claude/claude-defaults ]; then
     fi
 fi
 
-# Copy host Claude settings (commands, agents, hooks) if mounted and enabled
+# Copy host Claude settings (commands, agents, hooks, skills) if mounted and enabled
 if [ "$COPY_CLAUDE_SETTINGS" = "true" ] && [ -d /host/.claude ]; then
-    mkdir -p /home/claude/.claude/commands /home/claude/.claude/agents /home/claude/.claude/hooks 2>/dev/null || true
+    mkdir -p /home/claude/.claude/commands /home/claude/.claude/agents /home/claude/.claude/hooks /home/claude/.claude/skills 2>/dev/null || true
 
     # Copy commands from host (merge with existing)
     if [ -d /host/.claude/commands ]; then
@@ -97,6 +97,11 @@ if [ "$COPY_CLAUDE_SETTINGS" = "true" ] && [ -d /host/.claude ]; then
     if [ -d /host/.claude/hooks ]; then
         cp -rn /host/.claude/hooks/* /home/claude/.claude/hooks/ 2>/dev/null || true
         chmod +x /home/claude/.claude/hooks/*.sh 2>/dev/null || true
+    fi
+
+    # Copy skills from host (merge with existing)
+    if [ -d /host/.claude/skills ]; then
+        cp -rn /host/.claude/skills/* /home/claude/.claude/skills/ 2>/dev/null || true
     fi
 
     # Copy settings.json from host if exists (don't overwrite)
