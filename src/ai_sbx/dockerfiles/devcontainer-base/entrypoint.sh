@@ -110,6 +110,23 @@ if [ "$COPY_CLAUDE_SETTINGS" = "true" ] && [ -d /host/.claude ]; then
     fi
 fi
 
+# Copy Codex auth.json from host if mounted and readable
+if [ -f /host/.codex/auth.json ]; then
+    if [ -r /host/.codex/auth.json ]; then
+        mkdir -p /home/claude/.codex 2>/dev/null || true
+        if [ -w /home/claude/.codex ]; then
+            cp /host/.codex/auth.json /home/claude/.codex/auth.json 2>/dev/null && \
+                chmod 600 /home/claude/.codex/auth.json 2>/dev/null && \
+                echo "Copied Codex auth.json from host" || \
+                echo "Warning: Could not copy Codex auth.json"
+        else
+            echo "Warning: ~/.codex directory is not writable, cannot copy auth.json"
+        fi
+    else
+        echo "Warning: /host/.codex/auth.json exists but is not readable (check host file permissions)"
+    fi
+fi
+
 # Register MCP servers with Claude Code (user-level, persists across projects)
 # Check if MCP servers are already configured to avoid duplicates
 if command -v claude &> /dev/null; then

@@ -1293,6 +1293,49 @@ echo "Initialization complete!"
         )
 
 
+def copy_codex_auth(console: Console, verbose: bool = False) -> None:
+    """Copy ~/.codex/auth.json to ~/.ai-sbx/codex/ with proper permissions.
+
+    This creates a copy with group-readable permissions so the container
+    (running as claude user in local-ai-team group) can read it.
+    """
+    import shutil
+
+    source = Path.home() / ".codex" / "auth.json"
+    dest_dir = Path.home() / ".ai-sbx" / "codex"
+    dest = dest_dir / "auth.json"
+
+    if not source.exists():
+        if verbose:
+            console.print("[dim]No ~/.codex/auth.json found, skipping[/dim]")
+        return
+
+    try:
+        # Create destination directory
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy the file
+        shutil.copy2(source, dest)
+
+        # Set permissions: owner rw, group r (640)
+        dest.chmod(0o640)
+
+        # Try to set group to local-ai-team
+        try:
+            global_config = GlobalConfig.load()
+            run_command(
+                ["chgrp", global_config.group_name, str(dest)],
+                check=False,
+                capture_output=True,
+            )
+        except Exception:
+            pass  # Group setting is best-effort
+
+        console.print("[green]✓[/green] Copied Codex auth.json to ~/.ai-sbx/codex/")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Could not copy Codex auth.json: {e}")
+
+
 def project_setup_impl(
     console: Console,
     path: Path,
@@ -1313,6 +1356,9 @@ def project_setup_impl(
     path = path.resolve()
 
     console.print(f"Setting up project: [cyan]{path.name}[/cyan]")
+
+    # Copy Codex auth.json to ~/.ai-sbx/codex/ with proper permissions
+    copy_codex_auth(console, verbose)
 
     # Check if we're in a git worktree and handle mounts
     is_worktree = False

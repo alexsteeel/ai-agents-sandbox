@@ -105,6 +105,7 @@ services:
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
       - ${HOME}/.claude:/host/.claude:ro
       - ${HOME}/.claude/projects/:/home/claude/.claude/projects
+      - ${HOME}/.ai-sbx/codex:/host/.codex:ro
       - ${HOME}/.ai-sbx/notifications:/home/claude/.ai-sbx/notifications
 
       # Mount task manager data (read-write)
