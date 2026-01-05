@@ -51,7 +51,7 @@ services:
     restart: unless-stopped
     networks:
       ai-sbx-internal:
-        ipv4_address: 172.28.0.53  # Static IP for DNS (port 53 reference)
+        ipv4_address: ${DNS_PROXY_IP:-172.28.0.53}  # Static IP for DNS (port 53 reference)
       ai-sbx-external:
 
   # Main proxy for devcontainer - supports upstream proxy
@@ -77,7 +77,7 @@ services:
     # Use internal DNS proxy for name resolution
     # This allows DNS to work while keeping container on internal network only
     dns:
-      - 172.28.0.53
+      - ${DNS_PROXY_IP:-172.28.0.53}
     environment:
       <<: *devcontainer-proxy-env
       # Project-specific environment
@@ -158,7 +158,7 @@ networks:
     internal: true  # Critical: blocks direct internet access
     ipam:
       config:
-        - subnet: 172.28.0.0/16
+        - subnet: ${NETWORK_SUBNET:-172.28.0.0/16}
   ai-sbx-external:
     name: ${PROJECT_NAME:-project}-ai-sbx-external
     driver: bridge

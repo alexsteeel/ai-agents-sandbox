@@ -1399,10 +1399,20 @@ def project_setup_impl(
     env_file = path / ".devcontainer" / ".env"
     if not env_file.exists():
         env_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Generate unique subnet for this worktree to avoid network conflicts
+        from ai_sbx.templates import generate_unique_subnet
+
+        subnet, dns_ip = generate_unique_subnet(path.name)
+
         env_content = f"""# Project environment variables
 PROJECT_NAME={path.name}
 PROJECT_DIR={path}
 COMPOSE_PROJECT_NAME={path.name}
+
+# Network configuration (unique per worktree to avoid conflicts)
+NETWORK_SUBNET={subnet}
+DNS_PROXY_IP={dns_ip}
 """
         env_file.write_text(env_content)
         console.print("[green]✓[/green] Created .env file")

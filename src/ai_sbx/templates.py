@@ -1,12 +1,41 @@
 """Template management for AI Agents Sandbox."""
 
+import hashlib
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from jinja2 import Environment, FileSystemLoader, Template
 
 from ai_sbx.config import BaseImage, ProjectConfig, get_default_whitelist_domains
 from ai_sbx.utils import logger
+
+
+def generate_unique_subnet(project_name: str) -> Tuple[str, str]:
+    """Generate a unique subnet and DNS IP based on project name.
+
+    Uses a hash of the project name to generate a deterministic subnet
+    in the 172.16-31.x.0/24 range to avoid conflicts with other worktrees.
+
+    Args:
+        project_name: The project name to hash
+
+    Returns:
+        Tuple of (subnet, dns_ip) e.g. ("172.18.42.0/24", "172.18.42.53")
+    """
+    # Create a hash of the project name
+    hash_bytes = hashlib.md5(project_name.encode()).digest()
+
+    # Use first two bytes for second and third octet
+    # Second octet: 16-31 (16 values) to stay in private 172.16.0.0/12 range
+    second_octet = 16 + (hash_bytes[0] % 16)
+    # Third octet: 0-255
+    third_octet = hash_bytes[1]
+
+    # Total unique subnets: 16 * 256 = 4096 different /24 subnets
+    subnet = f"172.{second_octet}.{third_octet}.0/24"
+    dns_ip = f"172.{second_octet}.{third_octet}.53"
+
+    return subnet, dns_ip
 
 
 def get_docker_image_name(base_image: BaseImage) -> str:
@@ -295,13 +324,26 @@ WORKDIR /workspace
 
     def _generate_env_file(self, config: ProjectConfig) -> str:
         """Generate .env file content with only Docker runtime variables."""
+        # Use directory name (not config.name) for unique identification
+        # This ensures each worktree gets unique network settings
+        # even though they share the same ai-sbx.yaml with same config.name
+        dir_name = config.path.name
+
+        # Generate unique subnet for this project/worktree to avoid network conflicts
+        subnet, dns_ip = generate_unique_subnet(dir_name)
+
         template = """# Docker Compose Runtime Configuration
 # This file is auto-generated from ai-sbx.yaml
 # To modify settings, edit ai-sbx.yaml and run 'ai-sbx init update'
 
 # Required for Docker Compose
 PROJECT_DIR={{ config.path }}
-COMPOSE_PROJECT_NAME={{ config.name }}
+PROJECT_NAME={{ dir_name }}
+COMPOSE_PROJECT_NAME={{ dir_name }}
+
+# Network configuration (unique per project/worktree to avoid conflicts)
+NETWORK_SUBNET={{ subnet }}
+DNS_PROXY_IP={{ dns_ip }}
 
 # Docker image version
 IMAGE_TAG={{ config.docker.image_tag }}
@@ -330,7 +372,7 @@ ADDITIONAL_REGISTRIES={{ ' '.join(config.docker.custom_registries) }}
 {{ key }}={{ value }}
 {% endfor -%}
 """
-        return Template(template).render(config=config)
+        return Template(template).render(config=config, dir_name=dir_name, subnet=subnet, dns_ip=dns_ip)
 
     def _generate_whitelist(self, config: ProjectConfig) -> str:
         """Generate whitelist.txt content."""
