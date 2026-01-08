@@ -39,6 +39,23 @@ fi
 # Check .md-task-mcp directory - needed for task management MCP server
 check_dir_ownership /home/claude/.md-task-mcp ".md-task-mcp"
 
+# Copy host .gitconfig if mounted (for user identity: name, email)
+# This must happen BEFORE setting safe.directory since we overwrite .gitconfig
+if [ -f /host/.gitconfig ]; then
+    if [ -r /host/.gitconfig ]; then
+        cp /host/.gitconfig /home/claude/.gitconfig 2>/dev/null && \
+            chmod 644 /home/claude/.gitconfig 2>/dev/null && \
+            echo "Copied .gitconfig from host" || \
+            echo "Warning: Could not copy .gitconfig"
+    fi
+fi
+
+# Configure git safe.directory for workspace (needed for worktrees and mounted repos)
+# This must happen AFTER copying .gitconfig to ensure it's not overwritten
+if command -v git &> /dev/null; then
+    git config --global --add safe.directory /workspace 2>/dev/null || true
+fi
+
 # Ensure Claude defaults are copied on every container start
 # This handles cases where the container is recreated or ~/.claude is missing
 if [ -d /home/claude/claude-defaults ]; then
@@ -58,6 +75,7 @@ if [ -d /home/claude/claude-defaults ]; then
     # Ensure hooks are executable
     if [ -d /home/claude/.claude/hooks ]; then
         chmod +x /home/claude/.claude/hooks/*.sh 2>/dev/null || true
+        chmod +x /home/claude/.claude/hooks/*.py 2>/dev/null || true
     fi
 
     # Always ensure critical files exist (settings.local.json and notify.sh)
@@ -154,6 +172,16 @@ if command -v claude &> /dev/null; then
     else
         claude mcp add -s user playwright -- npx @playwright/mcp@latest --isolated --no-sandbox --headless 2>/dev/null && \
             echo "Added playwright MCP server" || true
+    fi
+
+    # Add codex MCP server if not already configured and codex is installed
+    if command -v codex &> /dev/null; then
+        if echo "$MCP_LIST" | grep -q "codex"; then
+            true  # already configured
+        else
+            claude mcp add -s user codex -- codex mcp-server 2>/dev/null && \
+                echo "Added codex MCP server" || true
+        fi
     fi
 fi
 

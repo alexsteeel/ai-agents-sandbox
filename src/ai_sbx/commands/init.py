@@ -1501,6 +1501,95 @@ DNS_PROXY_IP={dns_ip}
             except Exception:
                 pass  # Ignore errors, this is optional
 
+            # Set permissions on parent git directory for container access
+            # This allows the claude user (in local-ai-team group) to commit
+            try:
+                global_config = GlobalConfig.load()
+                git_objects = Path(parent_git_dir) / "objects"
+                git_worktrees = Path(parent_git_dir) / "worktrees"
+                worktree_name = path.name
+
+                # Set group permissions on .git/objects (needed for commits)
+                if git_objects.exists():
+                    run_command(
+                        ["chgrp", "-R", global_config.group_name, str(git_objects)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    run_command(
+                        ["chmod", "-R", "g+rw", str(git_objects)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    run_command(
+                        ["find", str(git_objects), "-type", "d", "-exec", "chmod", "g+s", "{}", "+"],
+                        check=False,
+                        capture_output=True,
+                    )
+                    console.print("[green]✓[/green] Set permissions on .git/objects")
+
+                # Set group permissions on .git/logs (needed for reflog)
+                git_logs = Path(parent_git_dir) / "logs"
+                if git_logs.exists():
+                    run_command(
+                        ["chgrp", "-R", global_config.group_name, str(git_logs)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    run_command(
+                        ["chmod", "-R", "g+rw", str(git_logs)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    run_command(
+                        ["find", str(git_logs), "-type", "d", "-exec", "chmod", "g+s", "{}", "+"],
+                        check=False,
+                        capture_output=True,
+                    )
+                    console.print("[green]✓[/green] Set permissions on .git/logs")
+
+                # Set group permissions on .git/refs (needed for branch updates)
+                git_refs = Path(parent_git_dir) / "refs"
+                if git_refs.exists():
+                    run_command(
+                        ["chgrp", "-R", global_config.group_name, str(git_refs)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    run_command(
+                        ["chmod", "-R", "g+rw", str(git_refs)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    run_command(
+                        ["find", str(git_refs), "-type", "d", "-exec", "chmod", "g+s", "{}", "+"],
+                        check=False,
+                        capture_output=True,
+                    )
+                    console.print("[green]✓[/green] Set permissions on .git/refs")
+
+                # Set permissions on specific worktree directory
+                worktree_dir = git_worktrees / worktree_name
+                if worktree_dir.exists():
+                    run_command(
+                        ["chgrp", "-R", global_config.group_name, str(worktree_dir)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    run_command(
+                        ["chmod", "-R", "g+rw", str(worktree_dir)],
+                        check=False,
+                        capture_output=True,
+                    )
+                    run_command(
+                        ["find", str(worktree_dir), "-type", "d", "-exec", "chmod", "g+s", "{}", "+"],
+                        check=False,
+                        capture_output=True,
+                    )
+                    console.print(f"[green]✓[/green] Set permissions on .git/worktrees/{worktree_name}")
+            except Exception as e:
+                console.print(f"[yellow]⚠[/yellow] Could not set git directory permissions: {e}")
+
         except ImportError:
             console.print(
                 "[yellow]⚠[/yellow] PyYAML not available - cannot configure git worktree mount"

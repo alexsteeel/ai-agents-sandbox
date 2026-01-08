@@ -73,6 +73,7 @@ services:
       # User configuration volumes
       - ${HOME}/.ai-sbx:/host/.ai-sbx:ro
       - ${HOME}/.p10k.zsh:/host/.p10k.zsh:ro
+      - ${HOME}/.gitconfig:/host/.gitconfig:ro
       - ${HOME}/.claude:/host/.claude:ro
       - ${HOME}/.claude/projects/:/home/claude/.claude/projects
       - ${HOME}/.ai-sbx/codex:/host/.codex:ro
