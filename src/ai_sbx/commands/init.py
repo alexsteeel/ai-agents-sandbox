@@ -659,6 +659,32 @@ def init_project(
     except Exception:
         pass
 
+    # Set up origin/HEAD if not configured (needed for worktrees to know default branch)
+    try:
+        # Check if origin/HEAD exists
+        result = subprocess.run(
+            ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
+            cwd=project_path,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            # origin/HEAD not set, configure it automatically
+            set_head_result = subprocess.run(
+                ["git", "remote", "set-head", "origin", "--auto"],
+                cwd=project_path,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if set_head_result.returncode == 0:
+                console.print("[green]✓[/green] Configured origin/HEAD for worktree support")
+            elif verbose:
+                console.print("[dim]Could not auto-configure origin/HEAD (no remote?)[/dim]")
+    except Exception:
+        pass
+
     # Create or update project config
     if existing_config:
         config = existing_config

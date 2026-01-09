@@ -56,8 +56,9 @@ RUN set -eux; \
     if getent group docker >/dev/null; then usermod -aG docker "$USERNAME"; fi
 
 
-# Generate locale
-RUN locale-gen en_US.UTF-8
+# Set UTF-8 environment (C.UTF-8 is available by default in Debian)
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
 
 RUN mkdir -p /usr/local/share/npm-global && \
   chown -R $USERNAME:$USERNAME /usr/local/share
@@ -221,6 +222,7 @@ COPY --chown=$USERNAME:$USERNAME devcontainer-base/claude-defaults /home/$USERNA
 # Copy configuration files
 COPY --chown=$USERNAME:$USERNAME devcontainer-base/conf/.zshrc /home/$USERNAME/.zshrc
 COPY --chown=$USERNAME:$USERNAME devcontainer-base/conf/.tmux.conf /home/$USERNAME/.tmux.conf
+COPY --chown=$USERNAME:$USERNAME devcontainer-base/conf/.vimrc /home/$USERNAME/.vimrc
 COPY --chown=$USERNAME:$USERNAME devcontainer-base/conf/codex_config.toml /home/$USERNAME/.codex/config.toml
 
 # Create logs directory for scripts to avoid conflicts with .ai_agents_sandbox directory
