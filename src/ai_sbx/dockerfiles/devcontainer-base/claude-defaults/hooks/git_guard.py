@@ -19,7 +19,7 @@ def check_command(cmd: str) -> str | None:
 
     try:
         git_idx = parts.index("git")
-        args = parts[git_idx + 1:]
+        args = parts[git_idx + 1 :]
     except (ValueError, IndexError):
         return None
 

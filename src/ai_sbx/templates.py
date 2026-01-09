@@ -372,7 +372,9 @@ ADDITIONAL_REGISTRIES={{ ' '.join(config.docker.custom_registries) }}
 {{ key }}={{ value }}
 {% endfor -%}
 """
-        return Template(template).render(config=config, dir_name=dir_name, subnet=subnet, dns_ip=dns_ip)
+        return Template(template).render(
+            config=config, dir_name=dir_name, subnet=subnet, dns_ip=dns_ip
+        )
 
     def _generate_whitelist(self, config: ProjectConfig) -> str:
         """Generate whitelist.txt content."""

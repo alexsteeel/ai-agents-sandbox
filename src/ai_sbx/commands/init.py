@@ -1548,7 +1548,17 @@ DNS_PROXY_IP={dns_ip}
                         capture_output=True,
                     )
                     run_command(
-                        ["find", str(git_objects), "-type", "d", "-exec", "chmod", "g+s", "{}", "+"],
+                        [
+                            "find",
+                            str(git_objects),
+                            "-type",
+                            "d",
+                            "-exec",
+                            "chmod",
+                            "g+s",
+                            "{}",
+                            "+",
+                        ],
                         check=False,
                         capture_output=True,
                     )
@@ -1608,11 +1618,23 @@ DNS_PROXY_IP={dns_ip}
                         capture_output=True,
                     )
                     run_command(
-                        ["find", str(worktree_dir), "-type", "d", "-exec", "chmod", "g+s", "{}", "+"],
+                        [
+                            "find",
+                            str(worktree_dir),
+                            "-type",
+                            "d",
+                            "-exec",
+                            "chmod",
+                            "g+s",
+                            "{}",
+                            "+",
+                        ],
                         check=False,
                         capture_output=True,
                     )
-                    console.print(f"[green]✓[/green] Set permissions on .git/worktrees/{worktree_name}")
+                    console.print(
+                        f"[green]✓[/green] Set permissions on .git/worktrees/{worktree_name}"
+                    )
             except Exception as e:
                 console.print(f"[yellow]⚠[/yellow] Could not set git directory permissions: {e}")
 
