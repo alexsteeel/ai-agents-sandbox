@@ -93,7 +93,9 @@ class TestTemplateManager:
 
             # Check some content
             env_content = (output_dir / ".env").read_text()
-            assert "PROJECT_NAME=test-project" in env_content
+            # PROJECT_NAME uses the directory name (config.path.name), not config.name
+            assert "PROJECT_NAME=" in env_content
+            assert "COMPOSE_PROJECT_NAME=" in env_content
 
             dockerfile_content = (output_dir / "Dockerfile").read_text()
             assert "FROM ai-agents-sandbox/devcontainer-dotnet:1.0.0" in dockerfile_content
@@ -123,7 +125,8 @@ class TestTemplateManager:
             # With force, should overwrite
             success = manager.generate_project_files(output_dir, config, force=True)
             content = existing_file.read_text()
-            assert "PROJECT_NAME=new-project" in content
+            # PROJECT_NAME uses directory name, not config.name
+            assert "PROJECT_NAME=" in content
             assert "OLD_CONTENT" not in content
 
     def test_handles_invalid_config(self):

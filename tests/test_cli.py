@@ -1,5 +1,6 @@
 """Integration tests for AI Agents Sandbox CLI."""
 
+import importlib
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
@@ -158,34 +159,42 @@ class TestWorktreeCommand:
             # Should fail or show error message
             assert result.exit_code != 0 or "Not in a git repository" in result.output
 
-    @patch("ai_sbx.commands.worktree.list.get_worktrees")
-    def test_worktree_list(self, mock_list):
+    def test_worktree_list(self):
         """Test worktree list command."""
-        mock_list.return_value = [
-            {
-                "path": "/test/worktree",
-                "branch": "test-branch",
-                "commit": "abc123",
-            }
-        ]
+        # Import the module via importlib to avoid click group resolution issues
+        list_module = importlib.import_module("ai_sbx.commands.worktree.list")
 
-        result = self.runner.invoke(cli, ["worktree", "list"])
-        assert result.exit_code == 0
-        # Check for table headers or content
-        assert (
-            "Path" in result.output or "Branch" in result.output or "test-branch" in result.output
-        )
+        with patch.object(list_module, "get_worktrees") as mock_list:
+            mock_list.return_value = [
+                {
+                    "path": "/test/worktree",
+                    "branch": "test-branch",
+                    "commit": "abc123",
+                }
+            ]
 
-    @patch("ai_sbx.commands.worktree.list.get_worktrees")
-    def test_worktree_remove_interactive(self, mock_list):
+            result = self.runner.invoke(cli, ["worktree", "list"])
+            assert result.exit_code == 0
+            # Check for table headers or content
+            assert (
+                "Path" in result.output
+                or "Branch" in result.output
+                or "test-branch" in result.output
+            )
+
+    def test_worktree_remove_interactive(self):
         """Test worktree remove interactive mode."""
-        mock_list.return_value = []
+        # Import the module via importlib to avoid click group resolution issues
+        remove_module = importlib.import_module("ai_sbx.commands.worktree.remove")
 
-        result = self.runner.invoke(cli, ["worktree", "remove"])
-        # Interactive mode may fail in test environment (no tty)
-        # Just check that it ran
-        assert result.exit_code in [0, 1]
-        assert "No worktrees found" in result.output or "worktree" in result.output.lower()
+        with patch.object(remove_module, "list_worktrees") as mock_list:
+            mock_list.return_value = []
+
+            result = self.runner.invoke(cli, ["worktree", "remove"])
+            # Interactive mode may fail in test environment (no tty)
+            # Just check that it ran
+            assert result.exit_code in [0, 1]
+            assert "No worktrees found" in result.output or "worktree" in result.output.lower()
 
 
 class TestNotifyCommand:
