@@ -15,7 +15,6 @@ from .utils import (
     get_preferred_ide,
     open_ide,
     prompt_ide_selection,
-    save_preferred_ide,
 )
 
 

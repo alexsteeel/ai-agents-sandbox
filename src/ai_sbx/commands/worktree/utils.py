@@ -9,7 +9,7 @@ from typing import Any, Optional
 
 from rich.console import Console
 
-from ai_sbx.config import IDE, load_project_config
+from ai_sbx.config import IDE
 from ai_sbx.utils import check_command_exists, logger, prompt_yes_no
 
 

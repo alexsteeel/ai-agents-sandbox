@@ -2,7 +2,7 @@
 
 import hashlib
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from jinja2 import Environment, FileSystemLoader, Template
 
@@ -10,7 +10,7 @@ from ai_sbx.config import BaseImage, ProjectConfig, get_default_whitelist_domain
 from ai_sbx.utils import logger
 
 
-def generate_unique_subnet(project_name: str) -> Tuple[str, str]:
+def generate_unique_subnet(project_name: str) -> tuple[str, str]:
     """Generate a unique subnet and DNS IP based on project name.
 
     Uses a hash of the project name to generate a deterministic subnet
