@@ -6,11 +6,12 @@ Prevents: checkout/switch to protected branches, force push, push to protected b
 
 import json
 import sys
+from typing import Optional
 
 PROTECTED = {"main", "master", "develop", "release"}
 
 
-def check_command(cmd: str) -> str | None:
+def check_command(cmd: str) -> Optional[str]:
     """Return block reason or None if allowed."""
     parts = cmd.split()
 
@@ -50,7 +51,7 @@ def check_command(cmd: str) -> str | None:
     return None
 
 
-def main():
+def main() -> None:
     try:
         data = json.loads(sys.stdin.read() or "{}")
         if data.get("tool_name") != "Bash":
