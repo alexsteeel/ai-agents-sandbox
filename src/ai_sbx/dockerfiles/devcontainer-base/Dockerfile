@@ -115,6 +115,11 @@ RUN uv pip install --system --break-system-packages --no-cache ruff black
 RUN uv pip install --system --break-system-packages --no-cache \
     git+https://github.com/alexsteeel/md-task-mcp.git
 
+# Install Ralph CLI (autonomous task execution with API recovery)
+# https://github.com/alexsteeel/.claude/tree/master/cli
+RUN uv pip install --system --break-system-packages --no-cache \
+    "ralph @ git+https://github.com/alexsteeel/.claude.git#subdirectory=cli"
+
 # Install shfmt
 ENV SHFMT_VERSION=3.7.0
 RUN set -eux; \
@@ -201,10 +206,6 @@ RUN npm install -g @openai/codex
 # https://github.com/google-gemini/gemini-cli
 RUN npm install -g @google/gemini-cli
 
-# Install CodeRabbit CLI
-# https://docs.coderabbit.ai/cli/overview
-RUN curl -fsSL https://cli.coderabbit.ai/install.sh | sh || true
-
 # Install Playwright test framework globally
 # https://playwright.dev/
 # Note: Browser binaries installed earlier as root
@@ -225,7 +226,7 @@ COPY --chown=$USERNAME:$USERNAME devcontainer-base/conf/.tmux.conf /home/$USERNA
 COPY --chown=$USERNAME:$USERNAME devcontainer-base/conf/.vimrc /home/$USERNAME/.vimrc
 COPY --chown=$USERNAME:$USERNAME devcontainer-base/conf/codex_config.toml /home/$USERNAME/.codex/config.toml
 
-# Create logs directory for scripts to avoid conflicts with .ai_agents_sandbox directory
+# Create logs directory for devcontainer scripts (non-root-post-create.sh, tests)
 RUN mkdir -p /home/$USERNAME/scripts/logs && \
     chown -R $USERNAME:$USERNAME /home/$USERNAME/scripts/logs
 
