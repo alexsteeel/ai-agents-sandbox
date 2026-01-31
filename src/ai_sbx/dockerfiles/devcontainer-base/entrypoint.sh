@@ -126,6 +126,13 @@ if [ "$COPY_CLAUDE_SETTINGS" = "true" ] && [ -d /host/.claude ]; then
     if [ -f /host/.claude/settings.json ] && [ ! -f /home/claude/.claude/settings.json ]; then
         cp /host/.claude/settings.json /home/claude/.claude/ 2>/dev/null || true
     fi
+
+    # Copy .env from host if exists (for Ralph CLI: Telegram tokens, recovery settings)
+    if [ -f /host/.claude/.env ] && [ ! -f /home/claude/.claude/.env ]; then
+        cp /host/.claude/.env /home/claude/.claude/ 2>/dev/null && \
+            chmod 600 /home/claude/.claude/.env 2>/dev/null && \
+            echo "Copied .env from host ~/.claude" || true
+    fi
 fi
 
 # Copy Codex auth.json from host if mounted and readable
