@@ -197,48 +197,22 @@ def save_project_config(config: ProjectConfig) -> None:
 
 
 def get_default_whitelist_domains() -> list[str]:
-    """Get the default whitelist domains."""
-    return [
-        # Package registries
-        "pypi.org",
-        "files.pythonhosted.org",
-        "registry.npmjs.org",
-        "registry.yarnpkg.com",
-        "rubygems.org",
-        "crates.io",
-        "pkg.go.dev",
-        "proxy.golang.org",
-        "sum.golang.org",
-        "nuget.org",
-        "api.nuget.org",
-        "packages.nuget.org",
-        # Source control
-        "github.com",
-        "api.github.com",
-        "raw.githubusercontent.com",
-        "github.githubassets.com",
-        "gitlab.com",
-        "bitbucket.org",
-        # Development tools
-        "docker.io",
-        "registry.docker.io",
-        "hub.docker.com",
-        "quay.io",
-        "gcr.io",
-        "ghcr.io",
-        "cdn.jsdelivr.net",
-        "unpkg.com",
-        "cdnjs.cloudflare.com",
-        # Documentation
-        "docs.python.org",
-        "docs.npmjs.com",
-        "docs.docker.com",
-        "docs.github.com",
-        "developer.mozilla.org",
-        "stackoverflow.com",
-        # AI/ML
-        "huggingface.co",
-        "cdn-lfs.huggingface.co",
-        "anthropic.com",
-        "api.anthropic.com",
-    ]
+    """Get the default whitelist domains from the shared whitelist file."""
+    whitelist_file = (
+        Path(__file__).parent
+        / "dockerfiles"
+        / "common-settings"
+        / "default-whitelist.txt"
+    )
+
+    if not whitelist_file.exists():
+        return []
+
+    domains = []
+    for line in whitelist_file.read_text().splitlines():
+        line = line.strip()
+        # Skip empty lines and comments
+        if line and not line.startswith("#"):
+            domains.append(line)
+
+    return domains

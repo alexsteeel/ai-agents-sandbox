@@ -1,4 +1,9 @@
-profile = "gpt-5-codex"
+profile = "default"
+
+[profiles.default]
+model = "gpt-5.2-codex"
+model_provider = "openai"
+model_reasoning_effort = "xhigh"
 
 [profiles.gpt-5-high]
 model = "gpt-5"
@@ -6,6 +11,13 @@ model_provider = "openai"
 model_reasoning_effort = "high"
 
 [profiles.gpt-5-codex]
-model = "gpt-5-codex"
+model = "gpt-5.2-codex"
 model_provider = "openai"
 model_reasoning_effort = "medium"
+
+[mcp_servers.md-task-mcp]
+command = "md-task-mcp"
+
+[mcp_servers.playwright]
+command = "playwright-mcp"
+args = ["--isolated", "--no-sandbox", "--headless"]
